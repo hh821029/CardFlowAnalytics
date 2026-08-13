@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCreditCardProjectPro - 總控制台</title>
+    <!-- 引入高品質字型 Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入通用外部樣式表 -->
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .module-card {
+            background-color: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .module-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        .module-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .module-icon {
+            font-size: 28px;
+            background: var(--card-bg-inner);
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .module-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .module-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 20px;
+            flex-grow: 1;
+        }
+
+        .module-footer {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .quick-badge {
+            background: var(--card-bg-inner);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #38bdf8;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎛️ MyCreditCardProjectPro 總控制台</h1>
+
+        <!-- 導覽超連結 -->
+        <div class="nav-bar">
+            <span class="active">🏠 總控制台</span> |
+            <a href="etl.html">📦 ETL帳單處理</a> |
+            <a href="cards_manager.html">💳 卡片管理</a> |
+            <a href="sync_config.html">⚙️ 設定同步面板</a> |
+            <a href="rfm_service.html">📊 RFM分析</a> |
+            <a href="reward_service.html">💰 回饋計算分析</a>
+        </div>
+
+        <!-- 系統狀態摘要儀表板 -->
+        <div id="status" class="status-box">
+            🟢 API 服務運作正常 | 點擊下方模組進入專屬操作頁面
+        </div>
+
+        <!-- 四大核心功能模組區 -->
+        <div class="dashboard-grid">
+            <!-- 模組一：ETL 帳單處理 -->
+            <div class="module-card">
+                <div>
+                    <div class="module-header">
+                        <span class="module-icon">📦</span>
+                        <h2 class="module-title">ETL 帳單資料處理</h2>
+                    </div>
+                    <p class="module-desc">
+                        解析各大銀行 (國泰、中信、華南、玉山等) 原始 CSV/PDF 帳單，自動執行商家名稱正規化、支付管道標記與特徵提取，精確寫入主資料庫。
+                    </p>
+                </div>
+                <div class="module-footer">
+                    <a href="etl.html" class="btn-primary" style="text-decoration:none; padding:10px 18px;">🚀 進入 ETL
+                        處理</a>
+                    <span class="quick-badge">Pipeline Step 1</span>
+                </div>
+            </div>
+
+            <!-- 模組二：設定與維度同步 -->
+            <div class="module-card">
+                <div>
+                    <div class="module-header">
+                        <span class="module-icon">⚙️</span>
+                        <h2 class="module-title">設定與維度同步</h2>
+                    </div>
+                    <p class="module-desc">
+                        同步卡片清單 (dim_cards)、回饋規則 (dim_rewards)、特約商家 (dim_merchants)、第三方支付與每日匯率，維護 Single Source of Truth
+                        (SSOT)。
+                    </p>
+                </div>
+                <div class="module-footer">
+                    <a href="sync_config.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #0284c7, #3b82f6);">⚙️
+                        進入設定同步</a>
+                    <span class="quick-badge">Configs & SSOT</span>
+                </div>
+            </div>
+
+            <!-- 模組三：RFM 行為分析 -->
+            <div class="module-card">
+                <div>
+                    <div class="module-header">
+                        <span class="module-icon">📊</span>
+                        <h2 class="module-title">RFM 客戶與矩陣分析</h2>
+                    </div>
+                    <p class="module-desc">
+                        依時間區間、發卡行、卡別與支付管道進行細粒度 RFM 行為分析，產生動態消費矩陣與客群洞察報表，匯出至 output/matrix/ 目錄。
+                    </p>
+                </div>
+                <div class="module-footer">
+                    <a href="rfm_service.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #ec4899, #8b5cf6);">📊
+                        進入 RFM 分析</a>
+                    <span class="quick-badge">Analytics Engine</span>
+                </div>
+            </div>
+
+            <!-- 模組四：回饋金瀑布計算 -->
+            <div class="module-card">
+                <div>
+                    <div class="module-header">
+                        <span class="module-icon">💰</span>
+                        <h2 class="module-title">回饋金瀑布計算</h2>
+                    </div>
+                    <p class="module-desc">
+                        瀑布式 (Waterfall) 計算各筆消費之現金/紅利回饋率，結合帳單週期、專屬通路加碼與上限截斷邏輯，精確產出折抵明細與對帳單。
+                    </p>
+                </div>
+                <div class="module-footer">
+                    <a href="reward_service.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #10b981, #3b82f6);">💰
+                        進入回饋計算</a>
+                    <span class="quick-badge">Reward Engine</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速捷徑操作區 -->
+        <div class="section-box">
+            <div class="section-title">⚡ 快速全域操作</div>
+            <p style="margin: 0 0 15px 0; font-size: 13px; color: var(--text-secondary);">一鍵啟動系統全量同步或特徵狀態檢視。
+            </p>
+            <div class="button-group">
+                <button id="btnConfigAll" class="btn-primary" onclick="runGlobalTask('config_all')">⚙️ 執行全量設定同步</button>
+                <button id="btnEtlAll" class="btn-primary"
+                    style="background: linear-gradient(135deg, #ec4899, #8b5cf6);" onclick="runGlobalTask('etl')">🚀 執行
+                    ETL 入庫</button>
+                <button id="btnFeatureStatus" class="btn-secondary" onclick="checkFeatureStatus()">🔍
+                    檢查資料特徵提取狀態</button>
+                <button id="btnClear" class="btn-secondary" onclick="clearConsole()">🧹 清空日誌</button>
+            </div>
+        </div>
+
+        <!-- 全域即時日誌控制台 -->
+        <div id="console" class="console">--- 總控制台 ready (點擊上方按鈕觸發任務) ---</div>
+    </div>
+
+    <script>
+        let eventSource = null;
+
+        function appendLog(message) {
+            const consoleDiv = document.getElementById('console');
+            const span = document.createElement('span');
+
+            if (message.includes('INFO')) span.className = 'log-info';
+            else if (message.includes('WARNING')) span.className = 'log-warning';
+            else if (message.includes('ERROR')) span.className = 'log-error';
+
+            if (message.includes('✅') || message.includes('🎉') || message.includes('成功') || message.includes('完畢')) {
+                span.className = 'log-success';
+            }
+
+            span.textContent = message + '\n';
+            consoleDiv.appendChild(span);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '--- 控制台已清空 ---';
+        }
+
+        function checkFeatureStatus() {
+            appendLog(`\n[${new Date().toLocaleTimeString()}] >>>>> 檢查特徵提取狀態 <<<<<`);
+            fetch('/api/etl/feature-status')
+                .then(res => res.json())
+                .then(data => {
+                    appendLog(`✅ 特徵提取狀態檢查完成: 總計 ${data.total_tables} 個表格`);
+                    if (data.data) {
+                        data.data.forEach(item => {
+                            appendLog(`  - 表格: ${item.table_name || item.table} | 覆蓋率: ${item.coverage || '100%'}`);
+                        });
+                    }
+                })
+                .catch(err => {
+                    appendLog(`❌ 檢查特徵狀態失敗: ${err}`);
+                });
+        }
+
+        function runGlobalTask(type) {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            const allButtons = document.querySelectorAll('button');
+            const statusDiv = document.getElementById('status');
+
+            allButtons.forEach(btn => btn.disabled = true);
+
+            statusDiv.textContent = `目前狀態：正在執行 [${type.toUpperCase()}] 任務中...`;
+            statusDiv.className = "status-box status-busy";
+
+            appendLog(`\n[${new Date().toLocaleTimeString()}] >>>>> 啟動 ${type.toUpperCase()} 全域任務 <<<<<`);
+
+            const url = `/api/run/${type}`;
+            eventSource = new EventSource(url);
+
+            eventSource.onmessage = function (event) {
+                appendLog(event.data);
+            };
+
+            eventSource.onerror = function (err) {
+                console.log("SSE Stream ended.");
+                eventSource.close();
+                eventSource = null;
+
+                allButtons.forEach(btn => btn.disabled = false);
+
+                statusDiv.textContent = `🟢 API 服務運作正常 | [${type.toUpperCase()}] 任務完成`;
+                statusDiv.className = "status-box";
+                appendLog(`[${new Date().toLocaleTimeString()}] <<<<< ${type.toUpperCase()} 任務完成 >>>>>\n`);
+            };
+        }
+
+        // 自動檢查伺服器健康狀態
+        fetch('/api/analyzable-data')
+            .then(res => res.json())
+            .then(data => {
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerHTML = `🟢 API 服務運作正常 | 已載入 ${data.banks?.length || 0} 家銀行、${data.cards?.length || 0} 張卡片`;
+            })
+            .catch(() => {
+                const statusDiv = document.getElementById('status');
+                statusDiv.innerHTML = `🔴 伺服器未連線 (請確定 Python API server python -m api.server 已啟動)`;
+                statusDiv.style.color = '#f87171';
+            });
+    </script>
+</body>
+
+</html>

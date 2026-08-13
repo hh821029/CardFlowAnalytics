@@ -1,0 +1,173 @@
+/* web/styles/body.css - Body 背景、區塊卡片、子卡片、按鈕與狀態欄樣式 */
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--bg-color);
+    margin: 0;
+    padding: 40px 20px;
+    color: var(--text-primary);
+    background-image: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.05) 0%, transparent 40%);
+    background-attachment: fixed;
+}
+
+/* 功能區塊排版 (Section Box) */
+.section-box {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    background-color: var(--card-bg);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.section-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+    border-left: 4px solid #38bdf8;
+    padding-left: 10px;
+    letter-spacing: -0.3px;
+}
+
+/* 內部子卡片切割樣式 */
+.sub-box-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 15px;
+}
+
+.sub-card {
+    background-color: var(--card-bg-inner);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.sub-card:hover {
+    border-color: rgba(56, 189, 248, 0.25);
+    transform: translateY(-2px);
+}
+
+.sub-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sub-card-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+    line-height: 1.5;
+}
+
+/* 按鈕元件樣式 */
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+button {
+    padding: 12px 22px;
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--btn-border);
+    border-radius: 8px;
+    background-color: var(--btn-bg);
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+button:hover:not(:disabled) {
+    background-color: #3e526a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+button:disabled {
+    background-color: #1e293b;
+    color: #64748b;
+    border-color: #334155;
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.5;
+}
+
+.btn-primary {
+    background: var(--primary-accent);
+    border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-accent-hover);
+}
+
+.btn-secondary {
+    background: #475569;
+    border-color: #64748b;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #64748b;
+}
+
+/* 狀態引導欄 */
+.status-box {
+    background-color: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    padding: 14px 20px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+    font-weight: 500;
+    color: #34d399;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.status-busy {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}

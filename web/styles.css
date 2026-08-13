@@ -1,0 +1,8 @@
+/* web/styles.css - 模組化 CSS 主進入點 */
+@import url('styles/head.css');
+@import url('styles/body.css');
+@import url('styles/container.css');
+@import url('styles/console.css');
+@import url('styles/error.css');
+@import url('styles/cards_manager.css');
+@import url('styles/login.css');

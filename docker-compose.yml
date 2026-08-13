@@ -1,0 +1,78 @@
+services:
+  # 1. PostgreSQL 資料庫服務
+  db:
+    image: postgres:17
+    container_name: my_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-credit_card_db}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-credit_card_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. C# 回饋計算引擎 API 服務
+  csharp-api:
+    build:
+      context: ./dotnet
+      dockerfile: RewardEngine.Api/Dockerfile
+    container_name: csharp_rewards_api
+    restart: always
+    ports:
+      - "127.0.0.1:${CSHARP_PORT:-5000}:5000"
+    environment:
+      - ASPNETCORE_URLS=http://+:5000
+      - DB_BACKEND=${DB_BACKEND:-postgres}
+      - PG_HOST=db
+      - PG_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-credit_card_db}
+    volumes:
+      - ./profiles:/app/profiles
+      - ./output:/app/output
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 3. Python ETL / Web 控制台 API 服務
+  python-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: python_web_api
+    restart: always
+    ports:
+      - "127.0.0.1:${PYTHON_PORT:-8000}:8000"
+    environment:
+      - ACTIVE_PROFILE=${ACTIVE_PROFILE:-user_main}
+      - DB_BACKEND=${DB_BACKEND:-postgres}
+      - IS_IN_DOCKER=True
+      - PG_HOST=db
+      - PG_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-credit_card_db}
+      - CSHARP_REWARDS_API_URL=http://csharp-api:5000/api/run/rewards
+      - USE_CSHARP_REWARDS_ENGINE=True
+    volumes:
+      - ./profiles:/app/profiles
+      - ./output:/app/output
+      - ./database:/app/database
+      - ./web:/app/web
+    depends_on:
+      db:
+        condition: service_healthy
+      csharp-api:
+        condition: service_started
+
+volumes:
+  pgdata:

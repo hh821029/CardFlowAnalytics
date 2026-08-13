@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCreditCardProjectPro - {title}</title>
+    <!-- 引入 Outfit 字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引用通用 styles.css (包含 styles/error.css) -->
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>⚠️ 系統錯誤控制台</h1>
+
+        <!-- 導覽超連結 -->
+        <div class="nav-bar">
+            <a href="/index.html">🏠 總控制台</a> |
+            <a href="/etl.html">📦 ETL帳單處理</a> |
+            <a href="cards_manager.html">💳 卡片圖形管理</a> |
+            <a href="/sync_config.html">⚙️ 設定同步面板</a> |
+            <a href="/rfm_service.html">📊 RFM分析</a> |
+            <a href="/reward_service.html">💰 回饋計算分析</a>
+        </div>
+
+        <div class="section-box error-card">
+            <div class="error-badge">{status_code}</div>
+            <div class="error-title">{title}</div>
+            <p class="error-desc">{summary}</p>
+
+            <div class="error-detail-box">
+                📄 詳細錯誤訊息 / 詳細資訊：
+                {display_detail}
+            </div>
+
+            <div class="button-group" style="justify-content: center;">
+                <a href="/index.html" class="btn-primary" style="text-decoration: none;">🏠 返回總控制台</a>
+                <button class="btn-secondary" onclick="location.reload()">🔄 重新整理頁面</button>
+            </div>
+        </div>
+
+        <div class="status-box status-busy" style="justify-content: center;">
+            ⚠️ 此錯誤狀況已自動寫入系統 <code>errorlog/</code> 日誌資料夾。
+        </div>
+    </div>
+</body>
+
+</html>

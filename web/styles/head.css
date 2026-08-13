@@ -1,0 +1,67 @@
+/* web/styles/head.css - 變數、字型、頁首與導覽列樣式 */
+
+:root {
+    --bg-color: #0f172a;
+    --container-bg: #1e293b;
+    --card-bg: #273549;
+    --card-bg-inner: #1f293d;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --border-color: #38bdf820;
+    --primary-accent: linear-gradient(135deg, #0284c7, #3b82f6);
+    --primary-accent-hover: linear-gradient(135deg, #0369a1, #2563eb);
+    --secondary-accent: linear-gradient(135deg, #10b981, #059669);
+    --btn-bg: #334155;
+    --btn-border: #475569;
+    --console-bg: #0b1329;
+    --font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+h1 {
+    color: var(--text-primary);
+    font-size: 28px;
+    font-weight: 700;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 15px;
+    margin-top: 0;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 頂部導覽列樣式 */
+.nav-bar {
+    background-color: var(--card-bg);
+    padding: 12px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    margin-bottom: 30px;
+    font-size: 14px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.nav-bar a {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: color 0.2s, transform 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.nav-bar a:hover {
+    color: #38bdf8;
+    transform: translateY(-1px);
+}
+
+.nav-bar span.active {
+    font-weight: 600;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}

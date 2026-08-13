@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCreditCardProjectPro - Profile 管理</title>
+    <!-- 引入高品質字型 Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-icon">💳</div>
+            <h2 class="login-title"> Profile 管理</h2>
+            <p class="login-subtitle">確認與維護個人信用卡設定檔</p>
+        </div>
+
+        <div id="alertBox" class="alert-box"></div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label class="form-label" for="username">Profile 代碼</label>
+                <input type="text" id="username" class="form-input" value="main" placeholder="例如: main (自動連結 user_main)"
+                    required>
+            </div>
+
+            <!-- 註解金鑰/密碼驗證區塊，僅保留 Profile 代碼切換功能 -->
+            <!--
+            <div class="form-group">
+                <label class="form-label" for="password">驗證金鑰 / 密碼</label>
+                <input type="password" id="password" class="form-input" placeholder="可留空或輸入隨意金鑰">
+            </div>
+            -->
+
+            <button type="submit" id="btnLogin" class="login-btn">⚙️ 切換 Profile 並進入</button>
+        </form>
+    </div>
+
+    <script>
+        async function handleLogin(e) {
+            e.preventDefault();
+            const alertBox = document.getElementById('alertBox');
+            const btnLogin = document.getElementById('btnLogin');
+            const username = document.getElementById('username').value.trim();
+            /* 密碼驗證邏輯已註解停用 */
+            /* const password = document.getElementById('password') ? document.getElementById('password').value : ''; */
+            const password = '';
+
+            alertBox.style.display = 'none';
+            btnLogin.disabled = true;
+            btnLogin.innerText = '⌛ 正在切換 Profile...';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'ok') {
+                    alertBox.className = 'alert-box alert-success';
+                    alertBox.innerText = '✅ ' + data.message;
+                    alertBox.style.display = 'block';
+
+                    setTimeout(() => {
+                        window.location.href = 'cards_manager.html';
+                    }, 600);
+                } else {
+                    alertBox.className = 'alert-box alert-error';
+                    alertBox.innerText = '❌ ' + (data.detail || '切換失敗，請確認 Profile 代碼');
+                    alertBox.style.display = 'block';
+                    btnLogin.disabled = false;
+                    btnLogin.innerText = '⚙️ 切換 Profile 並進入';
+                }
+            } catch (err) {
+                alertBox.className = 'alert-box alert-error';
+                alertBox.innerText = '❌ 連線 API 伺服器失敗: ' + err.message;
+                alertBox.style.display = 'block';
+                btnLogin.disabled = false;
+                btnLogin.innerText = '⚙️ 切換 Profile 並進入';
+            }
+        }
+    </script>
+</body>
+
+</html>

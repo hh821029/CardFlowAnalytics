@@ -1,0 +1,155 @@
+/* web/styles/container.css - 主容器、篩選區塊、核取方塊與美化控制項樣式 */
+
+.container {
+    max-width: 950px;
+    margin: 0 auto;
+    background: var(--container-bg);
+    padding: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+}
+
+/* 篩選區塊樣式 */
+.filter-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 20px;
+    margin-top: 20px;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.filter-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+}
+
+.filter-card {
+    background-color: var(--card-bg-inner);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 隱藏 details 原生的箭頭 */
+.filter-card details summary {
+    list-style: none;
+    outline: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+.filter-card details summary::-webkit-details-marker {
+    display: none;
+}
+
+/* 自訂三角箭頭樣式與動畫 */
+.filter-card .arrow-icon {
+    display: inline-block;
+    transition: transform 0.2s ease-in-out;
+    margin-right: 6px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.filter-card details[open] .arrow-icon {
+    transform: rotate(90deg);
+}
+
+.filter-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 當 details 摺疊時不顯示底線與下方邊距 */
+.filter-card details .filter-card-header {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* 當 details 展開時顯示底線與下方邊距 */
+.filter-card details[open] .filter-card-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.filter-link {
+    color: #38bdf8;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.filter-link:hover {
+    text-decoration: underline;
+}
+
+.filter-list {
+    max-height: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 4px;
+}
+
+/* 自訂美化 Checkbox */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: background-color 0.15s;
+    user-select: none;
+    color: var(--text-secondary);
+}
+
+.checkbox-label:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 8px;
+    width: 15px;
+    height: 15px;
+    accent-color: #38bdf8;
+    cursor: pointer;
+}
