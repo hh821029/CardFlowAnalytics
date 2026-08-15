@@ -77,6 +77,8 @@ class TransactionColumn(Enum):
     PROCESS_PREFIX = ColumnSpec('process_prefix', 'str', 50, 'process_prefix')
     EC_PLATFORM = ColumnSpec('ec_platform', 'str', 100, 'ec_platform')
     EC_PLATFORM_PATTERN = ColumnSpec('ec_platform_pattern', 'str', 100, 'ec_platform_pattern')
+    EC_CATEGORY = ColumnSpec('ec_category', 'str', 100, 'ec_category')
+    EC_SUB_CATEGORY = ColumnSpec('ec_sub_category', 'str', 100, 'ec_sub_category')
 
     # 消費金額資訊
     CURRENCY = ColumnSpec('currency_type', 'str', 3, 'currency_type')
@@ -572,11 +574,13 @@ COL_ENABLE_REWARD_CALC = TransactionColumn.ENABLE_REWARD_CALC.col_name
 COL_VPC_NO = TransactionColumn.VPC_NO.col_name
 COL_VPC_TYPE = TransactionColumn.VPC_TYPE.col_name
 
-# 其他資訊
 COL_INS_PLN = TransactionColumn.INS_PLN.col_name
 COL_PAYMENT_PROCESS = TransactionColumn.PAYMENT_PROCESS.col_name
 COL_PROCESS_PREFIX = TransactionColumn.PROCESS_PREFIX.col_name
 COL_EC_PLATFORM = TransactionColumn.EC_PLATFORM.col_name
+COL_EC_PLATFORM_TYPE = TransactionColumn.EC_PLATFORM_TYPE.col_name
+COL_EC_CATEGORY = TransactionColumn.EC_CATEGORY.col_name
+COL_EC_SUB_CATEGORY = TransactionColumn.EC_SUB_CATEGORY.col_name
 
 
 # ==========================================
@@ -593,37 +597,6 @@ COL_CAP_AMOUNT = TransactionColumn.CAP_AMOUNT.col_name               # 回饋上
 COL_CALC_METHOD = TransactionColumn.CALC_METHOD.col_name             # 計算策略 (PER_ITEM / AGGREGATE)
 COL_ROUND_STRATEGY = TransactionColumn.ROUND_STRATEGY.col_name       # 四捨五入策略 (如無條件捨去、無條件進位、四捨五入到整數、四捨五入到小數點後兩位等)
 COL_CONDITION = TransactionColumn.CONDITION.col_name                 # 條件標籤 (或 Regex 規則)
-
-
-
-# ==========================================
-# 4. 標準輸出欄位順序 (Schema Definition)
-# ==========================================
-
-# ==========================================
-# 4-1.寫入資料庫的交易資料標準欄位順序(Transactions Schema) 
-# ==========================================
-
-STANDARD_COLUMNS = [
-    COL_TXN_ID,         # 交易 ID   (由系統產生)
-    COL_TXN_DATE,       # 交易日期  (由帳單解析，必定存在)
-    COL_POST_DATE,      # 入帳日期  (由帳單解析，必定存在)
-    COL_CONV_DATE,      # 轉換日期  (由帳單解析，國外交易必定出現)
-    COL_STAT_MON,       # 結算月份  (由帳單標題解析，必定存在)
-    COL_BANK_NAME,      # 銀行名稱  (由帳單標題解析，必定存在)
-    COL_CARD_NO,        # 卡號末四碼 (由帳單解析，必定存在，下一次調整會移除)
-    COL_CARD_TYPE,      # 卡片類型  (由帳單解析，可由卡號末四碼透過持卡記錄補齊資訊)
-    COL_MERCHANT,       # 商家名稱  (由帳單解析，必定存在)
-    COL_LOCATION,       # 商家地點  (由帳單解析，必定存在，通常為國籍2碼)
-    COL_CONSUMPTION_PLACE,  # 商家地點(由帳單解析，城市或地區，交易明細不一定會記錄，下一次調整會移除)
-    COL_CURRENCY,       # 消費時的交易幣別  (由帳單解析，新台幣計價的國內交易不會出現)
-    COL_CURR_AMOUNT,    # 消費時的交易幣別金額  (由帳單解析，新台幣計價的國內交易不會出現)
-    COL_PAY_CURR,       # 繳款時的支付幣別  (由帳單解析，必定存在，預設TWD)
-    COL_PAY_AMOUNT,     # 繳款時的支付金額  (由帳單解析，必定存在)
-    COL_TXN_TYPE,       # 交易類型  (由系統產生)
-    COL_VPC_NO,
-    COL_VPC_TYPE        # 虛擬卡別  (由帳單解析，可由卡號末四碼透過持卡記錄補齊資訊)
-]
 
 # ==========================================
 # 4-2. 統一型別定義表 (The Law / Schema)

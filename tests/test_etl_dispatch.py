@@ -2,14 +2,15 @@ import sys
 import os
 import pytest
 import pandas as pd
+from etl.utils import STANDARD_COLUMNS
 
 # 將專案根目錄動態加入 sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import const
-from etl.etl_api import get_bank_info, get_parser
-from etl.etl_extraction import extract_raw_data
-from etl.etl_transformation import transform_data
+from etl.extraction import get_bank_info, get_parser
+from etl.extraction import extract_raw_data
+from etl.transformation import transform_data
 from database.loaders.schema_enforcer import SchemaEnforcer
 
 class TestETLDispatchAndSchema:
@@ -43,8 +44,8 @@ class TestETLDispatchAndSchema:
         assert parser_sinopac is not None, "❌ 應正確分派 永豐 Parser"
 
     def test_16_column_standard_schema(self):
-        """測試 3: 驗證 const.STANDARD_COLUMNS 包含預期的 16 個正規化欄位"""
-        assert len(const.STANDARD_COLUMNS) == 16, f"❌ STANDARD_COLUMNS 應精簡為 16 個欄位，當前為 {len(const.STANDARD_COLUMNS)}"
+        """測試 3: 驗證 STANDARD_COLUMNS 包含預期的 16 個正規化欄位"""
+        assert len(STANDARD_COLUMNS) == 16, f"❌ STANDARD_COLUMNS 應精簡為 16 個欄位，當前為 {len(STANDARD_COLUMNS)}"
         
         required_16 = [
             'transaction_id', 'transaction_date', 'posting_date', 'conversion_date',
@@ -53,7 +54,7 @@ class TestETLDispatchAndSchema:
             'payment_currency', 'payment_amount', 'transaction_type'
         ]
         for col in required_16:
-            assert col in const.STANDARD_COLUMNS, f"❌ STANDARD_COLUMNS 缺少欄位: {col}"
+            assert col in STANDARD_COLUMNS, f"❌ STANDARD_COLUMNS 缺少欄位: {col}"
 
     def test_schema_enforcer_on_16_columns(self):
         """測試 4: 驗證 SchemaEnforcer 針對 16 欄位資料的轉型與執法"""
@@ -64,7 +65,7 @@ class TestETLDispatchAndSchema:
             'conversion_date': None,
             'statement_month': '2024-10',
             'bank_name': '玉山商業銀行',
-            'card_no': '3833',
+            'card_no': '5413',
             'vpc_type': 'ApplePay',
             'merchant': 'PChome線上購物',
             'merchant_location': 'TW',
@@ -95,3 +96,57 @@ class TestETLDispatchAndSchema:
         transformed = transform_data(mock_raw)
         assert not transformed.empty
         assert 'transaction_date' in transformed.columns
+        assert 'normalized_merchant' in transformed.columns
+        assert 'merchant_display' in transformed.columns
+        assert 'payment_process' in transformed.columns
+
+    def test_loading_and_three_tables_mapping(self):
+        """測試 6: 驗證 loading.py 的 TransactionIdGenerator 與 3 張資料表 (All / RFM / Rewards) 映射"""
+        from etl.loading import TransactionIdGenerator, DBColMapper
+        # 模擬一筆經過 Refiner 清洗後的完整資料
+        mock_cleaned_df = pd.DataFrame([{
+            'transaction_date': '2024-10-01',
+            'posting_date': '2024-10-03',
+            'statement_month': '2024-10',
+            'bank_name': '玉山商業銀行',
+            'card_no': '5413',
+            'card_type': '玉山Unicard',
+            'merchant': 'LINEPay-PChome線上購物',
+            'merchant_display': 'LINE Pay－PChome線上購物',
+            'normalized_merchant': 'PChome線上購物',
+            'payment_process': 'LINE Pay',
+            'ec_platform': 'PChome',
+            'vpc_type': 'ApplePay',
+            'merchant_location': 'TW',
+            'currency_type': 'TWD',
+            'currency_amount': 1500.0,
+            'payment_currency': 'TWD',
+            'payment_amount': 1500.0,
+            'transaction_type': '一般消費',
+            'category': '網購與電商',
+            'sub_category': '綜合電商'
+        }])
+        # 1. 驗證 TransactionIdGenerator
+        id_gen = TransactionIdGenerator()
+        df_with_id = id_gen.generate_and_deduplicate(mock_cleaned_df)
+        assert 'transaction_id' in df_with_id.columns
+        assert len(df_with_id['transaction_id'].iloc[0]) == 32  # MD5 length
+        mapper = DBColMapper()
+        # 2. 驗證 all_transactions (交易事實主表)
+        all_df = mapper.map_all_transactions(df_with_id)
+        assert not all_df.empty
+        assert 'transaction_id' in all_df.columns
+        assert 'transaction_date' in all_df.columns
+        assert 'merchant_name' in all_df.columns  # 驗證 merchant -> merchant_name 更名成功
+        # 3. 驗證 rfm_transactions (RFM 分析專用表)
+        rfm_df = mapper.map_rfm_transactions(df_with_id)
+        assert not rfm_df.empty
+        assert 'transaction_id' in rfm_df.columns
+        assert 'category' in rfm_df.columns
+        assert 'payment_process' in rfm_df.columns
+        # 4. 驗證 rewards_transactions (回饋計算專用表)
+        rewards_df = mapper.map_rewards_transactions(df_with_id)
+        assert not rewards_df.empty
+        assert 'transaction_id' in rewards_df.columns
+        assert 'merchant_display' in rewards_df.columns
+        assert 'card_type' in rewards_df.columns

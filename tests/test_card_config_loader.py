@@ -6,8 +6,9 @@ import pandas as pd
 # 路徑設定：加入專案根目錄動態
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from profiles.loaders.config_loader import ConfigLoader
 import const
+from profiles.loaders.config_loader import ConfigLoader
+
 
 class TestCardDataLoading:
     """測試銀行、信用卡產品主檔與個人持卡橋接表的資料讀取與 3NF 外鍵參照完整性"""
