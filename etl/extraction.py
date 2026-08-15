@@ -25,6 +25,8 @@ try:
 except ImportError:
     ConfigLoader = None
 
+from etl.utils import save_anomaly_report
+
 logger = logging.getLogger(__name__)
 
 DATA_DIR = const.DATA_DIR
@@ -99,19 +101,7 @@ def get_parser_mapping() -> Dict[str, Any]:
         "hncb": HNCBParser(bank_id_or_keyword="hncb")
     }
 
-def save_anomaly_report(df: pd.DataFrame, filename: str, message: str):
-    """
-    將異常或未定義的交易資料匯出至 output 資料夾，供使用者檢查。
-    """
-    try:
-        if df is None or df.empty:
-            return
-        
-        report_path = os.path.join(OUTPUT_DIR, filename)
-        df.to_csv(report_path, index=False, encoding='utf-8-sig')
-        logger.warning(f"⚠️ {message}，已將診斷資料匯出至: {report_path}")
-    except Exception as e:
-        logger.error(f"❌ 無法匯出異常報告: {e}")
+
 
 # ==========================================
 # Extract 階段進入點

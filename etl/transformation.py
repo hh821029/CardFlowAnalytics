@@ -20,7 +20,7 @@ try:
 except ImportError:
     ConfigLoader = None
 
-from etl.etl_extraction import save_anomaly_report
+from etl.utils import save_anomaly_report
 
 logger = logging.getLogger(__name__)
 

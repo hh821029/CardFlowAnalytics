@@ -33,6 +33,8 @@ class MerchantNormalizer:
         # 初始化必要欄位
         if const.COL_CATEGORY not in df.columns: 
             df[const.COL_CATEGORY] = None
+        if const.COL_NORMALIZED_MERCHANT not in df.columns:
+            df[const.COL_NORMALIZED_MERCHANT] = df[const.COL_MERCHANT]
         if const.COL_MERCHANT_DISPLAY not in df.columns:
             df[const.COL_MERCHANT_DISPLAY] = df[const.COL_MERCHANT]
         
@@ -44,7 +46,7 @@ class MerchantNormalizer:
         for _, rule in self.rules.iterrows():
             # 支援多種可能的欄位名稱 (相容新舊格式：merchant_pattern, merchant_patterns, pattern)
             pattern = rule.get(const.COL_MERCHANT_PATTERN) or rule.get('merchant_pattern') or rule.get('merchant_patterns') or rule.get('pattern')
-            replacement = rule.get(const.COL_MERCHANT_DISPLAY) or rule.get('merchant_display') or rule.get('merchant')
+            replacement = rule.get(const.COL_NORMALIZED_MERCHANT) or rule.get('normalized_merchant') or rule.get('merchant')
             category = rule.get(const.COL_CATEGORY) or rule.get('category')
             
             if not isinstance(pattern, str) or pattern == '': continue
@@ -63,7 +65,7 @@ class MerchantNormalizer:
                 if target_mask.any():
                     # 更新商家顯示名稱
                     if pd.notna(replacement) and str(replacement).strip() != '':
-                        df.loc[target_mask, const.COL_MERCHANT_DISPLAY] = replacement
+                        df.loc[target_mask, const.COL_NORMALIZED_MERCHANT] = replacement
                     
                     # 更新分類 (若規則有提供)
                     if pd.notna(category) and str(category).strip() != '':
