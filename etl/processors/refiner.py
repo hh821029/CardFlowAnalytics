@@ -44,8 +44,8 @@ class DataRefiner:
             df = res
             processed_mask = pd.Series(False, index=df.index)
 
-        # 4.5 階層式補位 (Stack Fallback & Cascade)
-        # 4.5.1 特店名稱補位：未被 dim_merchants 匹配時，若有電商平台則以電商平台名稱為準
+        # 5 階層式補位 (Stack Fallback & Cascade)
+        # 5.1 特店名稱補位：未被 dim_merchants 匹配時，若有電商平台則以電商平台名稱為準
         if const.COL_NORMALIZED_MERCHANT in df.columns:
             has_ec = (df[const.COL_EC_PLATFORM].fillna('') != '')
             ec_fallback_mask = (~processed_mask) & has_ec
@@ -53,12 +53,12 @@ class DataRefiner:
                 df.loc[ec_fallback_mask, const.COL_NORMALIZED_MERCHANT] = df.loc[ec_fallback_mask, const.COL_EC_PLATFORM]
                 logger.info(f"💡 已為 {ec_fallback_mask.sum()} 筆未匹配商家套用電商平台 Fallback 清洗")
 
-            # 4.5.2 若既無商家正規化也無電商平台，補為原始 merchant (銀行原始名稱)
+            # 5.2 若既無商家正規化也無電商平台，補為原始 merchant (銀行原始名稱)
             raw_fallback_mask = df[const.COL_NORMALIZED_MERCHANT].isna() | (df[const.COL_NORMALIZED_MERCHANT].astype(str).str.strip() == '')
             if raw_fallback_mask.any():
                 df.loc[raw_fallback_mask, const.COL_NORMALIZED_MERCHANT] = df.loc[raw_fallback_mask, const.COL_MERCHANT]
 
-        # 4.5.3 分類階層補位：若 category 為空且有 ec_category，則以 ec_category 補位
+        # 5.3 分類階層補位：若 category 為空且有 ec_category，則以 ec_category 補位
         if const.COL_EC_CATEGORY in df.columns and const.COL_CATEGORY in df.columns:
             cat_empty = df[const.COL_CATEGORY].isna() | (df[const.COL_CATEGORY].astype(str).str.strip() == '')
             cat_ec_has = df[const.COL_EC_CATEGORY].fillna('').astype(str).str.strip() != ''
@@ -73,11 +73,11 @@ class DataRefiner:
             if subcat_fallback.any():
                 df.loc[subcat_fallback, const.COL_SUB_CATEGORY] = df.loc[subcat_fallback, const.COL_EC_SUB_CATEGORY]
 
-        # 5. 堆疊拼裝最終顯示名稱 (Compose Merchant Display)
+        # 6. 堆疊拼裝最終顯示名稱 (Compose Merchant Display)
         #    公式：[支付前綴]－[電商平台]－[正規化商家名稱]
         df = self._apply_final_prefixes(df)
 
-        # 6. 交易分類 (Transaction Classification)
+        # 7. 交易分類 (Transaction Classification)
         #    根據 merchant_display / category 標記 transaction_type
         df = self.classifier.process(df)
 

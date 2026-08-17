@@ -29,7 +29,7 @@ OUTPUT_DIR = const.OUTPUT_DIR
 
 def transform_data(merged_df: pd.DataFrame) -> pd.DataFrame:
     """
-    STEP 3: 呼叫 DataRefiner 進行商家名稱正規化、前綴處理與交易類型分類
+    STEP 2: 呼叫 DataRefiner 進行商家名稱正規化、前綴處理與交易類型分類
     """
     final_df = merged_df
 
