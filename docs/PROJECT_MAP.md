@@ -83,7 +83,7 @@ graph TD
 | **ETL Pipeline Controller** | `etl/etl_api.py` | ETL 高階流程調度發起者（Facade API）。 | `etl_extraction`, `etl_transformation` |
 | **Loaders (DB Abstraction)**| `database/loaders/postgres_loader.py`, `database/loaders/sqlite_loader.py` | 支援 PostgreSQL 16 欄事實表、擴充表與 `vw_transactions_enriched` 視圖自動建立。 | psycopg2, sqlalchemy |
 | **Profile Configs & Sync** | `profiles/loaders/config_loader.py`, `profiles/loaders/sync_configs_to_db.py` | 管理 `dim_banks.yaml` 與個人持卡維度表，同步寫入 PostgreSQL/SQLite。 | PyYAML, Pandas |
-| **RFM Analytics** | `rfm_analysis/rfm_analysis_api.py` | 全方位 RFM 客群矩陣分析、消費特徵提取與統計圖表產出。 | Pandas, NumPy |
+| **RFM Analytics** | `analytics/rfm/modules.py` | 全方位 RFM 客群矩陣分析、消費特徵提取與統計圖表產出。 | Pandas, NumPy |
 | **C# Reward Engine** | `dotnet/RewardEngine.Core/` | 瀑布式回饋計算引擎、優先級對照、策略解析器。 | .NET 8 |
 | **C# Minimal API** | `dotnet/RewardEngine.Api/` | 高併發、低延遲 HTTP SSE 串流 API (Port 5000)，直連 PG 視圖。 | RewardEngine.Core |
 | **Python FastAPI Web API** | `api/server.py`, `api/routers/` | 模組化 APIRouter 路由器 (`etl.py`, `configs.py`, `analytics.py`) 與 HTTP SSE 轉發。 | FastAPI, httpx |
