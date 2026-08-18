@@ -10,6 +10,7 @@ public record RewardBridgeRule
     public string? VpcType { get; init; }
     public string? MobilePayment { get; init; }
     public string? EcPlatform { get; init; }
+    public string? NormalizedMerchant { get; init; }
     public string? MerchantDisplay { get; init; }
     public string? MerchantLocation { get; init; }
     public DateOnly? StartDate { get; init; }

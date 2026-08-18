@@ -41,13 +41,7 @@ public static class PostgresRuleLoader
     public static List<CardRewardProgram> LoadBasePrograms(string connectionString)
     {
         using var conn = new NpgsqlConnection(connectionString);
-        var sql = """
-            SELECT 
-                bank_name, card_type, base_reward_program, 
-                base_reward_rate, reward_cycle, min_single_transaction, cap_amount, 
-                start_date, end_date, reward_type, calc_method, round_strategy
-            FROM dim_card_rewards_base
-            """;
+        var sql = "SELECT * FROM dim_card_rewards_base";
 
         var rows = conn.Query(sql);
         var list = new List<CardRewardProgram>();
@@ -55,7 +49,7 @@ public static class PostgresRuleLoader
         foreach (var r in rows)
         {
             var row = (IDictionary<string, object>)r;
-            var rr = GetVal(row, "base_reward_rate");
+            var rr = GetVal(row, "base_reward_rate") ?? GetVal(row, "reward_rate");
             var mst = GetVal(row, "min_single_transaction");
             var ca = GetVal(row, "cap_amount");
 
@@ -64,7 +58,7 @@ public static class PostgresRuleLoader
                 BankName = GetVal(row, "bank_name")?.ToString() ?? "",
                 CardType = GetVal(row, "card_type")?.ToString() ?? "",
                 IsCurrentBenefit = GetVal(row, "is_current_benefit") != null ? ParseBool(GetVal(row, "is_current_benefit")) : true,
-                RewardProgram = GetVal(row, "base_reward_program")?.ToString() ?? "",
+                RewardProgram = (GetVal(row, "base_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
                 Source = RewardProgramSource.Base,
                 RewardRate = rr != null && decimal.TryParse(rr.ToString(), out var rate) ? rate : null,
                 RewardCycle = GetVal(row, "reward_cycle")?.ToString(),
@@ -84,13 +78,7 @@ public static class PostgresRuleLoader
     public static List<CardRewardProgram> LoadCampaignsPrograms(string connectionString)
     {
         using var conn = new NpgsqlConnection(connectionString);
-        var sql = """
-            SELECT 
-                bank_name, card_type, campaign_reward_program, 
-                campaign_reward_rate, reward_cycle, min_single_transaction, cap_amount, 
-                start_date, end_date, reward_type, calc_method, round_strategy
-            FROM dim_card_rewards_campaigns
-            """;
+        var sql = "SELECT * FROM dim_card_rewards_campaigns";
 
         var rows = conn.Query(sql);
         var list = new List<CardRewardProgram>();
@@ -98,7 +86,7 @@ public static class PostgresRuleLoader
         foreach (var r in rows)
         {
             var row = (IDictionary<string, object>)r;
-            var rr = GetVal(row, "campaign_reward_rate");
+            var rr = GetVal(row, "campaign_reward_rate") ?? GetVal(row, "reward_rate");
             var mst = GetVal(row, "min_single_transaction");
             var ca = GetVal(row, "cap_amount");
 
@@ -107,7 +95,7 @@ public static class PostgresRuleLoader
                 BankName = GetVal(row, "bank_name")?.ToString() ?? "",
                 CardType = GetVal(row, "card_type")?.ToString() ?? "",
                 IsCurrentBenefit = GetVal(row, "is_current_benefit") != null ? ParseBool(GetVal(row, "is_current_benefit")) : true,
-                RewardProgram = GetVal(row, "campaign_reward_program")?.ToString() ?? "",
+                RewardProgram = (GetVal(row, "campaign_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
                 Source = RewardProgramSource.Campaign,
                 RewardRate = rr != null && decimal.TryParse(rr.ToString(), out var rate) ? rate : null,
                 RewardCycle = GetVal(row, "reward_cycle")?.ToString(),
@@ -127,14 +115,7 @@ public static class PostgresRuleLoader
     public static List<RewardBridgeRule> LoadBridgeRules(string connectionString)
     {
         using var conn = new NpgsqlConnection(connectionString);
-        var sql = """
-            SELECT 
-                rules_reward_program, vpc_type, payment_process, ec_platform, 
-                merchant_display, merchant_location, start_date, end_date, 
-                merchant_rate, priority, reward_cal_break
-            FROM bridge_reward_rules
-            ORDER BY priority ASC
-            """;
+        var sql = "SELECT * FROM bridge_reward_rules ORDER BY priority ASC";
 
         var rows = conn.Query(sql);
         var list = new List<RewardBridgeRule>();
@@ -144,15 +125,17 @@ public static class PostgresRuleLoader
             var row = (IDictionary<string, object>)r;
             var mr = GetVal(row, "merchant_rate");
             var pr = GetVal(row, "priority");
+            var merchVal = GetVal(row, "merchant_display") ?? GetVal(row, "normalized_merchant") ?? GetVal(row, "merchant");
 
             list.Add(new RewardBridgeRule
             {
-                RulesRewardProgram = GetVal(row, "rules_reward_program")?.ToString() ?? "",
+                RulesRewardProgram = (GetVal(row, "rules_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
                 VpcType = GetVal(row, "vpc_type")?.ToString(),
-                MobilePayment = GetVal(row, "payment_process")?.ToString(),
+                MobilePayment = (GetVal(row, "payment_process") ?? GetVal(row, "mobile_payment"))?.ToString(),
                 EcPlatform = GetVal(row, "ec_platform")?.ToString(),
-                MerchantDisplay = GetVal(row, "merchant_display")?.ToString(),
-                MerchantLocation = GetVal(row, "merchant_location")?.ToString(),
+                NormalizedMerchant = GetVal(row, "normalized_merchant")?.ToString(),
+                MerchantDisplay = merchVal?.ToString(),
+                MerchantLocation = (GetVal(row, "merchant_location") ?? GetVal(row, "location"))?.ToString(),
                 StartDate = ParseDateOnly(GetVal(row, "start_date")),
                 EndDate = ParseDateOnly(GetVal(row, "end_date")),
                 MerchantRate = mr != null && decimal.TryParse(mr.ToString(), out var rate) ? rate : null,
@@ -166,10 +149,7 @@ public static class PostgresRuleLoader
     public static List<DailyBenefitSelection> LoadDailySelections(string connectionString)
     {
         using var conn = new NpgsqlConnection(connectionString);
-        var sql = """
-            SELECT base_reward_program, start_date, end_date, remark
-            FROM bridge_cube_selections
-            """;
+        var sql = "SELECT * FROM bridge_cube_selections";
 
         var rows = conn.Query(sql);
         var list = new List<DailyBenefitSelection>();
@@ -183,10 +163,10 @@ public static class PostgresRuleLoader
             {
                 list.Add(new DailyBenefitSelection
                 {
-                    BaseRewardProgram = GetVal(row, "base_reward_program")?.ToString() ?? "",
+                    BaseRewardProgram = (GetVal(row, "base_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
                     StartDate = sDate.Value,
                     EndDate = eDate.Value,
-                    Note = GetVal(row, "remark")?.ToString()
+                    Note = (GetVal(row, "remark") ?? GetVal(row, "note"))?.ToString()
                 });
             }
         }
@@ -196,10 +176,7 @@ public static class PostgresRuleLoader
     public static List<MonthlyBenefitSelection> LoadMonthlySelections(string connectionString)
     {
         using var conn = new NpgsqlConnection(connectionString);
-        var sql = """
-            SELECT rules_reward_program, campaign_reward_program, start_date, end_date, max_posting_date
-            FROM bridge_unicard_selections
-            """;
+        var sql = "SELECT * FROM bridge_unicard_selections";
 
         var rows = conn.Query(sql);
         var list = new List<MonthlyBenefitSelection>();
@@ -214,8 +191,8 @@ public static class PostgresRuleLoader
             {
                 list.Add(new MonthlyBenefitSelection
                 {
-                    RulesRewardProgram = GetVal(row, "rules_reward_program")?.ToString() ?? "",
-                    CampaignRewardProgram = GetVal(row, "campaign_reward_program")?.ToString() ?? "",
+                    RulesRewardProgram = (GetVal(row, "rules_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
+                    CampaignRewardProgram = (GetVal(row, "campaign_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
                     StartDate = sDate.Value,
                     EndDate = eDate.Value,
                     MaxPostingDate = mDate.Value
@@ -228,10 +205,7 @@ public static class PostgresRuleLoader
     public static List<BillingHistoryRecord> LoadBillingHistory(string connectionString)
     {
         using var conn = new NpgsqlConnection(connectionString);
-        var sql = """
-            SELECT bank_name, card_type, statement_month, closing_date, actual_closing_date
-            FROM dim_billing_history
-            """;
+        var sql = "SELECT * FROM dim_billing_history";
 
         var rows = conn.Query(sql);
         var list = new List<BillingHistoryRecord>();

@@ -9,7 +9,7 @@ namespace RewardEngine.Core.Loaders;
 /// </summary>
 public static class PostgresTransactionReader
 {
-    private const string TableName = "vw_transactions_enriched";
+    private const string TableName = "rewards_transactions";
 
     /// <summary>
     /// 讀取所有符合條件的交易，供回饋計算引擎使用。
@@ -69,20 +69,7 @@ public static class PostgresTransactionReader
             : string.Empty;
 
         var sql = $"""
-            SELECT
-                transaction_id    AS {nameof(RawRow.transaction_id)},
-                bank_name         AS {nameof(RawRow.bank_name)},
-                card_type         AS {nameof(RawRow.card_type)},
-                card_no           AS {nameof(RawRow.card_no)},
-                vpc_type          AS {nameof(RawRow.vpc_type)},
-                transaction_date  AS {nameof(RawRow.transaction_date)},
-                posting_date      AS {nameof(RawRow.posting_date)},
-                payment_amount    AS {nameof(RawRow.payment_amount)},
-                transaction_type  AS {nameof(RawRow.transaction_type)},
-                payment_process   AS {nameof(RawRow.payment_process)},
-                ec_platform       AS {nameof(RawRow.ec_platform)},
-                merchant_display  AS {nameof(RawRow.merchant_display)},
-                merchant_location AS {nameof(RawRow.merchant_location)}
+            SELECT *
             FROM {TableName}
             {whereClause}
             ORDER BY transaction_date, transaction_id
@@ -91,58 +78,60 @@ public static class PostgresTransactionReader
         try
         {
             using var conn = new NpgsqlConnection(connectionString);
-            var rows = conn.Query<RawRow>(sql, parameters);
-            return rows.Select(ToTransaction).ToList();
+            var rows = conn.Query(sql, parameters);
+            return rows.Select(r => ToTransaction((IDictionary<string, object>)r)).ToList();
         }
         catch (PostgresException ex) when (ex.SqlState == "42P01")
         {
-            throw new InvalidOperationException("❌ 資料庫中尚未建立視圖 [vw_transactions_enriched]。請先在 Web 控制台或 CLI 執行「🚀 產生帳單資料庫 (ETL)」載入帳單資料！", ex);
+            throw new InvalidOperationException($"❌ 資料庫中尚未建立視圖 [{TableName}]。請先在 Web 控制台或 CLI 執行「🚀 產生帳單資料庫 (ETL)」載入帳單資料！", ex);
         }
     }
 
-    private sealed class RawRow
+    private static object? GetVal(IDictionary<string, object> dict, string key)
     {
-        public string transaction_id { get; init; } = "";
-        public string bank_name { get; init; } = "";
-        public string card_type { get; init; } = "";
-        public string card_no { get; init; } = "";
-        public string? vpc_type { get; init; }
-        public object transaction_date { get; init; } = "";
-        public object posting_date { get; init; } = "";
-        public decimal payment_amount { get; init; }
-        public string? transaction_type { get; init; }
-        public string? payment_process { get; init; }
-        public string? ec_platform { get; init; }
-        public string? merchant_display { get; init; }
-        public string? merchant_location { get; init; }
+        foreach (var kvp in dict)
+        {
+            if (string.Equals(kvp.Key, key, StringComparison.OrdinalIgnoreCase))
+                return kvp.Value;
+        }
+        return null;
     }
 
-    private static RewardTransaction ToTransaction(RawRow r)
+    private static RewardTransaction ToTransaction(IDictionary<string, object> r)
     {
         DateOnly ParseDate(object? d)
         {
-            if (d is null) return DateOnly.MinValue;
+            if (d is null || d == DBNull.Value) return DateOnly.MinValue;
             if (d is DateTime dt) return DateOnly.FromDateTime(dt);
             if (d is DateOnly doVal) return doVal;
             var str = d.ToString()!.Split(' ')[0];
             return DateOnly.TryParse(str, out var parsed) ? parsed : DateOnly.MinValue;
         }
 
+        var amtObj = GetVal(r, "payment_amount") ?? GetVal(r, "amount") ?? 0m;
+        decimal.TryParse(amtObj.ToString(), out var amt);
+
+        var merch = GetVal(r, "merchant") ?? GetVal(r, "merchant_name");
+        var merchDisp = GetVal(r, "merchant_display") ?? merch;
+        var normMerch = GetVal(r, "normalized_merchant") ?? merchDisp;
+
         return new RewardTransaction
         {
-            TransactionId    = r.transaction_id,
-            BankName         = r.bank_name,
-            CardType         = r.card_type,
-            CardNo           = r.card_no,
-            VpcType          = r.vpc_type,
-            TransactionDate  = ParseDate(r.transaction_date),
-            PostingDate      = ParseDate(r.posting_date),
-            Amount           = r.payment_amount,
-            TransactionType  = r.transaction_type,
-            MobilePayment    = r.payment_process,
-            EcPlatform       = r.ec_platform,
-            MerchantDisplay  = r.merchant_display,
-            MerchantLocation = r.merchant_location
+            TransactionId    = GetVal(r, "transaction_id")?.ToString() ?? "",
+            BankName         = GetVal(r, "bank_name")?.ToString() ?? "",
+            CardType         = GetVal(r, "card_type")?.ToString() ?? "",
+            CardNo           = GetVal(r, "card_no")?.ToString() ?? "",
+            VpcType          = GetVal(r, "vpc_type")?.ToString(),
+            TransactionDate  = ParseDate(GetVal(r, "transaction_date")),
+            PostingDate      = ParseDate(GetVal(r, "posting_date")),
+            Amount           = amt,
+            TransactionType  = GetVal(r, "transaction_type")?.ToString(),
+            MobilePayment    = (GetVal(r, "payment_process") ?? GetVal(r, "mobile_payment"))?.ToString(),
+            EcPlatform       = GetVal(r, "ec_platform")?.ToString(),
+            Merchant         = merch?.ToString(),
+            MerchantDisplay  = merchDisp?.ToString(),
+            NormalizedMerchant = normMerch?.ToString(),
+            MerchantLocation = (GetVal(r, "merchant_location") ?? GetVal(r, "location"))?.ToString()
         };
     }
 }

@@ -11,6 +11,7 @@ public class RewardBridgeRuleMap : ClassMap<RewardBridgeRule>
         Map(m => m.VpcType).Name("vpc_type");
         Map(m => m.MobilePayment).Name("mobile_payment");
         Map(m => m.EcPlatform).Name("ec_platform");
+        Map(m => m.NormalizedMerchant).Name("normalized_merchant");
         Map(m => m.MerchantDisplay).Name("merchant_display");
         Map(m => m.MerchantLocation).Name("merchant_location");
         Map(m => m.MerchantRate).Name("merchant_rate");

@@ -39,6 +39,7 @@ services:
     volumes:
       - ./profiles:/app/profiles
       - ./output:/app/output
+      - ./errorlog:/app/errorlog
     depends_on:
       db:
         condition: service_healthy
@@ -66,6 +67,7 @@ services:
     volumes:
       - ./profiles:/app/profiles
       - ./output:/app/output
+      - ./errorlog:/app/errorlog
       - ./database:/app/database
       - ./web:/app/web
     depends_on:

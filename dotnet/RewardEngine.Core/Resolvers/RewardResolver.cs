@@ -127,7 +127,7 @@ public sealed class RewardResolver(
                         && Matches(b.VpcType, txn.VpcType)
                         && Matches(b.MobilePayment, txn.MobilePayment)
                         && Matches(b.EcPlatform, txn.EcPlatform)
-                        && Matches(b.MerchantDisplay, txn.MerchantDisplay)
+                        && Matches(b.NormalizedMerchant ?? b.MerchantDisplay, txn.NormalizedMerchant ?? txn.MerchantDisplay)
                         && Matches(b.MerchantLocation, txn.MerchantLocation))
             .OrderBy(b => b.Priority)
             .FirstOrDefault();
