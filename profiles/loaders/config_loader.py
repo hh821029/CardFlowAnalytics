@@ -181,6 +181,47 @@ class ConfigLoader:
         logger.warning(f"⚠️ 找不到對應的 YAML 配置檔: {clean_base}.yaml")
         return {}
 
+    @classmethod
+    def load_json(
+        cls, 
+        base_name: str,
+        config_dir: Optional[str] = None,
+        profile_name: Optional[str] = None
+    ) -> Union[Dict[str, Any], list]:
+        """
+        載入 JSON 格式的配置檔 (支援 Profile 雙層疊加/覆蓋與多重編碼嘗試)
+        """
+        public_dir = config_dir if config_dir else const.CONFIG_DIR
+        personal_dir = cls.get_profile_config_dir(profile_name)
+        clean_base = base_name.rsplit('.json', 1)[0]
+
+        # 尋找候選檔案 (優先 Personal Profile，次選 Public Common)
+        file_candidates = [
+            os.path.join(personal_dir, f"{clean_base}.json"),
+            os.path.join(public_dir, f"{clean_base}.json")
+        ]
+
+        for filepath in file_candidates:
+            if os.path.exists(filepath):
+                encodings = ['utf-8', 'utf-8-sig', 'cp950', 'big5']
+                for enc in encodings:
+                    try:
+                        with open(filepath, 'r', encoding=enc) as f:
+                            data = json.load(f)
+                            logger.debug(f"✅ 成功使用 {enc} 載入 JSON 配置: {os.path.basename(filepath)}")
+                            return data if data is not None else {}
+                    except UnicodeDecodeError:
+                        continue
+                    except json.JSONDecodeError as e:
+                        logger.error(f"❌ JSON 格式解析錯誤 ({filepath}): {e}")
+                        break
+                    except Exception as e:
+                        logger.warning(f"⚠️ 讀取 JSON 失敗 ({filepath}, {enc}): {e}")
+                        break
+
+        logger.debug(f"ℹ️ 找不到對應的 JSON 配置檔: {clean_base}.json")
+        return {}
+
 class ConfigFilter:
     """
     [設定與篩選條件載入器]
