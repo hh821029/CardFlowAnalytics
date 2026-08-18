@@ -132,28 +132,11 @@ class PostgresLoader(BaseDBLoader):
                 count = result.scalar()
                 logger.info(f"✅ PostgreSQL 資料庫作業完成！資料表 [{table_name}] 目前共有 {count} 筆資料。")
 
-            # 5. 若寫入表為 all_transactions，自動寫入 fact_transaction_merchants 並建構 vw_transactions_enriched 視圖
-            if table_name == 'all_transactions':
-                self.create_enriched_view(df)
-
         except Exception as e:
             logger.error(f"❌ 寫入 PostgreSQL 資料庫失敗: {e}", exc_info=True)
             raise e
 
-    def create_enriched_view(self, df_full: Optional[pd.DataFrame] = None):
-        """
-        委派 etl.views_manager 執行：
-        1. 物化寫入清洗擴充欄位至 fact_transaction_merchants
-        2. 自動建立 / 更新 PostgreSQL 分析視圖 (vw_rfm_analysis, vw_rewards_calculation, vw_transactions_enriched)
-        """
-        try:
-            from etl.views_manager import create_all_views, upsert_transaction_merchants
-            engine = self._get_engine()
-            if df_full is not None and not df_full.empty:
-                upsert_transaction_merchants(engine, df_full)
-            create_all_views(engine)
-        except Exception as e:
-            logger.warning(f"⚠️ 委派建立視圖失敗: {e}")
+
 
     def _ensure_table_columns_exist(self, engine, table_name: str, df: pd.DataFrame):
         """
