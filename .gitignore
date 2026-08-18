@@ -1,6 +1,4 @@
 # 忽略資料夾
-data/
-configs/
 input/
 output/
 __pycache__/
@@ -13,6 +11,7 @@ excel_files/
 .vscode/
 profiles/user_*/
 profiles/common/
+!profiles/example_public
 .env
 
 
@@ -29,7 +28,7 @@ generate_mock_data.py
 
 # 忽略資料檔 (保護隱私！)
 *.xlsx
-*.csv
+
 *.db
 *.json
 Himitsu.py

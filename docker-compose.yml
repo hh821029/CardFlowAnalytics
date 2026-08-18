@@ -14,7 +14,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-credit_card_db}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-credit_card_db}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -74,5 +74,18 @@ services:
       csharp-api:
         condition: service_started
 
+  # 4. 前端 Nginx 網頁服務
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: web_frontend
+    restart: always
+    ports:
+      - "8080:80" # 本機打開 http://localhost:8080
+    depends_on:
+      - python-api
+
 volumes:
   pgdata:
+

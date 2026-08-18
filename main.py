@@ -4,10 +4,10 @@ import os
 import sys
 import time
 
-# 引入核心 ETL 與 RFM 分析 API
+# 引入核心 ETL 與 Analytics 分析 API
 import const
 from etl.etl_api import run_etl_pipeline
-from rfm_analysis.rfm_analysis_api import run_analytics
+from analytics.api import run_analytics
 from profiles.profiles_api import run_all_config_sync
 
 # ==========================================
