@@ -10,8 +10,8 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 import const
-from rfm_analysis.rfm_analysis_api import run_analytics
-from database.database_api import query_transactions_modular
+from analytics.api import run_analytics
+from analytics.common.transaction_query import query_transactions_modular
 from api.utils import run_task_and_stream
 
 logger = logging.getLogger(__name__)

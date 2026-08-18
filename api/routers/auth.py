@@ -53,7 +53,7 @@ async def api_login(response: Response, payload: dict = Body(...)):
     const.PROFILE_DATA_DIR = os.path.join(profile_dir, "data")
     const.PROFILE_JSON_PATH = os.path.join(profile_dir, "profile.json")
 
-    # 設定 HTTP-Only Cookie 標記 Session 確認目前登記的資料夾狀態
+    # 設定 HTTP-Only Cookie 標記 Session 並確認目前登記的資料夾狀態
     response.set_cookie(key="session_user", value=profile_id, httponly=True, samesite="lax")
 
     logger.info(f"🔑 使用者 '{username}' 登入成功，切換至 Profile: {profile_id}")
