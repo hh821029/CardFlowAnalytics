@@ -6,7 +6,6 @@ __pycache__/
 *.DS_Store
 .gemini
 my_first_server/
-server.py
 excel_files/
 .vscode/
 profiles/user_*/

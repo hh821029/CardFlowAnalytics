@@ -6,19 +6,14 @@
 2. 最初使用 Excel 配合公式和Vloopup、Xlookup和樞紐分析表來整理。伴隨著信用卡的申辦張數增加、獲得不同發卡銀行的信用卡，以及各種回饋比較狀況下，Excel變得難以維持，因此透過AI工具輔助開發程式自動化資料清理和整理資料，以維持對消費情境的解析能力和回饋最佳化策略。
 
 3. 面臨的挑戰與痛點：在嘗試將整理邏輯的過程中，發現帳單整合會遇到很多問題：
-*   Data Consistency (數據一致性): 支付通路或商家名稱會因不同銀行帳單而異，導致消費明細格式多樣、極難歸一化。
+    *   Data Consistency (數據一致性): 支付通路或商家名稱會因不同銀行帳單而異，導致消費明細格式多樣、極難歸一化。
+    *   Scalability (擴充性瓶頸): 隨著卡片張數增加、回饋規則變動、以及觀察商家狀態、校對回饋以及資料儲存的時間成本呈幾何級數增長，Excel 已難以負荷複雜的邏輯。
+    *   Privacy Risks (隱私安全風險): 將高度敏感的財務與消費數據上傳至第三方伺服器，即使已有強大的雲端 LLM (大型語言模型) API 可用於解析非結構化帳單，仍存在極大的隱私外洩疑慮。
+    *   Contextual Limitation (情境解析限制): 依賴記帳軟體進行分類或整理，會失去對消費行為的深度解析能力，進而無法得到個人化的消費最佳化策略。
 
-*   Scalability (擴充性瓶頸): 隨著卡片張數增加、回饋規則變動、以及觀察商家狀態、校對回饋以及資料儲存的時間成本呈幾何級數增長，Excel 已難以負荷複雜的邏輯。
-
-*   Privacy Risks (隱私安全風險): 將高度敏感的財務與消費數據上傳至第三方伺服器，即使已有強大的雲端 LLM (大型語言模型) API 可用於解析非結構化帳單，仍存在極大的隱私外洩疑慮。
-
-*   Contextual Limitation (情境解析限制): 依賴記帳軟體進行分類或整理，會失去對消費行為的深度解析能力，進而無法得到個人化的消費最佳化策略。
-
-3. 基於上述痛點，本專案建立了一個 Local-First ETL Pipeline，並有以下特色：
-
-*   Zero-Cloud Logic(零雲端): 所有原始 CSV 帳單解析、資料清洗與資料庫儲存均在本地端獨立完成。
-
-*   Rule Segregation(規則分離)：將包含個人資訊的邏輯進行脫敏處理與通用代碼分離，確保專案能安全地展示於公開的 GitHub 儲存庫。
+4. 基於上述痛點，本專案建立了一個 Local-First ETL Pipeline，並有以下特色：
+    *   Zero-Cloud Logic(零雲端): 所有原始 CSV 帳單解析、資料清洗與資料庫儲存均在本地端獨立完成。
+    *   Rule Segregation(規則分離)：將包含個人資訊的邏輯進行脫敏處理與通用代碼分離，確保專案能安全地展示於公開的 GitHub 儲存庫。
 
 透過此架構，系統不僅能支援後續的 RFM 模型 與 回饋最佳化 分析，更能透過RFM模型跟回饋計算的結果來提供個人化的消費策略建議。
 
@@ -26,10 +21,7 @@
 
 ## 🚀 快速上手 (Quick Start)
 
-   1. **環境設定**：`pip install -r requirements.txt`
-   2. **準備資料**：將銀行 CSV 帳單明細匯出後，放入 `data/` 資料夾。
-   3. **啟動分析介面**：`python -m api.server` (訪問 http://localhost:5000)
-   4. **執行 ETL**：透過 Web 介面點擊執行，或手動執行 `python main.py`。
+修正中....
 
 ---
 
@@ -94,8 +86,9 @@ graph TB
 
 ---
 
-## 📂 檔案結構 (File Structure)
+# 專案目錄結構與模組架構說明 (File Structure & Architecture)
 
+## 📌 一、專案全域目錄樹 (Directory Tree)
 ```text
 .
 My-Credit-Card-ETL/
@@ -107,91 +100,88 @@ My-Credit-Card-ETL/
 ├── const.py                    # [規範] 全域欄位定義與資料型態 (Single Source of Truth)
 │   
 ├── api/
-│   └── server.py               # [本機端伺服器] 
-│ 
-├── services/                   # [服務層] 負責呼叫服務對應的解析層、處理層
-│   ├── billing_service.py      # 服務：帳單關聯設定檢查
-│   ├── config_service.py       # 服務：帳單關聯，提取分析帳單的相關設定資料        
-│   ├── etl_service.py          # 服務：帳單資料清洗並產生SQLite資料庫
-│   ├── rfm_service.py          # 服務：從SQLite資料庫提取RFM分析要用的資料，並產生多視角報表
-│   ├── reward_service.py       # 服務：從SQLite資料庫提取回饋計算要用的資料
-│   └── transaction_service.py  # 服務：提取符合條件的交易資料
-│  
-├── parsers/                    # [解析層] 負責各銀行原始帳單轉為標準 DataFrame
-│   ├── base.py                 # Parser 基類，定義統一介面
-│   ├── cathay.py               # 國泰世華 (csv) 解析邏輯
-│   ├── esun.py                 # 玉山銀行 (csv) 解析邏輯
-│   ├── CTBC.py                 # 中國信託 (csv) 解析邏輯
-│   ├── sinopac.py              # 永豐銀行 (PDF) 解析邏輯
-│   └── hncb.py                 # 華南銀行 (格式偽裝) 解析邏輯
+│   ├── server.py               # web進入點
+│   └── routers/                # 各服務 API 進入點 
 │
-├── processors/                 # [處理層] 負責資料清洗、分類與商家對齊
-│   ├── refiner.py              # 清洗總指揮，協調各子處理器
-│   ├── classifier.py           # 自動標記交易類別 (一般、國外、退刷、繳款)
-│   ├── merchant.py             # 商家名稱清洗與正規化
-│   ├── mapper.py               # 欄位對應處理
-│   └── rewards.py               # 回饋計算處理
+├── database/                   # [資料庫層] 負責與資料庫進行互動
+│   ├── database_api.py         # 模組轉接點        
+│   └── loaders/                # 資料庫相關的載入與管理
 │
-├── loaders/                    # [載入層] 負責資料儲存、載入設定檔資料
-│   ├──bills_to_db.py           # 將清洗好的帳單資料存入Bills.db
-│   ├──sync_configs_to_db.py    # 將整理好的設定資料存入Configs.db
-│   ├──schema_enforcer.py       # 匯入型別規則已確認資料型態是否指定，阻止針對資料型態的預測
-│   ├──sqlite_loader.py         # 將資料匯入 SQLite (Bills.db、Configs.db) 
-│   └──config_loader.py         # 將相關的設定資料匯入主程式執行
+├── etl/                        # [ETL 資料處理層] 跨銀行帳單提取、洗滌與視圖管理
+│   ├── etl_api.py              # ETL 流程控制器 (Facade API)
+│   ├── etl_extraction.py       # 原始帳單檔案掃描與解析調度
+│   ├── etl_transformation.py   # 商家/支付管道交叉洗滌與正規化
+│   ├── views_manager.py        # PostgreSQL / SQLite 視圖建立與維護
+│   ├── utils.py                # 欄位標準化常數定義
+│   ├── parsers/                # 各銀行專用 Parser (玉山、國泰、中信、富邦、台新、星展等)
+│   └── processors/             # 商家正規化、支付管道、交易類型分類處理器
 │
-├── analytics/                  # [分析層] 負責進階數據建模
-│   ├── run_rfm.py              # RFM 分析執行腳本
-│   ├── rfm_modules.py          # RFM 計算引擎 (Merchant/Payment/Card)
-│   ├── rfm_utils.py            # RFM 計算核心
-│   └── run_rewards.py          # 回饋金計算執行腳本
+├── analytics/                  # [分析與模型層] 多時間視窗 RFM 客群與消費矩陣
+│   ├── api.py                  # 分析模組統一進入點 (run_analytics)
+│   ├── common/                 # 共用資料提取、過濾與排名工具
+│   ├── rfm/                    # 商家、消費類別、支付方式、信用卡四大維度 RFM
+│   └── matrix/                 # 三層支付管道 × 消費類別之消費矩陣 (Spending Matrix)
 │
-├── configs/                            # [設定檔資料夾] 
-│   ├── db_columns_mapping.py           # [設定檔] 資料庫欄位映射定義
-│   ├── dim_cards.csv                   # [設定檔] 真實卡號放置地點(已在 .gitignore)
-│   ├── transaction_types.yaml          # [設定檔] 銀行交易類別，排除持卡人跟銀行的交易像繳款、折抵/回饋、費用(手續費/服務費)(公開)
-│   ├── dim_category.yaml               # [設定檔] 商家分類
-│   ├── dim_merchants.csv               # [設定檔] 交易地點，使用Regex(正則表達式)-Replacement來清洗消費明細
-│   ├── dim_ec_platforms.csv            # [設定檔] 電商平台，使用Regex(正則表達式)-Replacement來清洗消費明細
-│   ├── dim_payment_process.csv         # [設定檔] 支付/處理流程，使用Regex(正則表達式)-Replacement來整理支付通路(公開)
-│   ├── dim_card_rewards_base.csv       # [設定檔] 基本回饋設定(已在 .gitignore)
-│   ├── dim_card_rewards_campaigns.csv  # [設定檔] 消費活動回饋設定(已在 .gitignore)
-│   ├── bridge_reward_rules.csv         # [設定檔] 基本回饋設定橋接表(已在 .gitignore)
-│   ├── bridge_cube_selections.csv      # [設定檔] Cube權益切換橋接表(已在 .gitignore)
-│   ├── dim_FX_Table.csv                # [設定檔] 銀行外幣牌告匯率表，供外幣消費回饋計算使用
-│   └── dim_billing_history.csv         # [設定檔] 結帳日歷史資料，回饋計算參考資料
+├── profiles/                   # [設定檔與規則層] 個人化與公開規則分離管理
+│   ├── profiles_api.py         # 設定檔同步進入點
+│   ├── common/configs/         # 公開通用設定 (dim_banks, dim_payment_process 等)
+│   ├── example_public/         # 公開範例 Profile
+│   ├── loaders/                # ConfigLoader (支援雙層疊加與 JSON/YAML 載入)
+│   └── user_main/              # 個人私有設定檔 (已透過 .gitignore 排除)
 │
-├── data/                       # [帳單csv放置處] 真實的 CSV 帳單放這邊。
-│   └── (各銀行帳單)
+├── web/                        # [前端介面層] 原生 Vanilla HTML/CSS/JS 控制台
+│   ├── index.html              # 總控制台首頁
+│   ├── etl.html                # 帳單 ETL 處理面板
+│   ├── rfm_service.html        # RFM 與 Matrix 分析視覺化面板
+│   ├── reward_service.html     # 回饋計算面板
+│   ├── cards_manager.html      # 信用卡視覺化管理面板
+│   └── sync_config.html        # 設定檔同步面板
 │
-├── database/                   # [資料庫放置處] 真實的 SQLite 資料庫放這邊。
-│   └── (Bills.db、Configs.db)
+├── dotnet/                     # [高效能回饋引擎] C# .NET 8 核心回饋計算服務
+│   ├── RewardEngine.Core/      # 瀑布式回饋計算演算法與規則引擎
+│   └── RewardEngine.Api/       # C# Minimal API (Port 5000)
 │
-└── output/                     # [輸出區] 存放 Bills.db、Configs.db 與 分析報表 (已在 .gitignore)
+└── docs/                       # [專案文件] 開發日誌、架構規劃與檔案結構說明
 
 ```
+## 🏛️ 二、分層架構與職責劃分 (Architecture Layers)
+依據職責將目錄分類為 6 大層級，並說明呼叫方向：
+1. **進入點層 (Entrypoints)**：`main.py` (CLI), `api/server.py` (Web API)
+2. **Web 與控制台層 (Presentation Layer)**：`web/`, `api/routers/`
+3. **資料處理與洗滌層 (ETL Layer)**：`etl/parsers/`, `etl/processors/`
+4. **資料庫與基礎設施層 (Infrastructure Layer)**：`database/loaders/`
+5. **商業邏輯與分析模型層 (Domain & Analytics Layer)**：`analytics/`, `dotnet/`
+6. **設定與規則管理層 (Configuration & Profiles Layer)**：`profiles/`, `const.py`
+
+## 🔄 三、資料處理生命週期 (Data Pipeline Lifecycle)
+用簡單的箭頭圖呈現資料從輸入到產出的流動：
+`原始帳單 (data/)` 
+  ➔ `ETL 解析與商家洗滌 (etl/)` 
+  ➔ `PostgreSQL / SQLite 儲存 (database/)` 
+  ➔ `全維度視圖 (vw_rfm_analysis / vw_rewards_calculation)` 
+  ➔ `RFM & 矩陣報表 (analytics/) / 回饋計算 (dotnet/)`
+## 🔒 四、隱私安全與規則分離規範 (Rule Segregation & Security)
+- **公開通用規則**：`profiles/common/configs/`
+- **個人私有規則**：`profiles/user_main/`（嚴格受 `.gitignore` 排除保護）
+- **暫存與產出物**：`output/`、`input/`、`data/`
 
 ---
 
 ## 🚀 未來演進與重構計畫 (Future Roadmap)
 隨著管線支援的銀行與信用卡數量增加，初期的「分散式維度設定檔」（將帳單解析規則、卡片資訊、回饋條件分別存放）已逐漸產生維護上的冗餘。為此，下一階段的系統架構將進行以下重構：
 
-*   提升擴充效率：
-        透過統一的資料庫關聯，未來新增銀行或卡片時，可實現單一入口 (Single Point of Entry) 的設定，大幅降低設定檔維護的時間成本，並確保 ETL 處理與回饋計算引擎提取參數時的一致性。
-
 *   瀑布式回饋引擎調整：
-    *   回饋適用順序跟計算結果，進行資料庫化的處理
-    *   若回饋週期依據帳單結帳週期的話，利用結帳日管理表來撈取資料計算回饋。
+    *   重新思考回饋計算引擎的規則分類JOIN方式，並在基本的瀑布式回饋引擎上改良。
 
-*   交易類型整理：
-    *   依據事先設定好的交易分類整理，以提供RFM分析跟回饋獲取的場景偏好
+*   RFM分析跟消費矩陣的視覺化跟分析結果入庫(預計採用SQLite放在database目錄下)：
+    *   提供RFM分析結果的視覺化。
+    *   提供消費矩陣的視覺化。
 
 *   前端網頁改善：
     *   卡片邏輯跟銀行邏輯連動：勾選銀行邏輯時會一起勾選對應的卡片和回饋邏輯。
 
 *   模擬資料設置：
     *   透過公開的模擬資料來模擬市場上主流卡片的回饋分析。
-
-
 
 ### 支援銀行擴充
 - [x] **玉山銀行**：已完整支援 (含 e.Point 折抵處理、多卡號歸戶邏輯)
