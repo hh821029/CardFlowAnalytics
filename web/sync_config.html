@@ -13,13 +13,19 @@
 
 <body>
     <div class="container">
-        <h1>MyCreditCardProjectPro 設定同步面板</h1>
+        <!-- 頁首標題區塊 -->
+        <div class="page-header">
+            <div>
+                <h1>⚙️ MyCreditCardProjectPro 設定同步面板</h1>
+                <p class="page-desc">將 CSV/JSON 設定資料更新或同步寫入至資料庫</p>
+            </div>
+        </div>
 
         <!-- 導覽超連結 -->
         <div class="nav-bar">
             <a href="index.html">🏠 總控制台</a> |
             <a href="etl.html">📦 ETL帳單處理</a> |
-            <a href="cards_manager.html">💳 卡片圖形管理</a> |
+            <a href="cards_manager.html">💳 卡片管理</a> |
             <span class="active">⚙️ 設定同步面板</span> |
             <a href="rfm_service.html">📊 RFM分析</a> |
             <a href="reward_service.html">💰 回饋計算分析</a>
@@ -31,7 +37,7 @@
             <p style="margin: 0 0 12px 0; font-size: 13px; color: var(--text-secondary);">將指定 CSV 檔案中的設定資料更新或合併寫入至資料庫。
             </p>
 
-            <div class="nav-bar" style="margin-bottom: 20px;">
+            <div class="button-group" style="margin-bottom: 20px;">
                 <button id="btnConfig_All" class="btn-primary" onclick="runTask('config_all')">⚙️
                     所有設定資料同步</button>
                 <button id="btnClear" class="btn-secondary" onclick="clearConsole()">🧹 清空控制台</button>

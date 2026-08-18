@@ -1,19 +1,5 @@
 /* web/styles/cards_manager.css - 卡片視覺化管理面板專用樣式 */
 
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    gap: 16px;
-}
-
-.header-actions {
-    display: flex;
-    gap: 12px;
-}
-
 .user-badge {
     display: inline-flex;
     align-items: center;
@@ -193,12 +179,13 @@
 .modal-content {
     background: #1e293b;
     border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 16px;
+    border-radius: var(--radius-lg, 16px);
     width: 100%;
-    max-width: 520px;
+    max-width: var(--modal-max-width, 540px);
     padding: 24px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
     color: #f8fafc;
+    box-sizing: border-box;
 }
 
 .modal-header {

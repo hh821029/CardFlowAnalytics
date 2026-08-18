@@ -1,14 +1,16 @@
 /* web/styles/container.css - 主容器、篩選區塊、核取方塊與美化控制項樣式 */
 
 .container {
-    max-width: 950px;
+    width: 100%;
+    max-width: var(--container-max-width, 1050px);
     margin: 0 auto;
     background: var(--container-bg);
-    padding: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    padding: var(--container-padding, 30px);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: var(--radius-lg, 16px);
+    box-shadow: var(--shadow-container, 0 15px 35px rgba(0, 0, 0, 0.4));
     backdrop-filter: blur(10px);
+    box-sizing: border-box;
 }
 
 /* 篩選區塊樣式 */

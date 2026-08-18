@@ -12,34 +12,39 @@
 
 <body>
     <div class="container">
+        <!-- 頁首標題區塊 -->
+        <div class="page-header">
+            <div>
+                <h1>💳 個人信用卡視覺化管理面板</h1>
+
+                <span style="float: right;">
+                    <span class="user-badge" id="userBadge">👤 帳號: 載入中...</span>
+                    <button class="btn-sm btn-danger" onclick="logout()">🚪 登出</button>
+                </span>
+
+                <p class="page-desc">
+                    視覺化維護 <code id="filePathLabel">bridge_user_cards.json</code> 卡片產品、換卡履歷與行動支付綁定 (`vpc_pay`)。
+                </p>
+
+            </div>
+        </div>
+
         <!-- 導覽列 -->
         <div class="nav-bar">
             <a href="index.html">🏠 總控制台</a> |
             <a href="etl.html">📦 ETL帳單處理</a> |
-            <span class="active">💳 卡片圖形管理</span> |
+            <span class="active">💳 卡片管理</span> |
             <a href="sync_config.html">⚙️ 設定同步面板</a> |
             <a href="rfm_service.html">📊 RFM分析</a> |
-            <a href="reward_service.html">💰 回饋計算</a>
-            <span style="float: right;">
-                <span class="user-badge" id="userBadge">👤 帳號: 載入中...</span>
-                <button class="btn-sm btn-danger" onclick="logout()">🚪 登出</button>
-            </span>
+            <a href="reward_service.html">💰 回饋計算分析</a>
         </div>
 
-        <!-- 主標題與控制項 -->
-        <div class="page-header">
-            <div>
-                <h1 style="margin: 0; font-size: 24px;">💳 個人信用卡視覺化管理面板</h1>
-                <p style="margin: 6px 0 0 0; font-size: 13px; color: var(--text-secondary);">
-                    視覺化維護 <code id="filePathLabel">bridge_user_cards.json</code> 卡片產品、換卡履歷與行動支付綁定 (`vpc_pay`)。
-                </p>
-            </div>
-            <div class="header-actions">
-                <button class="btn-primary" onclick="openAddCardModal()">➕ 新增卡片產品</button>
-                <button class="btn-secondary" style="background: linear-gradient(135deg, #10b981, #059669);"
-                    onclick="saveCardsToJson(true)">💾 儲存並同步 DB</button>
-            </div>
+        <div class="header-actions">
+            <button class="btn-primary" onclick="openAddCardModal()">➕ 新增卡片產品</button>
+            <button class="btn-secondary" style="background: linear-gradient(135deg, #10b981, #059669);"
+                onclick="saveCardsToJson(true)">💾 儲存並同步 DB</button>
         </div>
+
 
         <div id="statusAlert" class="alert-box"
             style="display: none; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;"></div>
