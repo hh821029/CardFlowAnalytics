@@ -1,0 +1,72 @@
+banks:
+  - bank_id: "esun"
+    bank_no: !!str "808"
+    bank_name: "玉山銀行"
+    bills_mapping_name: "玉山銀行"
+    keywords: ["ESUN", "玉山", "esun", "unicard"]
+
+  - bank_id: "cube"
+    bank_no: !!str "013"
+    bank_name: "國泰世華"
+    bills_mapping_name: "國泰世華"
+    keywords: ["CATHAY", "國泰", "國泰世華", "cathay", "cube", "CUBE"]
+
+  - bank_id: "ctbc"
+    bank_no: !!str "822"
+    bank_name: "中國信託"
+    bills_mapping_name: "中國信託"
+    keywords: ["CTBC", "中信", "中國信託", "ctbc", "中國信託商業銀行", "uniopen"]
+
+  - bank_id: "hncb"
+    bank_no: !!str "008"
+    bank_name: "華南銀行"
+    bills_mapping_name: "華南銀行"
+    keywords: ["HNCB", "華南", "hncb", "華南銀行"]
+
+  - bank_id: "sinopac"
+    bank_no: !!str "807"
+    bank_name: "永豐銀行"
+    bills_mapping_name: "永豐銀行"
+    keywords: ["SINOPAC", "永豐", "DAWHO", "DAWAY", "sinopac", "永豐銀行"]
+
+  - bank_id: "taishin"
+    bank_no: !!str "812"
+    bank_name: "台新銀行"
+    bills_mapping_name: "台新銀行"
+    keywords: ["TAISHIN", "台新銀行", "taishin", "RICHART","台新"]
+
+  - bank_id: "fubon"
+    bank_no: !!str "012"
+    bank_name: "台北富邦"
+    bills_mapping_name: "台北富邦"
+    keywords: ["FUBON", "富邦", "fubon", "台北富邦", "北富銀"]
+
+  - bank_id: "fcbk"
+    bank_no: !!str "007"
+    bank_name: "第一銀行"
+    bills_mapping_name: "第一銀行"
+    keywords: ["FCBK", "第一", "第一銀行", "fcbk", "firstbank"]
+
+  - bank_id: "dbs"
+    bank_no: !!str "810"
+    bank_name: "星展銀行"
+    bills_mapping_name: "星展銀行"
+    keywords: ["DBS", "星展", "星展銀行", "dbs"]
+
+  - bank_id: "ubot"
+    bank_no: !!str "803"
+    bank_name: "聯邦銀行"
+    bills_mapping_name: "聯邦銀行"
+    keywords: ["UBOT", "聯邦", "聯邦銀行", "ubot"]
+
+  - bank_id: "feib"
+    bank_no: !!str "805"
+    bank_name: "遠東銀行"
+    bills_mapping_name: "遠東銀行"
+    keywords: ["FEIB", "遠東", "遠東銀行", "feib"]
+
+  - bank_id: "yuanta"
+    bank_no: !!str "806"
+    bank_name: "元大銀行"
+    bills_mapping_name: "元大銀行"
+    keywords: ["YUANTA", "元大", "元大銀行", "yuanta"]
