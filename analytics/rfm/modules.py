@@ -3,12 +3,16 @@
 RFM 價值分群模型核心模組
 支援三大維度 (商家、付款管道、信用卡) 與雙維度交叉之多時間視窗 RFM 計算與 Segment 分群
 """
+import logging
 import pandas as pd
 import numpy as np
 from datetime import timedelta
 from typing import List, Dict, Any, Union, Optional, cast
 
 from analytics.common import get_clean_df, add_rfm_ranks
+from profiles.loaders.config_loader import ConfigLoader
+
+logger = logging.getLogger(__name__)
 
 def calculate_rfm_base(
     df_subset: pd.DataFrame, 
@@ -211,9 +215,51 @@ def calculate_payment_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, A
     final_df['segment'] = final_df.apply(_label_segment, axis=1)
     return final_df.reset_index()
 
+def _load_card_status_mapping() -> Dict[str, str]:
+    """
+    從 bridge_user_cards (優先讀 JSON，次讀 CSV) 載入 card_type -> status 映射
+    若該 card_type 底下有任一卡片為 active，則整體判定為 active；若全部為 cancelled 則為 cancelled。
+    """
+    status_map: Dict[str, str] = {}
+    
+    # 1. 優先嘗試讀取 bridge_user_cards.json
+    try:
+        data = ConfigLoader.load_json(base_name='bridge_user_cards')
+        if isinstance(data, list):
+            for card_item in data:
+                if isinstance(card_item, dict):
+                    ctype = str(card_item.get('card_type', '')).strip()
+                    if not ctype:
+                        continue
+                    history = card_item.get('card_history', [])
+                    is_active = any(
+                        str(h.get('status', '')).lower() == 'active' 
+                        for h in history if isinstance(h, dict)
+                    )
+                    status_map[ctype] = 'active' if is_active else 'cancelled'
+    except Exception as e:
+        logger.debug(f"讀取 bridge_user_cards.json 失敗: {e}")
+        
+    # 2. 若為空，嘗試透過 ConfigLoader.load_config 讀取 CSV
+    if not status_map:
+        try:
+            df_cards = ConfigLoader.load_config(base_name='bridge_user_cards')
+            if not df_cards.empty and 'card_type' in df_cards.columns:
+                status_col = 'status' if 'status' in df_cards.columns else 'is_active'
+                if status_col in df_cards.columns:
+                    for ctype, group in df_cards.groupby('card_type'):
+                        vals = group[status_col].astype(str).str.lower().tolist()
+                        has_active = any(v in ['active', 'true', '1'] for v in vals)
+                        status_map[str(ctype).strip()] = 'active' if has_active else 'cancelled'
+        except Exception as e:
+            logger.debug(f"讀取 bridge_user_cards.csv 失敗: {e}")
+            
+    return status_map
+
 def calculate_card_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, Any]]) -> pd.DataFrame:
     """
     信用卡維度 RFM 分群計算 (以 bank_name, card_type 聚合)
+    輸出欄位包含 status (active/cancelled) 與 segment 並列於前置欄位
     """
     df_clean = get_clean_df(df_raw)
     card_mask = df_clean['card_type'].notna() & (df_clean['card_type'] != '')
@@ -242,13 +288,24 @@ def calculate_card_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, Any]
         m_rank = row.get(f'{short_prefix}m_rank', 0)
         
         if f_rank >= 0.5 and m_rank >= 0.5:
-            return "👑 主力攻擊手"
+            return "👑 主要使用卡片"
         elif f_rank < 0.5 and m_rank >= 0.5:
-            return "🎯 狙擊手" 
+            return "🎯 特定用途使用卡片" 
         elif f_rank >= 0.5 and m_rank < 0.5:
-            return "🔄 後勤補給" 
+            return "🔄 備用卡片" 
         else:
-            return "📉 低效冗餘"
+            return "📉 不常用卡片"
         
     final_df['segment'] = final_df.apply(_label_segment, axis=1)
-    return final_df.reset_index()
+    res_df = final_df.reset_index()
+    
+    # 載入持卡狀態 (active / cancelled)
+    status_map = _load_card_status_mapping()
+    res_df['status'] = res_df['card_type'].apply(lambda x: status_map.get(str(x).strip(), 'active'))
+    
+    # 組織欄位順序: bank_name, card_type, status, segment, ... 其餘指標
+    lead_cols = ['bank_name', 'card_type', 'status', 'segment']
+    other_cols = [c for c in res_df.columns if c not in lead_cols]
+    ordered_cols = [c for c in lead_cols if c in res_df.columns] + other_cols
+    
+    return cast(pd.DataFrame, res_df[ordered_cols])
