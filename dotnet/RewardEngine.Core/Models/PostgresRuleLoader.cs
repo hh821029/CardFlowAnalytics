@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Dapper;
 using Npgsql;
 using RewardEngine.Core.Models;
@@ -9,6 +11,13 @@ namespace RewardEngine.Core.Loaders;
 /// </summary>
 public static class PostgresRuleLoader
 {
+    private static readonly JsonSerializerOptions DefaultJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString
+    };
+
     private static object? GetVal(IDictionary<string, object> dict, string key)
     {
         foreach (var kvp in dict)
@@ -49,15 +58,23 @@ public static class PostgresRuleLoader
         foreach (var r in rows)
         {
             var row = (IDictionary<string, object>)r;
+            var rewardId = (GetVal(row, "base_reward_id") ?? GetVal(row, "reward_id"))?.ToString() ?? "";
+            var cardId = GetVal(row, "card_id")?.ToString() ?? "";
+            var bankNo = GetVal(row, "bank_no")?.ToString() ?? "";
+            var priorityVal = GetVal(row, "priority") ?? GetVal(row, "base_priority");
             var rr = GetVal(row, "base_reward_rate") ?? GetVal(row, "reward_rate");
             var mst = GetVal(row, "min_single_transaction");
             var ca = GetVal(row, "cap_amount");
 
             list.Add(new CardRewardProgram
             {
+                RewardId = rewardId,
+                BankNo = bankNo,
                 BankName = GetVal(row, "bank_name")?.ToString() ?? "",
+                CardId = cardId,
                 CardType = GetVal(row, "card_type")?.ToString() ?? "",
-                IsCurrentBenefit = GetVal(row, "is_current_benefit") != null ? ParseBool(GetVal(row, "is_current_benefit")) : true,
+                Priority = priorityVal != null && int.TryParse(priorityVal.ToString(), out var p) ? p : 999,
+                RewardCalBreak = ParseBool(GetVal(row, "reward_cal_break") ?? GetVal(row, "base_reward_cal_break")),
                 RewardProgram = (GetVal(row, "base_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
                 Source = RewardProgramSource.Base,
                 RewardRate = rr != null && decimal.TryParse(rr.ToString(), out var rate) ? rate : null,
@@ -86,15 +103,23 @@ public static class PostgresRuleLoader
         foreach (var r in rows)
         {
             var row = (IDictionary<string, object>)r;
+            var rewardId = (GetVal(row, "campaigns_reward_id") ?? GetVal(row, "campaign_reward_id") ?? GetVal(row, "reward_id"))?.ToString() ?? "";
+            var cardId = GetVal(row, "card_id")?.ToString() ?? "";
+            var bankNo = GetVal(row, "bank_no")?.ToString() ?? "";
+            var priorityVal = GetVal(row, "priority") ?? GetVal(row, "campaign_priority");
             var rr = GetVal(row, "campaign_reward_rate") ?? GetVal(row, "reward_rate");
             var mst = GetVal(row, "min_single_transaction");
             var ca = GetVal(row, "cap_amount");
 
             list.Add(new CardRewardProgram
             {
+                RewardId = rewardId,
+                BankNo = bankNo,
                 BankName = GetVal(row, "bank_name")?.ToString() ?? "",
+                CardId = cardId,
                 CardType = GetVal(row, "card_type")?.ToString() ?? "",
-                IsCurrentBenefit = GetVal(row, "is_current_benefit") != null ? ParseBool(GetVal(row, "is_current_benefit")) : true,
+                Priority = priorityVal != null && int.TryParse(priorityVal.ToString(), out var p) ? p : 999,
+                RewardCalBreak = ParseBool(GetVal(row, "reward_cal_break") ?? GetVal(row, "campaign_reward_cal_break")),
                 RewardProgram = (GetVal(row, "campaign_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
                 Source = RewardProgramSource.Campaign,
                 RewardRate = rr != null && decimal.TryParse(rr.ToString(), out var rate) ? rate : null,
@@ -107,6 +132,87 @@ public static class PostgresRuleLoader
                 RewardType = GetVal(row, "reward_type")?.ToString(),
                 CalcMethod = GetVal(row, "calc_method")?.ToString(),
                 RoundStrategy = GetVal(row, "round_strategy")?.ToString()
+            });
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// 從 bridge_reward_linked_lists 資料表載入方案與特店回饋池之多對多關聯
+    /// </summary>
+    public static List<RewardLinkedList> LoadRewardLinkedLists(string connectionString)
+    {
+        using var conn = new NpgsqlConnection(connectionString);
+        var sql = "SELECT reward_id, merchant_reward_pools_id FROM bridge_reward_linked_lists";
+
+        var rows = conn.Query(sql);
+        var list = new List<RewardLinkedList>();
+
+        foreach (var r in rows)
+        {
+            var row = (IDictionary<string, object>)r;
+            var rewardId = GetVal(row, "reward_id")?.ToString()?.Trim();
+            var poolId = GetVal(row, "merchant_reward_pools_id")?.ToString()?.Trim();
+
+            if (!string.IsNullOrEmpty(rewardId) && !string.IsNullOrEmpty(poolId))
+            {
+                list.Add(new RewardLinkedList
+                {
+                    RewardId = rewardId,
+                    MerchantRewardPoolsId = poolId
+                });
+            }
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// 從 bridge_reward_pools 資料表載入特店回饋池，並將 JSONB 欄位反序列化為強型別物件
+    /// </summary>
+    public static List<MerchantRewardPool> LoadRewardPools(string connectionString)
+    {
+        using var conn = new NpgsqlConnection(connectionString);
+        var sql = "SELECT merchant_reward_pools_id, pool_name, pass_rules, rules FROM bridge_reward_pools";
+
+        var rows = conn.Query(sql);
+        var list = new List<MerchantRewardPool>();
+
+        foreach (var r in rows)
+        {
+            var row = (IDictionary<string, object>)r;
+            var poolId = GetVal(row, "merchant_reward_pools_id")?.ToString()?.Trim() ?? "";
+            var poolName = GetVal(row, "pool_name")?.ToString()?.Trim() ?? "";
+
+            var passRulesObj = GetVal(row, "pass_rules");
+            var rulesObj = GetVal(row, "rules");
+
+            MerchantRewardRule[] passRules = [];
+            MerchantRewardRule[] rules = [];
+
+            if (passRulesObj != null)
+            {
+                var passJson = passRulesObj is string s ? s : passRulesObj.ToString();
+                if (!string.IsNullOrWhiteSpace(passJson))
+                {
+                    passRules = JsonSerializer.Deserialize<MerchantRewardRule[]>(passJson, DefaultJsonOptions) ?? [];
+                }
+            }
+
+            if (rulesObj != null)
+            {
+                var rulesJson = rulesObj is string s ? s : rulesObj.ToString();
+                if (!string.IsNullOrWhiteSpace(rulesJson))
+                {
+                    rules = JsonSerializer.Deserialize<MerchantRewardRule[]>(rulesJson, DefaultJsonOptions) ?? [];
+                }
+            }
+
+            list.Add(new MerchantRewardPool
+            {
+                MerchantRewardPoolsId = poolId,
+                PoolName = poolName,
+                PassRules = passRules,
+                Rules = rules
             });
         }
         return list;

@@ -11,10 +11,15 @@ public class BaseCardRewardProgramMap : ClassMap<CardRewardProgram>
 {
     public BaseCardRewardProgramMap()
     {
+        Map(m => m.RewardId).Name("base_reward_id", "reward_id");
+        Map(m => m.BankNo).Name("bank_no").Optional();
         Map(m => m.BankName).Name("bank_name");
+        Map(m => m.CardId).Name("card_id").Optional();
         Map(m => m.CardType).Name("card_type");
         Map(m => m.IsCurrentBenefit).Name("是否為當前消費權益").Optional();
         Map(m => m.RewardProgram).Name("base_reward_program");
+        Map(m => m.Priority).Name("priority", "base_priority").Default(999);
+        Map(m => m.RewardCalBreak).Name("reward_cal_break", "base_reward_cal_break").Default(false);
         Map(m => m.RewardRate).Name("base_reward_rate");
         Map(m => m.RewardCycle).Name("reward_cycle");
         Map(m => m.MinSingleTransaction).Name("min_single_transaction");
@@ -39,10 +44,15 @@ public class CampaignCardRewardProgramMap : ClassMap<CardRewardProgram>
 {
     public CampaignCardRewardProgramMap()
     {
+        Map(m => m.RewardId).Name("campaigns_reward_id", "campaign_reward_id", "reward_id");
+        Map(m => m.BankNo).Name("bank_no").Optional();
         Map(m => m.BankName).Name("bank_name");
+        Map(m => m.CardId).Name("card_id").Optional();
         Map(m => m.CardType).Name("card_type");
         Map(m => m.IsCurrentBenefit).Name("是否為當前消費權益").Optional();
         Map(m => m.RewardProgram).Name("campaign_reward_program");
+        Map(m => m.Priority).Name("priority", "campaign_priority").Default(999);
+        Map(m => m.RewardCalBreak).Name("reward_cal_break", "campaign_reward_cal_break").Default(false);
         Map(m => m.RewardRate).Name("campaign_reward_rate");
         Map(m => m.RewardCycle).Name("reward_cycle");
         Map(m => m.MinSingleTransaction).Name("min_single_transaction");

@@ -102,4 +102,35 @@ public static class CsvRuleLoader
         csv.Context.RegisterClassMap<BillingHistoryRecordMap>();
         return csv.GetRecords<BillingHistoryRecord>().ToList();
     }
+
+    public static List<RewardLinkedList> LoadRewardLinkedLists(string csvPath)
+    {
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            HasHeaderRecord = true,
+            MissingFieldFound = null,
+            HeaderValidated = null
+        };
+
+        using var reader = new StreamReader(csvPath, System.Text.Encoding.UTF8);
+        using var csv = new CsvReader(reader, config);
+
+        var list = new List<RewardLinkedList>();
+        csv.Read();
+        csv.ReadHeader();
+        while (csv.Read())
+        {
+            var rewardId = csv.GetField("reward_id")?.Trim();
+            var poolId = csv.GetField("merchant_reward_pools_id")?.Trim();
+            if (!string.IsNullOrEmpty(rewardId) && !string.IsNullOrEmpty(poolId))
+            {
+                list.Add(new RewardLinkedList
+                {
+                    RewardId = rewardId,
+                    MerchantRewardPoolsId = poolId
+                });
+            }
+        }
+        return list;
+    }
 }
