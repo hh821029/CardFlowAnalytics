@@ -11,10 +11,15 @@ public enum RewardProgramSource
 /// </summary>
 public record CardRewardProgram
 {
+    public required string RewardId { get; init; }
+    public required string BankNo { get; init; }
     public required string BankName { get; init; }
+    public required string CardId { get; init; }
     public required string CardType { get; init; }
-    public bool IsCurrentBenefit { get; init; } = true;          // 是否為當前消費權益（可選，預設 true）
     public required string RewardProgram { get; init; }           // base_/campaign_reward_program
+    public required int Priority { get; init; }                   // base_/campaign_priority
+    public required bool RewardCalBreak { get; init; }           // base_/campaign_reward_cal_break
+
     public required RewardProgramSource Source { get; init; }
     /// <summary>
     /// CSV 允許空白（代表該 Program 本身無固定費率，完全依賴 BridgeRule 的 MerchantRate 覆蓋）
