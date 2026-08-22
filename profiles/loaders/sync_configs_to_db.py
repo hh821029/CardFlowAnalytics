@@ -18,8 +18,8 @@ from profiles.loaders.db_columns_mapping import (
     EC_PLATFORM_COL_MAPPING,
     REWARD_RULE_COL_MAPPING,
     BRIDGE_CUBE_SELECTION_COL_MAPPING,
-    BRIDGE_UNICARD_SELECTION_COL_MAPPING,
-    BRIDGE_UNIOPEN_VISIT_SPOTS_COL_MAPPING,
+    BRIDGE_REWARD_LINKED_LISTS_COL_MAPPING,
+    load_pools_json_to_df,
     FX_TABLE_COL_MAPPING,
     BILLING_HISTORY_COL_MAPPING,
 )
@@ -199,6 +199,31 @@ class ConfigSyncManager:
             strategy='append'
         )
 
+    def sync_reward_linked_lists(self):
+        self._sync_item(
+            "回饋方案組合表", 
+            "bridge_reward_linked_lists", 
+            "bridge_reward_linked_lists", 
+            BRIDGE_REWARD_LINKED_LISTS_COL_MAPPING, 
+            indices=['base_reward_id', 'campaign_reward_id'],
+            strategy='replace'
+        )
+
+    def sync_reward_pools(self):
+        try:
+            logger.info(f"🔄 正在同步 回饋方案池 (Backend: {self.db_backend})...")
+            df_pools = load_pools_json_to_df()
+            if df_pools.empty:
+                logger.warning("⚠️ 回饋方案池 資料為空，跳過同步。")
+                return
+            
+            self.loader.load(df_pools, "bridge_reward_pools", mode='replace', indices=['merchant_reward_pools_id'])
+            logger.info("✅ 回饋方案池 同步完成 -> [bridge_reward_pools]")
+        except Exception as e:
+            logger.error(f"❌ 回饋方案池 同步失敗: {e}", exc_info=True)
+
+
+
     def sync_reward_rules(self):
         self._sync_item(
             "回饋規則 (Waterfall)", 
@@ -216,26 +241,6 @@ class ConfigSyncManager:
             "bridge_cube_selections", 
             BRIDGE_CUBE_SELECTION_COL_MAPPING, 
             indices=['base_reward_program', 'start_date', 'end_date'],
-            strategy='replace'
-        )
-
-    def sync_bridge_unicard_selections(self):
-        self._sync_item(
-            "玉山Unicard方案訂閱歷史", 
-            "bridge_unicard_selections", 
-            "bridge_unicard_selections", 
-            BRIDGE_UNICARD_SELECTION_COL_MAPPING, 
-            indices=['rules_reward_program', 'campaign_reward_program', 'start_date', 'end_date'],
-            strategy='replace'
-        )
-
-    def sync_bridge_uniopen_visit_spots(self):
-        self._sync_item(
-            "中信Uniopen踩點加碼歷史", 
-            "bridge_uniopen_visit_spots", 
-            "bridge_uniopen_visit_spots", 
-            BRIDGE_UNIOPEN_VISIT_SPOTS_COL_MAPPING, 
-            indices=['campaign_reward_program', 'rules_reward_program', 'start_date', 'end_date'],
             strategy='replace'
         )
 
@@ -272,10 +277,10 @@ class ConfigSyncManager:
         self.sync_reward_campaigns()
         self.sync_reward_rules()
         self.sync_bridge_cube_selections()
-        self.sync_bridge_unicard_selections()
-        self.sync_bridge_uniopen_visit_spots()
         self.sync_dim_fx_table()
         self.sync_dim_billing_history()
+        self.sync_reward_linked_lists()
+        self.sync_reward_pools()
         
         logger.info("🏁 全量配置同步完成！")
 

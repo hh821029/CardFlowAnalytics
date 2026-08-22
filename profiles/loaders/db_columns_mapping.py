@@ -1,21 +1,9 @@
 import const
+import json
+import pandas as pd
 
 # 建立別名簡化程式碼 (Alias)
 TC = const.TransactionColumn
-
-def ALL_TRANSACTION_COL_MAPPING():
-    """
-    主要用於 Parser 正規化後的標準欄位對應。
-    這些 key 通常來自 const.py 中的定義。
-    """
-    return TC.get_mapping(
-        TC.TXN_DATE, TC.POST_DATE, TC.CONV_DATE, TC.STAT_MON,
-        TC.BANK_NAME, TC.CARD_TYPE, TC.CARD_NO, TC.MERCHANT,
-        TC.NORMALIZED_MERCHANT, TC.MERCHANT_DISPLAY, TC.LOCATION, TC.CONSUMPTION_PLACE,
-        TC.TXN_TYPE, TC.PAYMENT_PROCESS, TC.VPC_NO, TC.VPC_TYPE,
-        TC.CATEGORY, TC.SUB_CATEGORY, TC.CURRENCY, TC.CURR_AMOUNT,
-        TC.PAY_CURR, TC.PAY_AMOUNT, TC.EC_PLATFORM
-    )
 
 def BANK_COL_MAPPING():
     """對應 dim_banks.yaml / dim_banks.csv"""
@@ -54,24 +42,6 @@ def BRIDGE_USER_CARDS_COL_MAPPING():
         'is_enable_reward_calc': 'is_enable_reward_calc'
     }
 
-def REWARD_PROGRAM_COL_MAPPING():
-    """對應 dim_card_rewards_base.csv"""
-    return TC.get_mapping(
-        TC.BANK_NAME, TC.CARD_TYPE, TC.BASE_REWARD_PROGRAM, TC.BASE_REWARD_RATE,
-        TC.MERCHANT_RATE, TC.REWARD_CYCLE, TC.CAP_AMOUNT, TC.REWARD_TYPE,
-        TC.MIN_SINGLE_TRANSACTION,
-        TC.PROGRAM_START_DATE, TC.PROGRAM_END_DATE, TC.CALC_METHOD, TC.ROUND_STRATEGY
-    )
-
-def REWARD_CAMPAIGN_COL_MAPPING():
-    """對應 dim_card_rewards_campaigns.csv"""
-    return TC.get_mapping(
-        TC.BANK_NAME, TC.CARD_TYPE, TC.CAMPAIGN_REWARD_PROGRAM, TC.CAMPAIGN_REWARD_RATE,
-        TC.MERCHANT_RATE, TC.REWARD_CYCLE, TC.CAP_AMOUNT, TC.REWARD_TYPE,
-        TC.MIN_SINGLE_TRANSACTION,
-        TC.PROGRAM_START_DATE, TC.PROGRAM_END_DATE, TC.CALC_METHOD, TC.ROUND_STRATEGY
-    )
-
 def MERCHANT_COL_MAPPING():
     """對應 dim_merchants.csv"""
     return TC.get_mapping(
@@ -91,12 +61,26 @@ def EC_PLATFORM_COL_MAPPING():
         TC.EC_PLATFORM_PATTERN, TC.EC_PLATFORM, TC.EC_PLATFORM_TYPE, TC.PRIORITY
     )
 
-def REWARD_RULE_COL_MAPPING():
-    """對應 bridge_reward_rules.csv"""
+def REWARD_PROGRAM_COL_MAPPING():
+    """對應 dim_card_rewards_base.csv"""
     return TC.get_mapping(
-        TC.RULES_REWARD_PROGRAM, TC.PAYMENT_PROCESS, TC.LOCATION, TC.VPC_TYPE, TC.EC_PLATFORM, 
-        TC.MERCHANT_DISPLAY, TC.PROGRAM_START_DATE, TC.PROGRAM_END_DATE, 
-        TC.MERCHANT_RATE, TC.PRIORITY, TC.REWARD_CAL_BREAK
+        TC.BASE_REWARD_ID,
+        TC.BANK_NAME, TC.CARD_TYPE, TC.BASE_REWARD_PROGRAM, TC.BASE_REWARD_RATE,
+        TC.BASE_REWARD_RATE, TC.REWARD_CYCLE, TC.CAP_AMOUNT, TC.REWARD_TYPE,
+        TC.MIN_SINGLE_TRANSACTION,
+        TC.PROGRAM_START_DATE, TC.PROGRAM_END_DATE, 
+        TC.CALC_METHOD, TC.ROUND_STRATEGY, TC.PRIORITY, TC.REWARD_CAL_BREAK
+    )
+
+def REWARD_CAMPAIGN_COL_MAPPING():
+    """對應 dim_card_rewards_campaigns.csv"""
+    return TC.get_mapping(
+        TC.CAMPAIGN_REWARD_ID,
+        TC.BANK_NAME, TC.CARD_TYPE, TC.CAMPAIGN_REWARD_PROGRAM, TC.CAMPAIGN_REWARD_RATE,
+        TC.CAMPAIGN_REWARD_RATE, TC.REWARD_CYCLE, TC.CAP_AMOUNT, TC.REWARD_TYPE,
+        TC.MIN_SINGLE_TRANSACTION,
+        TC.PROGRAM_START_DATE, TC.PROGRAM_END_DATE, 
+        TC.CALC_METHOD, TC.ROUND_STRATEGY, TC.PRIORITY, TC.REWARD_CAL_BREAK
     )
 
 def BRIDGE_CUBE_SELECTION_COL_MAPPING():
@@ -106,20 +90,34 @@ def BRIDGE_CUBE_SELECTION_COL_MAPPING():
         ('備註', TC.REMARK)
     )
 
-def BRIDGE_UNICARD_SELECTION_COL_MAPPING():
-    """對應 bridge_unicard_selections_private.csv"""
+def BRIDGE_REWARD_LINKED_LISTS_COL_MAPPING():
+    """對應 bridge_reward_linked_lists_private.csv"""
     return TC.get_mapping(
-        TC.CAMPAIGN_REWARD_PROGRAM, TC.RULES_REWARD_PROGRAM,
-        TC.PROGRAM_START_DATE, TC.PROGRAM_END_DATE, 
-        TC.MAX_POSTING_DATE, TC.CAMPAIGN_REWARD_RATE, TC.CAP_AMOUNT
+        TC.REWARD_ID, TC.MERCHANT_REWARD_POOLS_ID,('備註', TC.REMARK)
     )
 
-def BRIDGE_UNIOPEN_VISIT_SPOTS_COL_MAPPING():
-    """對應 bridge_uniopen_visit_spots_private.csv"""
+def load_pools_json_to_df():
+    """對應 bridge_reward_pools.json"""
+    json_path = const.BRIDGE_REWARD_POOLS_PATH
+    with open(json_path, 'r', encoding='utf-8') as f:
+        pools_data = json.load(f)
+        
+    rows = []
+    for p in pools_data:
+        rows.append({
+            'merchant_reward_pools_id': p.get('merchant_reward_pools_id'),
+            'pool_name': p.get('pool_name'),
+            'pass_rules': json.dumps(p.get('pass_rules', []), ensure_ascii=False), # 轉為 JSON 字串存入 JSONB
+            'rules': json.dumps(p.get('rules', []), ensure_ascii=False)
+        })
+    return pd.DataFrame(rows)
+
+def REWARD_RULE_COL_MAPPING():
+    """對應 bridge_reward_rules.csv"""
     return TC.get_mapping(
-        TC.CAMPAIGN_REWARD_PROGRAM, TC.RULES_REWARD_PROGRAM,
-        TC.PROGRAM_START_DATE, TC.PROGRAM_END_DATE,
-        TC.CAMPAIGN_REWARD_RATE
+        TC.RULES_REWARD_PROGRAM, TC.PAYMENT_PROCESS, TC.LOCATION, TC.VPC_TYPE, TC.EC_PLATFORM, 
+        TC.NORMALIZED_MERCHANT, TC.PROGRAM_START_DATE, TC.PROGRAM_END_DATE, 
+        TC.MERCHANT_RATE, TC.PRIORITY, TC.REWARD_CAL_BREAK
     )
 
 def FX_TABLE_COL_MAPPING():

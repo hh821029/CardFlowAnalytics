@@ -32,8 +32,9 @@ def run_config_reward_sync():
     sync.sync_reward_campaigns()
     sync.sync_reward_rules()
     sync.sync_bridge_cube_selections()
-    sync.sync_bridge_unicard_selections()
-    sync.sync_bridge_uniopen_visit_spots()
+
+    sync.sync_reward_linked_lists()
+    sync.sync_reward_pools()
 
 def run_config_merchant_sync():
     """特約商店資料同步服務"""
@@ -63,66 +64,3 @@ def get_analyzable_data(db_path: Optional[str] = None) -> dict:
     """取得系統中可供前端篩選分析的維度資料 (來自 ConfigFilter)"""
     return ConfigFilter.get_analyzable_data(db_path=db_path)
 
-def get_rewards_configs_table(
-    banks: Optional[List[str]] = None,
-    cards: Optional[List[str]] = None,
-    payments: Optional[List[str]] = None,
-    time_window: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    location: Optional[Union[str, List[str]]] = None,
-    enable_billing_validation: bool = True,
-    limit_by_card_start: bool = False
-) -> dict:
-    """從多個 RewardsConfigs_{bank}.db 提取回饋配置，並將其合併為單一配置字典返回"""
-    if not banks:
-        banks = list(const.BANK_REWARDS_DB_MAP.keys())
-    
-    logger.info(f"🔑 開始從分庫載入回饋配置，銀行清單: {banks}")
-    
-    rules_list, base_list, camp_list = [], [], []
-    cards_list, cube_list, unicard_list = [], [], []
-    uniopen_list, billing_list = [], []
-    
-    for bank in banks:
-        db_path = const.BANK_REWARDS_DB_MAP.get(bank)
-        if not db_path or not os.path.exists(db_path):
-            continue
-            
-        try:
-            with sqlite3.connect(db_path) as conn:
-                for table, target_list in [
-                    ("bridge_reward_rules", rules_list),
-                    ("dim_card_rewards_base", base_list),
-                    ("dim_card_rewards_campaigns", camp_list),
-                    ("dim_cards", cards_list),
-                    ("bridge_cube_selections", cube_list),
-                    ("bridge_unicard_selections", unicard_list),
-                    ("bridge_uniopen_visit_spots", uniopen_list),
-                    ("dim_billing_history", billing_list)
-                ]:
-                    try:
-                        df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
-                        if not df.empty:
-                            target_list.append(df)
-                    except Exception:
-                        pass
-        except Exception as e:
-            logger.error(f"❌ 讀取銀行 [{bank}] 配置失敗: {e}")
-
-    def concat_and_clean(df_list, table_name):
-        if not df_list:
-            return pd.DataFrame()
-        df_concat = pd.concat(df_list, ignore_index=True).drop_duplicates().reset_index(drop=True)
-        return SchemaEnforcer.enforce(df_concat)
-
-    return {
-        'reward_rules': concat_and_clean(rules_list, 'bridge_reward_rules'),
-        'rewards_base': concat_and_clean(base_list, 'dim_card_rewards_base'),
-        'rewards_campaigns': concat_and_clean(camp_list, 'dim_card_rewards_campaigns'),
-        'dim_cards': concat_and_clean(cards_list, 'dim_cards'),
-        'bridge_cube_selections': concat_and_clean(cube_list, 'bridge_cube_selections'),
-        'bridge_unicard_selections': concat_and_clean(unicard_list, 'bridge_unicard_selections'),
-        'bridge_uniopen_visit_spots': concat_and_clean(uniopen_list, 'bridge_uniopen_visit_spots'),
-        'dim_billing_history': concat_and_clean(billing_list, 'dim_billing_history')
-    }

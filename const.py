@@ -110,21 +110,19 @@ class TransactionColumn(Enum):
     IS_ACTIVE = ColumnSpec('is_active', 'bool', None, 'is_active')
 
     # 回饋資訊
-    BASE_REWARD_PROGRAM = ColumnSpec('base_reward_program', 'str', 100, 'base_reward_program')
-    BASE_REWARD_RATE = ColumnSpec('base_reward_rate', 'float', None, 'base_reward_rate')
+    # 整合所有回饋方案的相關欄位
+    REWARD_ID = ColumnSpec('reward_id', 'str', 255, 'reward_id')
+    MERCHANT_REWARD_POOLS_ID = ColumnSpec('merchant_reward_pools_id', 'str', 255, 'merchant_reward_pools_id')
     REWARD_PROGRAM = ColumnSpec('reward_program', 'str', 100, 'reward_program')
     REWARD_RATE = ColumnSpec('reward_rate', 'float', None, 'reward_rate')
     REWARD_CYCLE = ColumnSpec('reward_cycle', 'str', 50, 'reward_cycle')
-    CAP_AMOUNT = ColumnSpec('cap_amount', 'float', None, 'cap_amount')
     PROGRAM_START_DATE = ColumnSpec('start_date', 'date', None, 'start_date')
     PROGRAM_END_DATE = ColumnSpec('end_date', 'date', None, 'end_date')
+    CAP_AMOUNT = ColumnSpec('cap_amount', 'float', None, 'cap_amount')
     MAX_POSTING_DATE = ColumnSpec('max_posting_date', 'date', None, 'max_posting_date')
     REWARD_TYPE = ColumnSpec('reward_type', 'str', 50, 'reward_type')
     CALC_METHOD = ColumnSpec('calc_method', 'str', 50, 'calc_method')
     ROUND_STRATEGY = ColumnSpec('round_strategy', 'str', 50, 'round_strategy')
-    CAMPAIGN_REWARD_PROGRAM = ColumnSpec('campaign_reward_program', 'str', 100, 'campaign_reward_program')
-    CAMPAIGN_REWARD_RATE = ColumnSpec('campaign_reward_rate', 'float', None, 'campaign_reward_rate')
-    RULES_REWARD_PROGRAM = ColumnSpec('rules_reward_program', 'str', 100, 'rules_reward_program')
     MERCHANT_RATE = ColumnSpec('merchant_rate', 'float', None, 'merchant_rate')
     REWARD_CAL_BREAK = ColumnSpec('reward_cal_break', 'bool', None, 'reward_cal_break')
     CONDITION = ColumnSpec('condition', 'str', 255, 'condition')
@@ -132,6 +130,23 @@ class TransactionColumn(Enum):
     CUMULATIVE_SPEND_THRESHOLD = ColumnSpec('cumulative_spend_threshold', 'float', None, 'cumulative_spend_threshold')
     IS_ENABLE_REWARD_CALC = ColumnSpec('is_enable_reward_calc', 'bool', None, 'is_enable_reward_calc')
     
+    # 適用於回饋方案本身( base )之相關欄位
+    BASE_REWARD_ID = ColumnSpec('base_reward_id', 'str', 255, 'base_reward_id')
+    BASE_REWARD_PROGRAM = ColumnSpec('base_reward_program', 'str', 100, 'base_reward_program')
+    BASE_REWARD_RATE = ColumnSpec('base_reward_rate', 'float', None, 'base_reward_rate')
+    
+    # 適用於加碼回饋活動( campaign )之相關欄位
+    CAMPAIGN_REWARD_ID = ColumnSpec('campaign_reward_id', 'str', 255, 'campaign_reward_id')
+    CAMPAIGN_REWARD_PROGRAM = ColumnSpec('campaign_reward_program', 'str', 100, 'campaign_reward_program')
+    CAMPAIGN_REWARD_RATE = ColumnSpec('campaign_reward_rate', 'float', None, 'campaign_reward_rate')
+    RULES_REWARD_PROGRAM = ColumnSpec('rules_reward_program', 'str', 100, 'rules_reward_program')
+    
+    # 適用於特店回饋池 (Reward Pools) 之相關欄位
+    POOL_NAME = ColumnSpec('pool_name', 'str', 255, 'pool_name')
+    RULE_TYPE = ColumnSpec('rule_type', 'str', 50, 'rule_type')
+    PASS_RULES = ColumnSpec('pass_rules', 'str', None, 'pass_rules')
+    RULES = ColumnSpec('rules', 'str', None, 'rules')
+
     # 匯率資訊涉及雙幣卡的回饋計算，因此放在回饋資訊補充。
     FX_RATE = ColumnSpec('exchange_rate', 'float', None, 'exchange_rate')
 
@@ -634,6 +649,9 @@ ACTIVE_PROFILE_DIR = os.path.join(PROFILES_DIR, ACTIVE_PROFILE_NAME)
 PROFILE_CONFIG_DIR = os.path.join(ACTIVE_PROFILE_DIR, 'configs')
 PROFILE_DATA_DIR = os.path.join(ACTIVE_PROFILE_DIR, 'data')
 PROFILE_JSON_PATH = os.path.join(ACTIVE_PROFILE_DIR, 'profile.json')
+BRIDGE_REWARD_POOLS_PATH = os.path.join(COMMON_CONFIG_DIR, 'bridge_reward_pools.json')
+BRIDGE_REWARD_POOLS_CSV_PATH = os.path.join(COMMON_CONFIG_DIR, 'bridge_reward_pools.csv')
+BRIDGE_REWARD_LINKED_LISTS_PATH = os.path.join(COMMON_CONFIG_DIR, 'bridge_reward_linked_lists.csv')
 
 # 核心目錄 (指向 profiles/common/)
 DATA_DIR = COMMON_DATA_DIR                         # 輸入區 (profiles/common/data)
