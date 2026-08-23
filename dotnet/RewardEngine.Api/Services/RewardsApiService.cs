@@ -83,79 +83,43 @@ public sealed class RewardsApiService
                 if (!string.IsNullOrEmpty(startDate) && DateOnly.TryParse(startDate, out var f)) from = f;
                 if (!string.IsNullOrEmpty(endDate) && DateOnly.TryParse(endDate, out var t)) to = t;
 
-                // 載入規則與維度資料表 (PostgreSQL / CSV 備援)
-                channel.Writer.TryWrite("data: ⚙️ 載入規則與維度資料表...\n\n");
+                // 取得 PostgreSQL 連線字串
                 var pgConnStr = SqliteTransactionReader.GetPostgresConnectionStringFromEnv();
 
-                List<CardRewardProgram> basePrograms;
-                List<CardRewardProgram> campaignPrograms;
-                List<RewardBridgeRule> bridgeRules;
-                IBenefitSelectionStrategy? dailySelection = null;
-                IBenefitSelectionStrategy? monthlySelection = null;
-                BillingCycleResolver? billingResolver = null;
-
-                if (isPostgresMode)
+                // 1. 檢查 PostgreSQL 核心必備資料表是否存在
+                channel.Writer.TryWrite("data: 🔍 檢查 PostgreSQL 資料庫資料表完整性...\n\n");
+                var requiredTables = new[]
                 {
-                    channel.Writer.TryWrite("data: 🔌 連線 PostgreSQL 載入全量維度與計算規則...\n\n");
-                    basePrograms = PostgresRuleLoader.LoadBasePrograms(pgConnStr);
-                    campaignPrograms = PostgresRuleLoader.LoadCampaignsPrograms(pgConnStr);
-                    bridgeRules = PostgresRuleLoader.LoadBridgeRules(pgConnStr);
+                    "rewards_transactions",
+                    "dim_card_rewards_base",
+                    "dim_card_rewards_campaigns",
+                    "bridge_reward_linked_lists",
+                    "bridge_reward_pools"
+                };
 
-                    var dailyData = PostgresRuleLoader.LoadDailySelections(pgConnStr);
-                    if (dailyData.Count > 0)
-                        dailySelection = new DailySelectionStrategy(dailyData, targetBankName: "cube", targetCardType: "Cube卡");
-
-                    var monthlyData = PostgresRuleLoader.LoadMonthlySelections(pgConnStr);
-                    if (monthlyData.Count > 0)
-                        monthlySelection = new MonthlySelectionStrategy(monthlyData, targetBankName: "esun", targetCardType: "Unicard");
-
-                    var billingRecords = PostgresRuleLoader.LoadBillingHistory(pgConnStr);
-                    if (billingRecords.Count > 0)
-                        billingResolver = new BillingCycleResolver(billingRecords);
-                }
-                else
+                var missingTables = PostgresRuleLoader.CheckRequiredTables(pgConnStr, requiredTables);
+                if (missingTables.Count > 0)
                 {
-                    basePrograms = CsvRuleLoader.LoadBasePrograms(
-                        Path.Combine(configsPath, csvSection["BasePrograms"] ?? "dim_card_rewards_base.csv"));
-
-                    campaignPrograms = CsvRuleLoader.LoadCampaignsPrograms(
-                        Path.Combine(configsPath, csvSection["CampaignsPrograms"] ?? "dim_card_rewards_campaigns.csv"));
-
-                    var privateCampaignPath = Path.Combine(configsPath, csvSection["CampaignsProgramsPrivate"] ?? "dim_card_rewards_campaigns_private.csv");
-                    if (File.Exists(privateCampaignPath))
-                        campaignPrograms.AddRange(CsvRuleLoader.LoadCampaignsPrograms(privateCampaignPath));
-
-                    bridgeRules = CsvRuleLoader.LoadBridgeRules(
-                        Path.Combine(configsPath, csvSection["BridgeRules"] ?? "bridge_reward_rules.csv"));
-
-                    var dailyPath = Path.Combine(configsPath, csvSection["DailySelections"] ?? "bridge_cube_selections_private.csv");
-                    if (File.Exists(dailyPath))
-                    {
-                        var dailyData = CsvRuleLoader.LoadDailySelections(dailyPath);
-                        dailySelection = new DailySelectionStrategy(dailyData, targetBankName: "cube", targetCardType: "Cube卡");
-                    }
-
-                    var monthlyPath = Path.Combine(configsPath, csvSection["MonthlySelections"] ?? "bridge_unicard_selections_private.csv");
-                    if (File.Exists(monthlyPath))
-                    {
-                        var monthlyData = CsvRuleLoader.LoadMonthlySelections(monthlyPath);
-                        monthlySelection = new MonthlySelectionStrategy(monthlyData, targetBankName: "esun", targetCardType: "Unicard");
-                    }
-
-                    var billingHistoryPath = Path.Combine(configsPath, csvSection["BillingHistory"] ?? "dim_billing_history_private.csv");
-                    if (File.Exists(billingHistoryPath))
-                    {
-                        var billingRecords = CsvRuleLoader.LoadBillingHistory(billingHistoryPath);
-                        billingResolver = new BillingCycleResolver(billingRecords);
-                    }
+                    channel.Writer.TryWrite($"data: ❌ [資料庫表缺失] 找不到必要資料表 [{string.Join(", ", missingTables)}]。\n\n");
+                    channel.Writer.TryWrite("data: 💡 請先在 Web 控制台執行「🚀 產生帳單資料庫 (ETL)」並執行配置同步 (sync_configs_to_db)。\n\n");
+                    return;
                 }
 
+                // 2. 載入方案、規則池與關聯表
+                channel.Writer.TryWrite("data: ⚙️ 載入回饋方案與回饋池 (Pools & Linked Lists)...\n\n");
+                var basePrograms = PostgresRuleLoader.LoadBasePrograms(pgConnStr);
+                var campaignPrograms = PostgresRuleLoader.LoadCampaignsPrograms(pgConnStr);
+                var allPrograms = basePrograms.Concat(campaignPrograms).ToList();
+                var pools = PostgresRuleLoader.LoadRewardPools(pgConnStr);
+                var linkedLists = PostgresRuleLoader.LoadRewardLinkedLists(pgConnStr);
+
+                var billingRecords = PostgresRuleLoader.LoadBillingHistory(pgConnStr);
+                var billingResolver = billingRecords.Count > 0 ? new BillingCycleResolver(billingRecords) : null;
                 var cycleTracker = new RewardCycleTracker(billingResolver);
 
-                var allPrograms = basePrograms.Concat(campaignPrograms).ToList();
-                channel.Writer.TryWrite($"data: ✅ 規則載入完成 — Base: {basePrograms.Count} 筆, Campaign: {campaignPrograms.Count} 筆, Bridge: {bridgeRules.Count} 筆\n\n");
+                channel.Writer.TryWrite($"data: ✅ 規則載入完成 — Base: {basePrograms.Count} 筆, Campaign: {campaignPrograms.Count} 筆, Pools: {pools.Count} 個, Links: {linkedLists.Count} 筆\n\n");
 
-                // 讀取交易資料（對接 PostgreSQL 集中資料庫）
+                // 3. 讀取交易資料（對接 PostgreSQL 交易事實表）
                 channel.Writer.TryWrite("data: ⚙️ 從 PostgreSQL 資料庫讀取交易資料...\n\n");
                 var transactions = PostgresTransactionReader.Load(
                     pgConnStr,
@@ -166,9 +130,56 @@ public sealed class RewardsApiService
 
                 channel.Writer.TryWrite($"data: ✅ 讀取完成，共 {transactions.Count} 筆交易 (from PostgreSQL)\n\n");
 
-                // 執行回饋計算（逐筆處理，特定錯誤收集後寫 errorlog，不中斷整體流程）
-                channel.Writer.TryWrite("data: ⚙️ 執行回饋金計算...\n\n");
-                var resolver = new RewardResolver(allPrograms, bridgeRules, dailySelection, monthlySelection, cycleTracker);
+                // 4. 動態檢查交易中的卡別，判定是否需要載入每日切換策略 (Cube卡 / Richart卡)
+                IBenefitSelectionStrategy? dailySelection = null;
+                var dailyStrategies = new List<IBenefitSelectionStrategy>();
+
+                var distinctCardTypes = transactions
+                    .Select(t => t.CardType)
+                    .Where(c => !string.IsNullOrWhiteSpace(c))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                bool hasCube = distinctCardTypes.Any(c => c.Contains("Cube", StringComparison.OrdinalIgnoreCase));
+                bool hasRichart = distinctCardTypes.Any(c => c.Contains("Richart", StringComparison.OrdinalIgnoreCase));
+
+                if (hasCube)
+                {
+                    var cubeData = PostgresRuleLoader.LoadDailySelections(pgConnStr, "bridge_cube_selections");
+                    if (cubeData.Count > 0)
+                    {
+                        dailyStrategies.Add(new DailySelectionStrategy(cubeData, targetBankName: "cube", targetCardType: "Cube卡"));
+                        channel.Writer.TryWrite($"data: ℹ️ 偵測到 Cube卡 交易，已載入國泰 CUBE 每日切換記錄 ({cubeData.Count} 筆)\n\n");
+                    }
+                }
+
+                if (hasRichart)
+                {
+                    var richartData = PostgresRuleLoader.LoadDailySelections(pgConnStr, "bridge_richart_selections");
+                    if (richartData.Count > 0)
+                    {
+                        dailyStrategies.Add(new DailySelectionStrategy(richartData, targetBankName: "taishin", targetCardType: "Richart卡"));
+                        channel.Writer.TryWrite($"data: ℹ️ 偵測到 Richart卡 交易，已載入台新 Richart 每日切換記錄 ({richartData.Count} 筆)\n\n");
+                    }
+                }
+
+                if (dailyStrategies.Count == 1)
+                {
+                    dailySelection = dailyStrategies[0];
+                }
+                else if (dailyStrategies.Count > 1)
+                {
+                    dailySelection = new CompositeDailySelectionStrategy(dailyStrategies);
+                }
+
+                // 5. 實例化全新回饋池引擎
+                channel.Writer.TryWrite("data: ⚙️ 實例化全新回饋池計算引擎並執行計算...\n\n");
+                var resolver = new RewardResolver(
+                    programs: allPrograms,
+                    pools: pools,
+                    linkedLists: linkedLists,
+                    dailySelection: dailySelection,
+                    monthlySelection: null,
+                    cycleTracker: cycleTracker);
 
                 var results = new List<ResolvedReward>();
                 var errorTransactions = new List<(RewardTransaction Txn, string Reason)>();

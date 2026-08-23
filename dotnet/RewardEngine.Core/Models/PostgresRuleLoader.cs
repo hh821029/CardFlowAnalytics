@@ -252,10 +252,41 @@ public static class PostgresRuleLoader
         return list;
     }
 
-    public static List<DailyBenefitSelection> LoadDailySelections(string connectionString)
+    public static bool TableExists(string connectionString, string tableName)
     {
+        try
+        {
+            using var conn = new NpgsqlConnection(connectionString);
+            var sql = "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = @tableName LIMIT 1";
+            var exists = conn.ExecuteScalar<int?>(sql, new { tableName });
+            return exists == 1;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static List<string> CheckRequiredTables(string connectionString, params string[] tableNames)
+    {
+        var missing = new List<string>();
+        foreach (var tbl in tableNames)
+        {
+            if (!TableExists(connectionString, tbl))
+            {
+                missing.Add(tbl);
+            }
+        }
+        return missing;
+    }
+
+    public static List<DailyBenefitSelection> LoadDailySelections(string connectionString, string tableName = "bridge_cube_selections")
+    {
+        if (!TableExists(connectionString, tableName))
+            return [];
+
         using var conn = new NpgsqlConnection(connectionString);
-        var sql = "SELECT * FROM bridge_cube_selections";
+        var sql = $"SELECT * FROM {tableName}";
 
         var rows = conn.Query(sql);
         var list = new List<DailyBenefitSelection>();
@@ -281,35 +312,48 @@ public static class PostgresRuleLoader
 
     public static List<MonthlyBenefitSelection> LoadMonthlySelections(string connectionString)
     {
-        using var conn = new NpgsqlConnection(connectionString);
-        var sql = "SELECT * FROM bridge_unicard_selections";
+        if (!TableExists(connectionString, "bridge_unicard_selections"))
+            return [];
 
-        var rows = conn.Query(sql);
-        var list = new List<MonthlyBenefitSelection>();
-
-        foreach (var r in rows)
+        try
         {
-            var row = (IDictionary<string, object>)r;
-            var sDate = ParseDateOnly(GetVal(row, "start_date"));
-            var eDate = ParseDateOnly(GetVal(row, "end_date"));
-            var mDate = ParseDateOnly(GetVal(row, "max_posting_date"));
-            if (sDate.HasValue && eDate.HasValue && mDate.HasValue)
+            using var conn = new NpgsqlConnection(connectionString);
+            var sql = "SELECT * FROM bridge_unicard_selections";
+
+            var rows = conn.Query(sql);
+            var list = new List<MonthlyBenefitSelection>();
+
+            foreach (var r in rows)
             {
-                list.Add(new MonthlyBenefitSelection
+                var row = (IDictionary<string, object>)r;
+                var sDate = ParseDateOnly(GetVal(row, "start_date"));
+                var eDate = ParseDateOnly(GetVal(row, "end_date"));
+                var mDate = ParseDateOnly(GetVal(row, "max_posting_date"));
+                if (sDate.HasValue && eDate.HasValue && mDate.HasValue)
                 {
-                    RulesRewardProgram = (GetVal(row, "rules_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
-                    CampaignRewardProgram = (GetVal(row, "campaign_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
-                    StartDate = sDate.Value,
-                    EndDate = eDate.Value,
-                    MaxPostingDate = mDate.Value
-                });
+                    list.Add(new MonthlyBenefitSelection
+                    {
+                        RulesRewardProgram = (GetVal(row, "rules_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
+                        CampaignRewardProgram = (GetVal(row, "campaign_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
+                        StartDate = sDate.Value,
+                        EndDate = eDate.Value,
+                        MaxPostingDate = mDate.Value
+                    });
+                }
             }
+            return list;
         }
-        return list;
+        catch
+        {
+            return [];
+        }
     }
 
     public static List<BillingHistoryRecord> LoadBillingHistory(string connectionString)
     {
+        if (!TableExists(connectionString, "dim_billing_history"))
+            return [];
+
         using var conn = new NpgsqlConnection(connectionString);
         var sql = "SELECT * FROM dim_billing_history";
 

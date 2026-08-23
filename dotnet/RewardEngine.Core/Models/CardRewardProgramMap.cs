@@ -5,7 +5,6 @@ namespace RewardEngine.Core.Loaders;
 
 /// <summary>
 /// 對應 dim_card_rewards_base.csv
-/// 欄標: bank_name, card_type, 是否為當前消費權益, base_reward_program, base_reward_rate, ...
 /// </summary>
 public class BaseCardRewardProgramMap : ClassMap<CardRewardProgram>
 {
@@ -16,7 +15,6 @@ public class BaseCardRewardProgramMap : ClassMap<CardRewardProgram>
         Map(m => m.BankName).Name("bank_name");
         Map(m => m.CardId).Name("card_id").Optional();
         Map(m => m.CardType).Name("card_type");
-        Map(m => m.IsCurrentBenefit).Name("是否為當前消費權益").Optional();
         Map(m => m.RewardProgram).Name("base_reward_program");
         Map(m => m.Priority).Name("priority", "base_priority").Default(999);
         Map(m => m.RewardCalBreak).Name("reward_cal_break", "base_reward_cal_break").Default(false);
@@ -38,7 +36,6 @@ public class BaseCardRewardProgramMap : ClassMap<CardRewardProgram>
 
 /// <summary>
 /// 對應 dim_card_rewards_campaigns.csv 及 _private 合併
-/// 欄標: bank_name, card_type, 是否為當前消費權益, campaign_reward_program, campaign_reward_rate, ...
 /// </summary>
 public class CampaignCardRewardProgramMap : ClassMap<CardRewardProgram>
 {
@@ -49,7 +46,6 @@ public class CampaignCardRewardProgramMap : ClassMap<CardRewardProgram>
         Map(m => m.BankName).Name("bank_name");
         Map(m => m.CardId).Name("card_id").Optional();
         Map(m => m.CardType).Name("card_type");
-        Map(m => m.IsCurrentBenefit).Name("是否為當前消費權益").Optional();
         Map(m => m.RewardProgram).Name("campaign_reward_program");
         Map(m => m.Priority).Name("priority", "campaign_priority").Default(999);
         Map(m => m.RewardCalBreak).Name("reward_cal_break", "campaign_reward_cal_break").Default(false);

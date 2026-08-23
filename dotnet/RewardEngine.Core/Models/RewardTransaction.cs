@@ -6,7 +6,9 @@ namespace RewardEngine.Core.Models;
 public record RewardTransaction
 {
     public required string TransactionId { get; init; }
+    public string? BankNo { get; init; }
     public required string BankName { get; init; }
+    public string? CardId { get; init; }
     public required string CardType { get; init; }
     public required string CardNo { get; init; }    
     public string? VpcNo { get; init; }
@@ -15,6 +17,7 @@ public record RewardTransaction
     public required decimal Amount { get; init; }
     public string? VpcType { get; init; }
     public string? MobilePayment { get; init; }
+    public string? PaymentProcess => MobilePayment;           // 與 SSOT 欄位名稱對齊之別名
     public string? EcPlatform { get; init; }
     public string? Merchant { get; init; }
     public string? NormalizedMerchant { get; init; }

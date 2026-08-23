@@ -89,3 +89,24 @@ public sealed class DailySelectionStrategy(
         return "行動支付交易，落在權益切換邊界緩衝期（2 天）內，銀行記錄消費日可能較實際刷卡日延遲 1-2 天";
     }
 }
+
+/// <summary>
+/// 複合式每日權益選擇策略，支援同時掛載多張卡片（如 Cube卡、Richart卡）之每日切換策略
+/// </summary>
+public sealed class CompositeDailySelectionStrategy(IEnumerable<IBenefitSelectionStrategy> strategies) : IBenefitSelectionStrategy
+{
+    private readonly List<IBenefitSelectionStrategy> _strategies = strategies.ToList();
+
+    public BenefitResolutionResult ResolveActiveProgram(RewardTransaction transaction)
+    {
+        foreach (var strategy in _strategies)
+        {
+            var result = strategy.ResolveActiveProgram(transaction);
+            if (result != null && (result.ResolvedProgram != null || result.RequiresManualVerification))
+            {
+                return result;
+            }
+        }
+        return new BenefitResolutionResult { ResolvedProgram = null, RequiresManualVerification = false };
+    }
+}

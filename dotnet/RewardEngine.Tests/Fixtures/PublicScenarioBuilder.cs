@@ -9,9 +9,13 @@ public static class ScenarioBuilder
     public static CardRewardProgram BaseProgram(
         string program,
         decimal rate,
+        string rewardId = "",
+        string bankNo = "000",
         string bankName = "TestBank",
-        string cardType = "TestCard",
-        bool isCurrentBenefit = true,
+        string cardId = "",
+        string cardType = "",
+        int priority = 999,
+        bool rewardCalBreak = true,
         DateOnly? startDate = null,
         DateOnly? endDate = null,
         string calcMethod = "PER_ITEM",
@@ -19,9 +23,13 @@ public static class ScenarioBuilder
         string rewardCycle = "monthly",
         string rewardType = "cashback") => new()
     {
+        RewardId = string.IsNullOrEmpty(rewardId) ? $"base_{program}" : rewardId,
+        BankNo = bankNo,
         BankName = bankName,
+        CardId = cardId,
         CardType = cardType,
-        IsCurrentBenefit = isCurrentBenefit,
+        Priority = priority,
+        RewardCalBreak = rewardCalBreak,
         RewardProgram = program,
         Source = RewardProgramSource.Base,
         RewardRate = rate,
@@ -36,9 +44,13 @@ public static class ScenarioBuilder
     public static CardRewardProgram CampaignProgram(
         string program,
         decimal rate,
+        string rewardId = "",
+        string bankNo = "000",
         string bankName = "TestBank",
-        string cardType = "TestCard",
-        bool isCurrentBenefit = true,
+        string cardId = "",
+        string cardType = "",
+        int priority = 400,
+        bool rewardCalBreak = false,
         DateOnly? startDate = null,
         DateOnly? endDate = null,
         string calcMethod = "PER_ITEM",
@@ -46,9 +58,13 @@ public static class ScenarioBuilder
         string rewardCycle = "monthly",
         string rewardType = "cashback") => new()
     {
+        RewardId = string.IsNullOrEmpty(rewardId) ? $"camp_{program}" : rewardId,
+        BankNo = bankNo,
         BankName = bankName,
+        CardId = cardId,
         CardType = cardType,
-        IsCurrentBenefit = isCurrentBenefit,
+        Priority = priority,
+        RewardCalBreak = rewardCalBreak,
         RewardProgram = program,
         Source = RewardProgramSource.Campaign,
         RewardRate = rate,
@@ -58,6 +74,26 @@ public static class ScenarioBuilder
         RewardType = rewardType,
         CalcMethod = calcMethod,
         RoundStrategy = roundStrategy
+    };
+
+    // ---------- MerchantRewardPool & RewardLinkedList ----------
+
+    public static MerchantRewardPool Pool(
+        string poolId,
+        string poolName = "",
+        MerchantRewardRule[]? passRules = null,
+        MerchantRewardRule[]? rules = null) => new()
+    {
+        MerchantRewardPoolsId = poolId,
+        PoolName = string.IsNullOrEmpty(poolName) ? poolId : poolName,
+        PassRules = passRules ?? [],
+        Rules = rules ?? []
+    };
+
+    public static RewardLinkedList Link(string rewardId, string poolId) => new()
+    {
+        RewardId = rewardId,
+        MerchantRewardPoolsId = poolId
     };
 
     // ---------- RewardBridgeRule ----------
@@ -124,7 +160,9 @@ public static class ScenarioBuilder
         string transactionId,
         DateOnly transactionDate,
         decimal amount,
+        string? bankNo = null,
         string bankName = "TestBank",
+        string? cardId = null,
         string cardType = "TestCard",
         string cardNo = "0000",
         string? vpcNo = null,
@@ -134,10 +172,13 @@ public static class ScenarioBuilder
         string? mobilePayment = null,
         string? ecPlatform = null,
         string? merchantDisplay = null,
-        string? merchantLocation = null) => new()
+        string? merchantLocation = null,
+        string? normalizedMerchant = null) => new()
     {
         TransactionId = transactionId,
+        BankNo = bankNo,
         BankName = bankName,
+        CardId = cardId,
         CardType = cardType,
         CardNo = cardNo,
         VpcNo = vpcNo,
@@ -149,6 +190,7 @@ public static class ScenarioBuilder
         MobilePayment = mobilePayment,
         EcPlatform = ecPlatform,
         MerchantDisplay = merchantDisplay,
+        NormalizedMerchant = normalizedMerchant,
         MerchantLocation = merchantLocation
     };
 }

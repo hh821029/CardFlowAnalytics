@@ -21,14 +21,13 @@ public class ResolverTests
         Assert.Equal(10m, result.TotalRewardAmount);  // 1000 * 1%
     }
 
-
     [Fact]
     public void R02_Campaign命中且RewardCalBreak_Base完全不計算()
     {
         var programs = new List<CardRewardProgram>
         {
-          ScenarioBuilder.BaseProgram(program: "TEST_BASE", rate: 0.01m),
-          ScenarioBuilder.BaseProgram(program: "TEST_CAMPAIGN", rate: 0.05m) with { Source = RewardProgramSource.Campaign }
+            ScenarioBuilder.CampaignProgram(program: "TEST_CAMPAIGN", rate: 0.05m, priority: 400, rewardCalBreak: true),
+            ScenarioBuilder.BaseProgram(program: "TEST_BASE", rate: 0.01m, priority: 999, rewardCalBreak: true)
         };
         var bridgeRules = new List<RewardBridgeRule>
         {
@@ -53,9 +52,9 @@ public class ResolverTests
         //   含 RoundStrategy 的正確答案 = 21 + 9 = 30m
         var programs = new List<CardRewardProgram>
         {
-            ScenarioBuilder.BaseProgram(program: "Unicard一般消費", rate: 0.01m,
+            ScenarioBuilder.CampaignProgram(program: "Unicard指定特約商店", rate: 0.025m, priority: 400, rewardCalBreak: false,
                 bankName: "esun", cardType: "Unicard", rewardType: "cashback_round"),
-            ScenarioBuilder.CampaignProgram(program: "Unicard指定特約商店", rate: 0.025m,
+            ScenarioBuilder.BaseProgram(program: "Unicard一般消費", rate: 0.01m, priority: 988, rewardCalBreak: true,
                 bankName: "esun", cardType: "Unicard", rewardType: "cashback_round")
         };
         var bridgeRules = new List<RewardBridgeRule>
@@ -93,14 +92,14 @@ public class ResolverTests
     [Fact]
     public void R04_多個_Campaign_低_priority_的先_break_高_priority_的不執行()
     {
-        // 情境：Campaign A (priority=5, break=true), Campaign B (priority=10, break=false)
+        // 情境：Campaign A (priority=300, break=true), Campaign B (priority=400, break=false)
         // 預期：A 先執行（數字小優先），break 後 B 不執行，Base 不執行
         // 驗證 Priority 排序方向正確（OrderBy 升冪）
         var programs = new List<CardRewardProgram>
         {
-            ScenarioBuilder.BaseProgram("TEST_BASE", 0.01m),
-            ScenarioBuilder.CampaignProgram("CAMPAIGN_A", 0.03m),
-            ScenarioBuilder.CampaignProgram("CAMPAIGN_B", 0.05m)
+            ScenarioBuilder.CampaignProgram("CAMPAIGN_A", 0.03m, priority: 300, rewardCalBreak: true),
+            ScenarioBuilder.CampaignProgram("CAMPAIGN_B", 0.05m, priority: 400, rewardCalBreak: false),
+            ScenarioBuilder.BaseProgram("TEST_BASE", 0.01m, priority: 999, rewardCalBreak: true)
         };
         var bridgeRules = new List<RewardBridgeRule>
         {
@@ -124,8 +123,8 @@ public class ResolverTests
         // 預期：bridge 未命中，退回 Campaign program 本身費率，無 break
         var programs = new List<CardRewardProgram>
         {
-            ScenarioBuilder.BaseProgram("TEST_BASE", 0.01m),
-            ScenarioBuilder.CampaignProgram("CAMPAIGN_X", 0.03m)
+            ScenarioBuilder.CampaignProgram("CAMPAIGN_X", 0.03m, priority: 400, rewardCalBreak: false),
+            ScenarioBuilder.BaseProgram("TEST_BASE", 0.01m, priority: 999, rewardCalBreak: true)
         };
         var bridgeRules = new List<RewardBridgeRule>
         {
@@ -230,6 +229,206 @@ public class ResolverTests
 
         var res = resolver.Resolve(txn);
         Assert.Equal(4m, res.TotalRewardAmount);
+    }
+
+    [Fact]
+    public void R10_回饋池架構_純Base方案掛載通用排除池_非超商正常回饋_超商被排除且截斷()
+    {
+        var exclusionPool = ScenarioBuilder.Pool(
+            poolId: "POOL_GENERAL_EXCLUSION",
+            rules:
+            [
+                new MerchantRewardRule
+                {
+                    NormalizedMerchant = ["統一超商", "全家便利商店"],
+                    MerchantRate = 0.0m
+                }
+            ]);
+
+        var baseProg = ScenarioBuilder.BaseProgram("玉山一般消費", 0.01m,
+            rewardId: "esun_base", bankNo: "808", bankName: "esun", cardType: "Unicard", priority: 988);
+
+        var exclusionProg = ScenarioBuilder.BaseProgram("共通非一般消費", 0.0m,
+            rewardId: "all_general_exclusion", bankNo: "ALL", bankName: "ALL", priority: 499, rewardCalBreak: true);
+
+        var links = new List<RewardLinkedList>
+        {
+            ScenarioBuilder.Link("all_general_exclusion", "POOL_GENERAL_EXCLUSION")
+        };
+
+        var resolver = new RewardResolver([exclusionProg, baseProg], [exclusionPool], links);
+
+        // 1. 一般餐廳消費：未命中排除池，順利獲得 1% 回饋 (1000 * 1% = 10)
+        var txnNormal = ScenarioBuilder.Transaction("T10_Normal", new DateOnly(2026, 5, 10), 1000m,
+            bankName: "esun", cardType: "Unicard", merchantDisplay: "鼎泰豐");
+        var resNormal = resolver.Resolve(txnNormal);
+        Assert.Equal(10m, resNormal.TotalRewardAmount);
+        Assert.Single(resNormal.AppliedPrograms);
+        Assert.Equal("玉山一般消費", resNormal.AppliedPrograms[0].Program.RewardProgram);
+
+        // 2. 7-11 超商消費：命中排除池 0% 且 RewardCalBreak，截斷後續 Base 方案
+        var txn711 = ScenarioBuilder.Transaction("T10_711", new DateOnly(2026, 5, 10), 1000m,
+            bankName: "esun", cardType: "Unicard", merchantDisplay: "統一超商");
+        var res711 = resolver.Resolve(txn711);
+        Assert.Equal(0m, res711.TotalRewardAmount);
+        Assert.Single(res711.AppliedPrograms);
+        Assert.Equal("共通非一般消費", res711.AppliedPrograms[0].Program.RewardProgram);
+    }
+
+    [Fact]
+    public void R11_回饋池架構_聯名卡命中PassRules豁免放行_不被排除池阻擋()
+    {
+        var exclusionPool = ScenarioBuilder.Pool(
+            poolId: "POOL_GENERAL_EXCLUSION",
+            passRules:
+            [
+                new MerchantRewardRule
+                {
+                    NormalizedMerchant = ["統一超商"],
+                    CardType = ["Uniopen聯名卡"],
+                    BankNo = ["822"]
+                }
+            ],
+            rules:
+            [
+                new MerchantRewardRule
+                {
+                    NormalizedMerchant = ["統一超商", "全家便利商店"],
+                    MerchantRate = 0.0m
+                }
+            ]);
+
+        var uniopenBase = ScenarioBuilder.BaseProgram("Uniopen一般消費", 0.01m,
+            rewardId: "ctbc_uniopen_base", bankNo: "822", bankName: "ctbc", cardType: "Uniopen聯名卡", priority: 987);
+
+        var exclusionProg = ScenarioBuilder.BaseProgram("共通非一般消費", 0.0m,
+            rewardId: "all_general_exclusion", bankNo: "ALL", bankName: "ALL", priority: 499, rewardCalBreak: true);
+
+        var links = new List<RewardLinkedList>
+        {
+            ScenarioBuilder.Link("all_general_exclusion", "POOL_GENERAL_EXCLUSION")
+        };
+
+        var resolver = new RewardResolver([exclusionProg, uniopenBase], [exclusionPool], links);
+
+        // Uniopen 聯名卡在 7-11 消費：命中 PassRules 豁免，排除池不生效，成功拿到 1% 回饋
+        var txn = ScenarioBuilder.Transaction("T11", new DateOnly(2026, 5, 10), 1000m,
+            bankNo: "822", bankName: "ctbc", cardId: "ctbc_uniopen", cardType: "Uniopen聯名卡", merchantDisplay: "統一超商");
+        var res = resolver.Resolve(txn);
+
+        Assert.Equal(10m, res.TotalRewardAmount);
+        Assert.Single(res.AppliedPrograms);
+        Assert.Equal("Uniopen一般消費", res.AppliedPrograms[0].Program.RewardProgram);
+    }
+
+    [Fact]
+    public void R12_回饋池架構_ALL哨兵值正面表列_必須使用行動支付始能命中()
+    {
+        var mobilePayPool = ScenarioBuilder.Pool(
+            poolId: "POOL_MOBILE_PAY",
+            rules:
+            [
+                new MerchantRewardRule
+                {
+                    PaymentProcess = ["ALL"],
+                    MerchantRate = 0.05m
+                }
+            ]);
+
+        var campProg = ScenarioBuilder.CampaignProgram("行動支付加碼", 0.05m,
+            rewardId: "camp_mobile", bankNo: "808", bankName: "esun", cardType: "Unicard", priority: 300);
+
+        var links = new List<RewardLinkedList>
+        {
+            ScenarioBuilder.Link("camp_mobile", "POOL_MOBILE_PAY")
+        };
+
+        var resolver = new RewardResolver([campProg], [mobilePayPool], links);
+
+        // 1. 有使用行動支付 (LINE Pay)：命中 ALL 正面表列 ➔ 獲得 5%
+        var txnMobile = ScenarioBuilder.Transaction("T12_Mobile", new DateOnly(2026, 5, 10), 1000m,
+            bankName: "esun", cardType: "Unicard", mobilePayment: "LINE Pay");
+        var resMobile = resolver.Resolve(txnMobile);
+        Assert.Equal(50m, resMobile.TotalRewardAmount);
+
+        // 2. 實體刷卡 (無行動支付)：未命中 ALL ➔ 0 元
+        var txnPhysical = ScenarioBuilder.Transaction("T12_Physical", new DateOnly(2026, 5, 10), 1000m,
+            bankName: "esun", cardType: "Unicard", mobilePayment: null);
+        var resPhysical = resolver.Resolve(txnPhysical);
+        Assert.Equal(0m, resPhysical.TotalRewardAmount);
+        Assert.Empty(resPhysical.AppliedPrograms);
+    }
+
+    [Fact]
+    public void R13_回饋池架構_NONE哨兵值反向排除_無行動支付始能命中()
+    {
+        var physicalOnlyPool = ScenarioBuilder.Pool(
+            poolId: "POOL_PHYSICAL_ONLY",
+            rules:
+            [
+                new MerchantRewardRule
+                {
+                    PaymentProcess = ["NONE"],
+                    MerchantRate = 0.02m
+                }
+            ]);
+
+        var prog = ScenarioBuilder.CampaignProgram("純實體刷卡回饋", 0.02m,
+            rewardId: "camp_physical", bankNo: "808", bankName: "esun", cardType: "Unicard", priority: 300);
+
+        var links = new List<RewardLinkedList>
+        {
+            ScenarioBuilder.Link("camp_physical", "POOL_PHYSICAL_ONLY")
+        };
+
+        var resolver = new RewardResolver([prog], [physicalOnlyPool], links);
+
+        // 1. 實體刷卡 (mobilePayment = null)：命中 NONE ➔ 獲得 2%
+        var txnPhysical = ScenarioBuilder.Transaction("T13_Physical", new DateOnly(2026, 5, 10), 1000m,
+            bankName: "esun", cardType: "Unicard", mobilePayment: null);
+        var resPhysical = resolver.Resolve(txnPhysical);
+        Assert.Equal(20m, resPhysical.TotalRewardAmount);
+
+        // 2. 行動支付 (mobilePayment = "全支付")：不符合 NONE ➔ 0 元
+        var txnMobile = ScenarioBuilder.Transaction("T13_Mobile", new DateOnly(2026, 5, 10), 1000m,
+            bankName: "esun", cardType: "Unicard", mobilePayment: "全支付");
+        var resMobile = resolver.Resolve(txnMobile);
+        Assert.Equal(0m, resMobile.TotalRewardAmount);
+        Assert.Empty(resMobile.AppliedPrograms);
+    }
+
+    [Fact]
+    public void R14_回饋池架構_跨行物理隔離_中信卡不會命中玉山Base方案()
+    {
+        var esunBase = ScenarioBuilder.BaseProgram("玉山Base", 0.01m,
+            rewardId: "esun_base", bankNo: "808", bankName: "esun", cardType: "Unicard", priority: 999);
+
+        var resolver = new RewardResolver([esunBase], [], []);
+
+        // 中信卡交易 (BankNo 822)
+        var txnCtbc = ScenarioBuilder.Transaction("T14_Ctbc", new DateOnly(2026, 5, 10), 1000m,
+            bankName: "ctbc", cardType: "Uniopen聯名卡");
+
+        var res = resolver.Resolve(txnCtbc);
+        Assert.Equal(0m, res.TotalRewardAmount);
+        Assert.Empty(res.AppliedPrograms);
+    }
+
+    [Fact]
+    public void R15_回饋池架構_ALL通用方案_全行信用卡自動掛載()
+    {
+        var universalProg = ScenarioBuilder.BaseProgram("全行通用促刷", 0.005m,
+            rewardId: "all_promo", bankNo: "ALL", bankName: "ALL", priority: 500, rewardCalBreak: false);
+
+        var resolver = new RewardResolver([universalProg], [], []);
+
+        // 任意銀行交易（如國泰 Cube）均能掛載此 ALL 方案
+        var txnCathay = ScenarioBuilder.Transaction("T15", new DateOnly(2026, 5, 10), 1000m,
+            bankName: "cathay", cardType: "Cube卡");
+
+        var res = resolver.Resolve(txnCathay);
+        Assert.Equal(5m, res.TotalRewardAmount);
+        Assert.Single(res.AppliedPrograms);
     }
 }
 
