@@ -7,15 +7,13 @@ public sealed class RewardResolver
     private readonly IReadOnlyList<CardRewardProgram> _programs;
     private readonly IReadOnlyList<MerchantRewardPool> _pools;
     private readonly IReadOnlyList<RewardLinkedList> _linkedLists;
-    private readonly IReadOnlyList<RewardBridgeRule> _bridgeRules;
     private readonly IBenefitSelectionStrategy? _dailySelection;
     private readonly IBenefitSelectionStrategy? _monthlySelection;
     private readonly RewardCycleTracker? _cycleTracker;
     private readonly Dictionary<string, List<MerchantRewardPool>> _rewardPoolsLookup;
-    private readonly bool _usePoolEngine;
 
     /// <summary>
-    /// 全新回饋池架構建構函式 (43 個 RewardPools + 103 筆 RewardLinkedLists)
+    /// 全新回饋池架構建構函式 (RewardPools + RewardLinkedLists)
     /// </summary>
     public RewardResolver(
         IReadOnlyList<CardRewardProgram> programs,
@@ -28,11 +26,9 @@ public sealed class RewardResolver
         _programs = programs;
         _pools = pools;
         _linkedLists = linkedLists;
-        _bridgeRules = [];
         _dailySelection = dailySelection;
         _monthlySelection = monthlySelection;
         _cycleTracker = cycleTracker;
-        _usePoolEngine = true;
 
         var poolDict = pools.ToDictionary(p => p.MerchantRewardPoolsId, p => p, StringComparer.OrdinalIgnoreCase);
         _rewardPoolsLookup = new Dictionary<string, List<MerchantRewardPool>>(StringComparer.OrdinalIgnoreCase);
@@ -49,27 +45,6 @@ public sealed class RewardResolver
                 list.Add(pool);
             }
         }
-    }
-
-    /// <summary>
-    /// 相容舊版 Bridge 規則之建構函式
-    /// </summary>
-    public RewardResolver(
-        IReadOnlyList<CardRewardProgram> programs,
-        IReadOnlyList<RewardBridgeRule> bridgeRules,
-        IBenefitSelectionStrategy? dailySelection = null,
-        IBenefitSelectionStrategy? monthlySelection = null,
-        RewardCycleTracker? cycleTracker = null)
-    {
-        _programs = programs;
-        _pools = [];
-        _linkedLists = [];
-        _bridgeRules = bridgeRules;
-        _dailySelection = dailySelection;
-        _monthlySelection = monthlySelection;
-        _cycleTracker = cycleTracker;
-        _usePoolEngine = false;
-        _rewardPoolsLookup = new Dictionary<string, List<MerchantRewardPool>>(StringComparer.OrdinalIgnoreCase);
     }
 
     public ResolvedReward Resolve(RewardTransaction txn)
@@ -103,25 +78,13 @@ public sealed class RewardResolver
             return true;
         }).ToList();
 
-        // Stage 2 & 3：費率解析 (Pool Engine 或 Bridge Engine)
+        // Stage 2 & 3：回饋池費率解析
         var candidateResolutions = new List<ProgramRateResolution>();
-
-        if (_usePoolEngine)
+        foreach (var prog in candidates)
         {
-            foreach (var prog in candidates)
+            var res = EvaluateProgramWithPools(prog, txn);
+            if (res != null)
             {
-                var res = EvaluateProgramWithPools(prog, txn);
-                if (res != null)
-                {
-                    candidateResolutions.Add(res);
-                }
-            }
-        }
-        else
-        {
-            foreach (var prog in candidates)
-            {
-                var res = ResolveBridgeLegacy(prog, txn);
                 candidateResolutions.Add(res);
             }
         }
@@ -143,11 +106,10 @@ public sealed class RewardResolver
                 candidateResolutions = candidateResolutions
                     .Where(r =>
                     {
-                        var ruleProg = r.MatchedBridgeRule?.RulesRewardProgram;
                         var campProg = r.Program.RewardProgram;
-                        if (targetSelectionRules.Contains(ruleProg ?? "") || targetSelectionRules.Contains(campProg))
+                        if (targetSelectionRules.Contains(campProg))
                         {
-                            return selectedCampaignPrograms.Contains(campProg) || selectedCampaignPrograms.Contains(ruleProg ?? "");
+                            return selectedCampaignPrograms.Contains(campProg);
                         }
                         return true;
                     })
@@ -386,37 +348,6 @@ public sealed class RewardResolver
 
         return ruleValues.Any(v => string.Equals(v, txnValue, StringComparison.OrdinalIgnoreCase));
     }
-
-    private ProgramRateResolution ResolveBridgeLegacy(CardRewardProgram program, RewardTransaction txn)
-    {
-        var winner = _bridgeRules
-            .Where(b => b.RulesRewardProgram == program.RewardProgram
-                        && WithinDateRange(txn.TransactionDate, b.StartDate, b.EndDate)
-                        && MatchesLegacy(b.VpcType, txn.VpcType)
-                        && MatchesLegacy(b.MobilePayment, txn.MobilePayment)
-                        && MatchesLegacy(b.EcPlatform, txn.EcPlatform)
-                        && MatchesLegacy(b.NormalizedMerchant ?? b.MerchantDisplay, txn.NormalizedMerchant ?? txn.MerchantDisplay)
-                        && MatchesLegacy(b.MerchantLocation, txn.MerchantLocation))
-            .OrderBy(b => b.Priority)
-            .FirstOrDefault();
-
-        var effectiveRate = winner?.MerchantRate ?? program.RewardRate ?? 0m;
-
-        var resolution = new ProgramRateResolution
-        {
-            Program = program,
-            MatchedBridgeRule = winner,
-            EffectiveRate = effectiveRate
-        };
-
-        return resolution with
-        {
-            CalculatedRewardAmount = RoundStrategy.CalculateResolutionReward(txn.Amount, resolution)
-        };
-    }
-
-    private static bool MatchesLegacy(string? ruleValue, string? txnValue) =>
-        string.IsNullOrEmpty(ruleValue) || ruleValue == txnValue;
 
     private static bool WithinDateRange(DateOnly date, DateOnly? start, DateOnly? end) =>
         (start is null || date >= start) && (end is null || date <= end);

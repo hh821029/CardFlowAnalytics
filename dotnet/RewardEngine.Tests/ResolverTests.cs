@@ -11,9 +11,8 @@ public class ResolverTests
     public void R01_純Base交易_沒有Campaign沒有Bridge覆蓋_套用Program本身費率()
     {
         var programs = new List<CardRewardProgram> { ScenarioBuilder.BaseProgram(program: "TEST_BASE", rate: 0.01m) };
-        var bridgeRules = new List<RewardBridgeRule>();  // 空，測試「無 bridge 命中退回 Program 費率」的假設
 
-        var resolver = new RewardResolver(programs, bridgeRules);
+        var resolver = new RewardResolver(programs, pools: [], linkedLists: []);
         var txn = ScenarioBuilder.Transaction("T001", new DateOnly(2026, 5, 10), 1000m);
 
         var result = resolver.Resolve(txn);
@@ -29,12 +28,8 @@ public class ResolverTests
             ScenarioBuilder.CampaignProgram(program: "TEST_CAMPAIGN", rate: 0.05m, priority: 400, rewardCalBreak: true),
             ScenarioBuilder.BaseProgram(program: "TEST_BASE", rate: 0.01m, priority: 999, rewardCalBreak: true)
         };
-        var bridgeRules = new List<RewardBridgeRule>
-        {
-            new() { RulesRewardProgram = "TEST_CAMPAIGN", MerchantRate = 0.05m, Priority = 10, RewardCalBreak = true }
-        };
 
-        var resolver = new RewardResolver(programs, bridgeRules);
+        var resolver = new RewardResolver(programs, pools: [], linkedLists: []);
         var txn = ScenarioBuilder.Transaction("T002", new DateOnly(2026, 5, 10), 1000m);
 
         var result = resolver.Resolve(txn);
@@ -50,21 +45,18 @@ public class ResolverTests
         //   850 × 2.5% = 21.25  → 四捨五入至整數 = 21
         //   850 ×  1%  =  8.5   → 四捨五入至整數 =  9
         //   含 RoundStrategy 的正確答案 = 21 + 9 = 30m
-        var programs = new List<CardRewardProgram>
-        {
-            ScenarioBuilder.CampaignProgram(program: "Unicard指定特約商店", rate: 0.025m, priority: 400, rewardCalBreak: false,
-                bankName: "esun", cardType: "Unicard", rewardType: "cashback_round"),
-            ScenarioBuilder.BaseProgram(program: "Unicard一般消費", rate: 0.01m, priority: 988, rewardCalBreak: true,
-                bankName: "esun", cardType: "Unicard", rewardType: "cashback_round")
-        };
-        var bridgeRules = new List<RewardBridgeRule>
-        {
-            ScenarioBuilder.BridgeRule(rulesRewardProgram: "Unicard指定特約商店", merchantRate: 0.025m,
-                priority: 5, mobilePayment: "全支付")
-            // rewardCalBreak 預設 false：Campaign 命中不斷路，Base 繼續疊加
-        };
+        var campProg = ScenarioBuilder.CampaignProgram(program: "Unicard指定特約商店", rate: 0.025m, priority: 400, rewardCalBreak: false,
+            rewardId: "unicard_pickup", bankName: "esun", cardType: "Unicard", rewardType: "cashback_round");
+        var baseProg = ScenarioBuilder.BaseProgram(program: "Unicard一般消費", rate: 0.01m, priority: 988, rewardCalBreak: true,
+            rewardId: "unicard_base", bankName: "esun", cardType: "Unicard", rewardType: "cashback_round");
 
-        var resolver = new RewardResolver(programs, bridgeRules);
+        var pool = ScenarioBuilder.Pool("POOL_PX_PAY", "全支付回饋池", rules:
+        [
+            new MerchantRewardRule { PaymentProcess = ["全支付"] }
+        ]);
+        var link = ScenarioBuilder.Link("unicard_pickup", "POOL_PX_PAY");
+
+        var resolver = new RewardResolver([campProg, baseProg], pools: [pool], linkedLists: [link]);
         var txn = ScenarioBuilder.Transaction(
             "真實交易ID或匿名化後的代號",
             transactionDate: new DateOnly(2026, 5, 12),
@@ -88,7 +80,6 @@ public class ResolverTests
         Assert.Equal(expected, result);
     }
 
-
     [Fact]
     public void R04_多個_Campaign_低_priority_的先_break_高_priority_的不執行()
     {
@@ -101,37 +92,24 @@ public class ResolverTests
             ScenarioBuilder.CampaignProgram("CAMPAIGN_B", 0.05m, priority: 400, rewardCalBreak: false),
             ScenarioBuilder.BaseProgram("TEST_BASE", 0.01m, priority: 999, rewardCalBreak: true)
         };
-        var bridgeRules = new List<RewardBridgeRule>
-        {
-            ScenarioBuilder.BridgeRule("CAMPAIGN_A", 0.03m, priority: 5,  rewardCalBreak: true),
-            ScenarioBuilder.BridgeRule("CAMPAIGN_B", 0.05m, priority: 10, rewardCalBreak: false)
-        };
-        var resolver = new RewardResolver(programs, bridgeRules);
+        var resolver = new RewardResolver(programs, pools: [], linkedLists: []);
         var txn = ScenarioBuilder.Transaction("R04", new DateOnly(2026, 5, 10), 1000m);
 
         var result = resolver.Resolve(txn);
 
         Assert.Equal(30m, result.TotalRewardAmount);   // 只有 CAMPAIGN_A 3%
         Assert.Single(result.AppliedPrograms);         // 只有 A，B 和 Base 都被截斷
-
     }
 
     [Fact]
     public void R05_Priority相同_Campaign無bridge命中時_退回_program本身費率()
     {
-        // 情境：Campaign 存在，但 bridge rule 的 merchantDisplay 不匹配
-        // 預期：bridge 未命中，退回 Campaign program 本身費率，無 break
         var programs = new List<CardRewardProgram>
         {
             ScenarioBuilder.CampaignProgram("CAMPAIGN_X", 0.03m, priority: 400, rewardCalBreak: false),
             ScenarioBuilder.BaseProgram("TEST_BASE", 0.01m, priority: 999, rewardCalBreak: true)
         };
-        var bridgeRules = new List<RewardBridgeRule>
-        {
-            ScenarioBuilder.BridgeRule("CAMPAIGN_X", 0.05m, priority: 1,
-                merchantDisplay: "特定商家A")  // txn 的 merchantDisplay 是 null，不匹配
-        };
-        var resolver = new RewardResolver(programs, bridgeRules);
+        var resolver = new RewardResolver(programs, pools: [], linkedLists: []);
         var txn = ScenarioBuilder.Transaction("R05", new DateOnly(2026, 5, 10), 1000m);
 
         var result = resolver.Resolve(txn);
@@ -158,7 +136,7 @@ public class ResolverTests
         );
 
         var tracker = new RewardCycleTracker();
-        var resolver = new RewardResolver([program], [], cycleTracker: tracker);
+        var resolver = new RewardResolver([program], pools: [], linkedLists: [], cycleTracker: tracker);
 
         var txn1 = ScenarioBuilder.Transaction("T1", new DateOnly(2026, 5, 10), 150m);
         var txn2 = ScenarioBuilder.Transaction("T2", new DateOnly(2026, 5, 15), 150m);
@@ -193,7 +171,7 @@ public class ResolverTests
         ) with { CapAmount = 10m };
 
         var tracker = new RewardCycleTracker();
-        var resolver = new RewardResolver([program], [], cycleTracker: tracker);
+        var resolver = new RewardResolver([program], pools: [], linkedLists: [], cycleTracker: tracker);
 
         var txn1 = ScenarioBuilder.Transaction("T1", new DateOnly(2026, 5, 10), 150m);
         var txn2 = ScenarioBuilder.Transaction("T2", new DateOnly(2026, 5, 15), 300m);
@@ -224,7 +202,7 @@ public class ResolverTests
             roundStrategy: "floor"
         );
 
-        var resolver = new RewardResolver([program], []);
+        var resolver = new RewardResolver([program], pools: [], linkedLists: []);
         var txn = ScenarioBuilder.Transaction("T1", new DateOnly(2026, 5, 10), 150m);
 
         var res = resolver.Resolve(txn);

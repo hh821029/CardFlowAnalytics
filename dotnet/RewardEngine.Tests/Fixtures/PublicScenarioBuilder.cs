@@ -96,33 +96,6 @@ public static class ScenarioBuilder
         MerchantRewardPoolsId = poolId
     };
 
-    // ---------- RewardBridgeRule ----------
-
-    public static RewardBridgeRule BridgeRule(
-        string rulesRewardProgram,
-        decimal merchantRate,
-        int priority = 0,
-        bool rewardCalBreak = false,
-        string? vpcType = null,
-        string? mobilePayment = null,
-        string? ecPlatform = null,
-        string? merchantDisplay = null,
-        string? merchantLocation = null,
-        DateOnly? startDate = null,
-        DateOnly? endDate = null) => new()
-    {
-        RulesRewardProgram = rulesRewardProgram,
-        MerchantRate = merchantRate,
-        Priority = priority,
-        RewardCalBreak = rewardCalBreak,
-        VpcType = vpcType,
-        MobilePayment = mobilePayment,
-        EcPlatform = ecPlatform,
-        MerchantDisplay = merchantDisplay,
-        MerchantLocation = merchantLocation,
-        StartDate = startDate,
-        EndDate = endDate
-    };
 
     // ---------- DailyBenefitSelection (Cube/Richart 型) ----------
 

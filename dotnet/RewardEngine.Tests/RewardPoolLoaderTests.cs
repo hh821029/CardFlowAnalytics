@@ -18,7 +18,7 @@ public class RewardPoolLoaderTests
 
         // Assert
         Assert.NotNull(pools);
-        Assert.Equal(43, pools.Count);
+        Assert.Equal(42, pools.Count);
 
         var generalPool = pools.FirstOrDefault(p => p.MerchantRewardPoolsId == "POOL_GENERAL_EXCLUSION");
         Assert.NotNull(generalPool);

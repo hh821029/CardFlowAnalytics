@@ -218,39 +218,6 @@ public static class PostgresRuleLoader
         return list;
     }
 
-    public static List<RewardBridgeRule> LoadBridgeRules(string connectionString)
-    {
-        using var conn = new NpgsqlConnection(connectionString);
-        var sql = "SELECT * FROM bridge_reward_rules ORDER BY priority ASC";
-
-        var rows = conn.Query(sql);
-        var list = new List<RewardBridgeRule>();
-
-        foreach (var r in rows)
-        {
-            var row = (IDictionary<string, object>)r;
-            var mr = GetVal(row, "merchant_rate");
-            var pr = GetVal(row, "priority");
-            var merchVal = GetVal(row, "merchant_display") ?? GetVal(row, "normalized_merchant") ?? GetVal(row, "merchant");
-
-            list.Add(new RewardBridgeRule
-            {
-                RulesRewardProgram = (GetVal(row, "rules_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
-                VpcType = GetVal(row, "vpc_type")?.ToString(),
-                MobilePayment = (GetVal(row, "payment_process") ?? GetVal(row, "mobile_payment"))?.ToString(),
-                EcPlatform = GetVal(row, "ec_platform")?.ToString(),
-                NormalizedMerchant = GetVal(row, "normalized_merchant")?.ToString(),
-                MerchantDisplay = merchVal?.ToString(),
-                MerchantLocation = (GetVal(row, "merchant_location") ?? GetVal(row, "location"))?.ToString(),
-                StartDate = ParseDateOnly(GetVal(row, "start_date")),
-                EndDate = ParseDateOnly(GetVal(row, "end_date")),
-                MerchantRate = mr != null && decimal.TryParse(mr.ToString(), out var rate) ? rate : null,
-                Priority = pr != null && int.TryParse(pr.ToString(), out var pVal) ? pVal : 999,
-                RewardCalBreak = ParseBool(GetVal(row, "reward_cal_break"))
-            });
-        }
-        return list;
-    }
 
     public static bool TableExists(string connectionString, string tableName)
     {

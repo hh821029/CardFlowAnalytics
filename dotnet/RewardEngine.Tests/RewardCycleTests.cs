@@ -26,8 +26,7 @@ public class RewardCycleTests
         };
 
         var programs = new List<CardRewardProgram> { campaign };
-        var bridgeRules = new List<RewardBridgeRule>();
-        var resolver = new RewardResolver(programs, bridgeRules, cycleTracker: tracker);
+        var resolver = new RewardResolver(programs, pools: [], linkedLists: [], cycleTracker: tracker);
 
         // 交易 1: 金額 2000m * 5% = 100m (未達上限 150m)
         var txn1 = ScenarioBuilder.Transaction("T01", new DateOnly(2025, 1, 15), 2000m,
@@ -61,7 +60,7 @@ public class RewardCycleTests
             CapAmount = 100m
         };
 
-        var resolver = new RewardResolver([campaign], [], cycleTracker: tracker);
+        var resolver = new RewardResolver([campaign], pools: [], linkedLists: [], cycleTracker: tracker);
 
         // 5/10 刷 800m * 10% = 80m
         var txn1 = ScenarioBuilder.Transaction("T1", new DateOnly(2026, 5, 10), 800m);

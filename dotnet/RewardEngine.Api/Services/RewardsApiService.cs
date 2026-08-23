@@ -181,14 +181,15 @@ public sealed class RewardsApiService
                     monthlySelection: null,
                     cycleTracker: cycleTracker);
 
-                var results = new List<ResolvedReward>();
+                var resolvedItems = new List<(RewardTransaction Txn, ResolvedReward Result)>();
                 var errorTransactions = new List<(RewardTransaction Txn, string Reason)>();
 
                 foreach (var txn in transactions)
                 {
                     try
                     {
-                        results.Add(resolver.Resolve(txn));
+                        var res = resolver.Resolve(txn);
+                        resolvedItems.Add((txn, res));
                     }
                     catch (Exception ex)
                     {
@@ -199,8 +200,12 @@ public sealed class RewardsApiService
                     }
                 }
 
-                var totalReward = results.Sum(r => r.TotalRewardAmount);
-                channel.Writer.TryWrite($"data: ✅ 計算完成！共計算 {results.Count} 筆，合計回饋金額 {totalReward:F2} 元\n\n");
+                var totalReward = resolvedItems.Sum(r => r.Result.TotalRewardAmount);
+                channel.Writer.TryWrite($"data: ✅ 計算完成！共計算 {resolvedItems.Count} 筆，合計回饋金額 {totalReward:F2} 元\n\n");
+
+                // 匯出回饋池套用明細 CSV 報表
+                var outputDir = ResolvePath(section, "OutputPath", "output");
+                ExportRewardAuditCsv(outputDir, resolvedItems, channel.Writer);
 
                 // 若有錯誤交易，寫入 errorlog CSV
                 if (errorTransactions.Count > 0)
@@ -263,6 +268,97 @@ public sealed class RewardsApiService
             if (msg is null) yield break;
             yield return msg;
         }
+    }
+
+    private static void ExportRewardAuditCsv(
+        string outputDir,
+        List<(RewardTransaction Txn, ResolvedReward Result)> items,
+        ChannelWriter<string?> writer)
+    {
+        Directory.CreateDirectory(outputDir);
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var detailedPath = Path.Combine(outputDir, $"reward_calculation_detailed_{timestamp}.csv");
+        var latestPath = Path.Combine(outputDir, "reward_calculation_detailed.csv");
+
+        static string Esc(string? v) =>
+            v is null ? "" :
+            v.Contains(',') || v.Contains('"') || v.Contains('\n')
+                ? $"\"{v.Replace("\"", "\"\"")}\""
+                : v;
+
+        var lines = new List<string>
+        {
+            "transaction_id,transaction_date,posting_date,bank_name,card_type,merchant_display,normalized_merchant,mobile_payment,payment_amount,reward_program,reward_type,reward_cycle,pool_id,pool_name,matched_rule_merchant,matched_rule_payment,effective_rate,calculated_reward,total_txn_reward,is_capped,cap_amount"
+        };
+
+        foreach (var (txn, res) in items)
+        {
+            if (res.AppliedPrograms.Count == 0)
+            {
+                lines.Add(string.Join(",",
+                    Esc(txn.TransactionId),
+                    Esc(txn.TransactionDate.ToString("yyyy-MM-dd")),
+                    Esc(txn.PostingDate.ToString("yyyy-MM-dd")),
+                    Esc(txn.BankName),
+                    Esc(txn.CardType),
+                    Esc(txn.MerchantDisplay),
+                    Esc(txn.NormalizedMerchant),
+                    Esc(txn.MobilePayment),
+                    txn.Amount.ToString("F1"),
+                    Esc("未匹配方案"),
+                    "",
+                    "",
+                    "N/A",
+                    Esc("無回饋池"),
+                    "",
+                    "",
+                    "0.0000",
+                    "0.00",
+                    res.TotalRewardAmount.ToString("F2"),
+                    "FALSE",
+                    ""));
+            }
+            else
+            {
+                foreach (var prog in res.AppliedPrograms)
+                {
+                    var matchedRuleMerchant = prog.MatchedRule?.MerchantDisplay != null
+                        ? string.Join(";", prog.MatchedRule.MerchantDisplay)
+                        : (prog.MatchedRule?.NormalizedMerchant != null ? string.Join(";", prog.MatchedRule.NormalizedMerchant) : "");
+
+                    var matchedRulePayment = prog.MatchedRule?.PaymentProcess != null
+                        ? string.Join(";", prog.MatchedRule.PaymentProcess)
+                        : "";
+
+                    lines.Add(string.Join(",",
+                        Esc(txn.TransactionId),
+                        Esc(txn.TransactionDate.ToString("yyyy-MM-dd")),
+                        Esc(txn.PostingDate.ToString("yyyy-MM-dd")),
+                        Esc(txn.BankName),
+                        Esc(txn.CardType),
+                        Esc(txn.MerchantDisplay),
+                        Esc(txn.NormalizedMerchant),
+                        Esc(txn.MobilePayment),
+                        txn.Amount.ToString("F1"),
+                        Esc(prog.Program.RewardProgram),
+                        Esc(prog.Program.RewardType),
+                        Esc(prog.Program.RewardCycle),
+                        Esc(prog.MatchedPool?.MerchantRewardPoolsId ?? "BASE_PROGRAM"),
+                        Esc(prog.MatchedPool?.PoolName ?? "全通路基礎方案"),
+                        Esc(matchedRuleMerchant),
+                        Esc(matchedRulePayment),
+                        prog.EffectiveRate.ToString("F4"),
+                        prog.CalculatedRewardAmount.ToString("F2"),
+                        res.TotalRewardAmount.ToString("F2"),
+                        prog.IsCapped ? "TRUE" : "FALSE",
+                        prog.Program.CapAmount.HasValue ? prog.Program.CapAmount.Value.ToString("F0") : ""));
+                }
+            }
+        }
+
+        File.WriteAllLines(detailedPath, lines, System.Text.Encoding.UTF8);
+        File.WriteAllLines(latestPath, lines, System.Text.Encoding.UTF8);
+        writer.TryWrite($"data: 📊 回饋池套用明細報表已輸出至：{Path.GetFileName(detailedPath)}\n\n");
     }
 
     private static string ResolvePath(IConfigurationSection section, string key, string fallback)
