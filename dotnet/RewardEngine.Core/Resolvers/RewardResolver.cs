@@ -282,7 +282,7 @@ public sealed class RewardResolver
             return false;
         if (!MatchesBehaviorField(rule.EcPlatform, txn.EcPlatform))
             return false;
-        if (!MatchesBehaviorField(rule.VpcType, txn.VpcType))
+        if (!MatchesVpcField(rule.VpcType, txn.VpcType))
             return false;
 
         // 4. 地理/國別限制
@@ -294,6 +294,33 @@ public sealed class RewardResolver
             return false;
 
         return true;
+    }
+
+    private static bool MatchesVpcField(string[]? ruleValues, string? txnValue)
+    {
+        if (ruleValues == null || ruleValues.Length == 0)
+            return true; // 完全不限制 (Wildcard)
+
+        bool hasNone = ruleValues.Any(v => string.Equals(v, "NONE", StringComparison.OrdinalIgnoreCase));
+        bool hasAll = ruleValues.Any(v => string.Equals(v, "ALL", StringComparison.OrdinalIgnoreCase));
+
+        // 對於 vpc_type，"CARD" 代表實體卡一般消費（無使用虛擬卡/Token VPC），在限制規則中等同於無虛擬卡 (NONE/空值)
+        bool isTxnNoVpc = string.IsNullOrWhiteSpace(txnValue) ||
+                          string.Equals(txnValue, "NONE", StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(txnValue, "CARD", StringComparison.OrdinalIgnoreCase);
+
+        if (hasNone && isTxnNoVpc)
+            return true;
+
+        if (hasAll && !isTxnNoVpc)
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(txnValue))
+        {
+            return ruleValues.Any(v => string.Equals(v, txnValue, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return false;
     }
 
     private static bool MatchesBehaviorField(string[]? ruleValues, string? txnValue)
