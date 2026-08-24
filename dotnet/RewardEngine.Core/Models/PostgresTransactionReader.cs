@@ -134,4 +134,15 @@ public static class PostgresTransactionReader
             MerchantLocation = (GetVal(r, "merchant_location") ?? GetVal(r, "location"))?.ToString()
         };
     }
+    
+    public static string GetPostgresConnectionString()
+    {
+        var host = Environment.GetEnvironmentVariable("PG_HOST") ?? Environment.GetEnvironmentVariable("POSTGRES_HOST") ?? "127.0.0.1";
+        var port = Environment.GetEnvironmentVariable("PG_PORT") ?? Environment.GetEnvironmentVariable("POSTGRES_PORT") ?? "5432";
+        var user = Environment.GetEnvironmentVariable("PG_USER") ?? Environment.GetEnvironmentVariable("POSTGRES_USER") ?? "postgres";
+        var pass = Environment.GetEnvironmentVariable("PG_PASSWORD") ?? Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "postgres";
+        var db   = Environment.GetEnvironmentVariable("PG_DATABASE") ?? Environment.GetEnvironmentVariable("POSTGRES_DB") ?? "credit_card_db";
+
+        return $"Host={host};Port={port};Database={db};Username={user};Password={pass}";
+    }
 }

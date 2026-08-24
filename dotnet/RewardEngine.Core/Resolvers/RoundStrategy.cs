@@ -26,7 +26,7 @@ public static class RoundStrategy
 
     public static decimal CalculateResolutionReward(decimal txnAmount, ProgramRateResolution resolution)
     {
-        var rawReward = txnAmount * resolution.EffectiveRate;
+        var rawReward = txnAmount * (resolution.EffectiveRate / 100m);
         var program = resolution.Program;
 
         var rewardTypeInfo = RewardTypeInfo.Resolve(program.RewardType);

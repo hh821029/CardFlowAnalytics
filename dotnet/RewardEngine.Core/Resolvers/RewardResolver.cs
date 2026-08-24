@@ -49,8 +49,17 @@ public sealed class RewardResolver
 
     public ResolvedReward Resolve(RewardTransaction txn)
     {
+        var trace = new List<string>();
+
         // Stage 0：每日權益選擇閘門（僅選擇制卡片如 CUBE 有值）
-        var lockedBaseProgram = _dailySelection?.ResolveActiveProgram(txn)?.ResolvedProgram;
+        var dailyRes = _dailySelection?.ResolveActiveProgram(txn);
+        var lockedBasePrograms = dailyRes?.ResolvedPrograms ?? (dailyRes?.ResolvedProgram != null ? [dailyRes.ResolvedProgram] : null);
+
+        if (lockedBasePrograms != null && lockedBasePrograms.Count > 0)
+            trace.Add($"[S0-每日權益] 命中={string.Join(",", lockedBasePrograms)}" +
+                      (dailyRes?.RequiresManualVerification == true ? $" ⚠️{dailyRes.VerificationReason}" : ""));
+        else if (_dailySelection != null)
+            trace.Add("[S0-每日權益] 無命中（未在任何選擇區間內）");
 
         // Stage 1：候選方案過濾（卡別/銀行物理隔離、日期區間、每日權益鎖定）
         var candidates = _programs.Where(p =>
@@ -71,12 +80,15 @@ public sealed class RewardResolver
                                (!string.IsNullOrEmpty(txn.CardType) && string.Equals(p.CardType, txn.CardType, StringComparison.OrdinalIgnoreCase));
             if (!isCardMatch) return false;
 
-            if (p.Source == RewardProgramSource.Base && lockedBaseProgram != null &&
-                !string.Equals(p.RewardProgram, lockedBaseProgram, StringComparison.OrdinalIgnoreCase))
+            if (p.Source == RewardProgramSource.Base && lockedBasePrograms != null && lockedBasePrograms.Count > 0 &&
+                !lockedBasePrograms.Any(lp => string.Equals(p.RewardProgram, lp, StringComparison.OrdinalIgnoreCase)))
                 return false;
 
             return true;
         }).ToList();
+
+        trace.Add($"[S1-候選方案] 共{candidates.Count}筆：" +
+                  string.Join(" | ", candidates.Select(p => $"{p.RewardProgram}(pri={p.Priority},{p.Source})")));
 
         // Stage 2 & 3：回饋池費率解析
         var candidateResolutions = new List<ProgramRateResolution>();
@@ -86,6 +98,11 @@ public sealed class RewardResolver
             if (res != null)
             {
                 candidateResolutions.Add(res);
+                trace.Add($"[S2/3-回饋池] ✅ {prog.RewardProgram} → 池:{res.MatchedPool?.PoolName ?? "無池(全通路)"} | 費率:{res.EffectiveRate:F4}% | 原始金額:{res.CalculatedRewardAmount:F2}");
+            }
+            else
+            {
+                trace.Add($"[S2/3-回饋池] ❌ {prog.RewardProgram} → 未命中任何池規則，略過");
             }
         }
 
@@ -103,6 +120,7 @@ public sealed class RewardResolver
                     .Select(s => s.RulesRewardProgram)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+                var beforeCount = candidateResolutions.Count;
                 candidateResolutions = candidateResolutions
                     .Where(r =>
                     {
@@ -114,6 +132,12 @@ public sealed class RewardResolver
                         return true;
                     })
                     .ToList();
+
+                trace.Add($"[S4-月結篩選] 選擇:{string.Join(",", selectedCampaignPrograms)} | 過濾前:{beforeCount}筆 → 後:{candidateResolutions.Count}筆");
+            }
+            else
+            {
+                trace.Add("[S4-月結篩選] 無月結選擇區間命中，略過篩選");
             }
         }
 
@@ -124,9 +148,14 @@ public sealed class RewardResolver
             applied.Add(res);
             if (res.BreakTriggered)
             {
+                trace.Add($"[S5-Waterfall] 加入:{res.Program.RewardProgram}(pri={res.Program.Priority}) ⛔ reward_cal_break=TRUE，截斷後續計算");
                 break;
             }
+            trace.Add($"[S5-Waterfall] 加入:{res.Program.RewardProgram}(pri={res.Program.Priority}) → 繼續");
         }
+
+        if (applied.Count == 0)
+            trace.Add("[S5-Waterfall] ⚠️ 無任何方案通過，最終 applied 為空");
 
         // Stage 6：套用 RewardCycleTracker 進行週期上限控管與進位策略處理
         var finalApplied = new List<ProgramRateResolution>();
@@ -139,6 +168,8 @@ public sealed class RewardResolver
                     : _cycleTracker.ApplyCapAndAccumulate(res.Program, txn, res.CalculatedRewardAmount);
 
                 finalApplied.Add(res with { CalculatedRewardAmount = awarded, IsCapped = isCapped });
+                trace.Add($"[S6-週期上限] {res.Program.RewardProgram} → 計算:{res.CalculatedRewardAmount:F2} → 發放:{awarded:F2}" +
+                          (isCapped ? " ⚠️ 已達上限截斷" : ""));
             }
             else
             {
@@ -147,12 +178,14 @@ public sealed class RewardResolver
         }
 
         var total = finalApplied.Sum(a => a.CalculatedRewardAmount);
+        trace.Add($"[最終結果] 合計回饋:{total:F2} | 套用方案數:{finalApplied.Count}");
 
         return new ResolvedReward
         {
             TransactionId = txn.TransactionId,
             AppliedPrograms = finalApplied,
-            TotalRewardAmount = total
+            TotalRewardAmount = total,
+            StageTrace = trace
         };
     }
 
@@ -219,26 +252,30 @@ public sealed class RewardResolver
             return false;
 
         // 2. 銀行與卡別限制
-        if (rule.BankNo != null && rule.BankNo.Length > 0)
+        // rule.BankNo 與 rule.BankName 是同一個銀行身份的兩種表達（代號 vs 名稱）。
+        // txn.BankNo 可能為 null（資料庫無此欄位），因此兩者合併以 OR 比對：
+        // 交易只要通過「代號清單」或「名稱清單」其中一邊即視為銀行符合。
+        bool hasBankNoRule = rule.BankNo != null && rule.BankNo.Length > 0;
+        bool hasBankNameRule = rule.BankName != null && rule.BankName.Length > 0;
+        if (hasBankNoRule || hasBankNameRule)
         {
-            if (!MatchesBankOrCard(rule.BankNo, txn.BankNo) && !MatchesBankOrCard(rule.BankNo, txn.BankName))
+            bool bankNoOk   = hasBankNoRule   && (MatchesBankOrCard(rule.BankNo, txn.BankNo) || MatchesBankOrCard(rule.BankNo, txn.BankName));
+            bool bankNameOk = hasBankNameRule && MatchesBankOrCard(rule.BankName, txn.BankName);
+            if (!bankNoOk && !bankNameOk)
                 return false;
         }
-        if (rule.BankName != null && rule.BankName.Length > 0)
+
+        // 卡別：CardId 與 CardType 同理，兩者互為別名，OR 合併比對
+        bool hasCardIdRule   = rule.CardId != null && rule.CardId.Length > 0;
+        bool hasCardTypeRule = rule.CardType != null && rule.CardType.Length > 0;
+        if (hasCardIdRule || hasCardTypeRule)
         {
-            if (!MatchesBankOrCard(rule.BankName, txn.BankName))
+            bool cardIdOk   = hasCardIdRule   && (MatchesBankOrCard(rule.CardId, txn.CardId) || MatchesBankOrCard(rule.CardId, txn.CardType));
+            bool cardTypeOk = hasCardTypeRule && MatchesBankOrCard(rule.CardType, txn.CardType);
+            if (!cardIdOk && !cardTypeOk)
                 return false;
         }
-        if (rule.CardId != null && rule.CardId.Length > 0)
-        {
-            if (!MatchesBankOrCard(rule.CardId, txn.CardId) && !MatchesBankOrCard(rule.CardId, txn.CardType))
-                return false;
-        }
-        if (rule.CardType != null && rule.CardType.Length > 0)
-        {
-            if (!MatchesBankOrCard(rule.CardType, txn.CardType))
-                return false;
-        }
+
 
         // 3. 管道與行為屬性（支援 ALL / NONE / 清單比對）
         if (!MatchesBehaviorField(rule.PaymentProcess, txn.PaymentProcess ?? txn.MobilePayment))

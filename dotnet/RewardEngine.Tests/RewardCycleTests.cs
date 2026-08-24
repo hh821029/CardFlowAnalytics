@@ -19,7 +19,7 @@ public class RewardCycleTests
         var tracker = new RewardCycleTracker(billingResolver);
 
         // 設定上限 CapAmount = 150m 的 Campaign
-        var campaign = ScenarioBuilder.CampaignProgram("U Bear卡網購", 0.05m, bankName: "esun", cardType: "U Bear卡") with
+        var campaign = ScenarioBuilder.CampaignProgram("U Bear卡網購", 5m, bankName: "esun", cardType: "U Bear卡") with
         {
             RewardCycle = "BILLING_CYCLE",
             CapAmount = 150m
@@ -54,7 +54,7 @@ public class RewardCycleTests
     public void C02_CALENDAR_MONTH_依據TransactionDate日曆月截斷()
     {
         var tracker = new RewardCycleTracker();
-        var campaign = ScenarioBuilder.CampaignProgram("月加碼", 0.10m, bankName: "TestBank", cardType: "TestCard") with
+        var campaign = ScenarioBuilder.CampaignProgram("月加碼", 10m, bankName: "TestBank", cardType: "TestCard") with
         {
             RewardCycle = "CALENDAR_MONTH",
             CapAmount = 100m

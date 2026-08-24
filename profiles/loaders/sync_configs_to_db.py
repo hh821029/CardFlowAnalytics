@@ -16,7 +16,6 @@ from profiles.loaders.db_columns_mapping import (
     MERCHANT_COL_MAPPING,
     PAYMENT_PROCESS_COL_MAPPING,
     EC_PLATFORM_COL_MAPPING,
-    REWARD_RULE_COL_MAPPING,
     BRIDGE_CUBE_SELECTION_COL_MAPPING,
     BRIDGE_REWARD_LINKED_LISTS_COL_MAPPING,
     load_pools_json_to_df,
@@ -222,18 +221,6 @@ class ConfigSyncManager:
         except Exception as e:
             logger.error(f"❌ 回饋方案池 同步失敗: {e}", exc_info=True)
 
-
-
-    def sync_reward_rules(self):
-        self._sync_item(
-            "回饋規則 (Waterfall)", 
-            "bridge_reward_rules", 
-            "bridge_reward_rules", 
-            REWARD_RULE_COL_MAPPING, 
-            indices=['reward_program', 'priority'],
-            strategy='append'
-        )
-
     def sync_bridge_cube_selections(self):
         self._sync_item(
             "國泰Cube權益切換歷史", 
@@ -275,7 +262,6 @@ class ConfigSyncManager:
         # 2. 回饋與對照維度表
         self.sync_reward_base()
         self.sync_reward_campaigns()
-        self.sync_reward_rules()
         self.sync_bridge_cube_selections()
         self.sync_dim_fx_table()
         self.sync_dim_billing_history()

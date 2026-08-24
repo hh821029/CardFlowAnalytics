@@ -84,7 +84,7 @@ public sealed class RewardsApiService
                 if (!string.IsNullOrEmpty(endDate) && DateOnly.TryParse(endDate, out var t)) to = t;
 
                 // 取得 PostgreSQL 連線字串
-                var pgConnStr = SqliteTransactionReader.GetPostgresConnectionStringFromEnv();
+                var pgConnStr = PostgresTransactionReader.GetPostgresConnectionString();
 
                 // 1. 檢查 PostgreSQL 核心必備資料表是否存在
                 channel.Writer.TryWrite("data: 🔍 檢查 PostgreSQL 資料庫資料表完整性...\n\n");
@@ -288,11 +288,15 @@ public sealed class RewardsApiService
 
         var lines = new List<string>
         {
-            "transaction_id,transaction_date,posting_date,bank_name,card_type,merchant_display,normalized_merchant,mobile_payment,payment_amount,reward_program,reward_type,reward_cycle,pool_id,pool_name,matched_rule_merchant,matched_rule_payment,effective_rate,calculated_reward,total_txn_reward,is_capped,cap_amount"
+            "transaction_id,transaction_date,posting_date,bank_name,card_type,merchant_display,normalized_merchant,mobile_payment,payment_amount,reward_program,reward_type,reward_cycle,pool_id,pool_name,matched_rule_merchant,matched_rule_payment,effective_rate,calculated_reward,total_txn_reward,is_capped,cap_amount,stage_trace"
         };
 
         foreach (var (txn, res) in items)
         {
+            var stageTraceText = res.StageTrace.Count > 0
+                ? Esc(string.Join(" ➜ ", res.StageTrace))
+                : "";
+
             if (res.AppliedPrograms.Count == 0)
             {
                 lines.Add(string.Join(",",
@@ -316,7 +320,8 @@ public sealed class RewardsApiService
                     "0.00",
                     res.TotalRewardAmount.ToString("F2"),
                     "FALSE",
-                    ""));
+                    "",
+                    stageTraceText));
             }
             else
             {
@@ -351,7 +356,8 @@ public sealed class RewardsApiService
                         prog.CalculatedRewardAmount.ToString("F2"),
                         res.TotalRewardAmount.ToString("F2"),
                         prog.IsCapped ? "TRUE" : "FALSE",
-                        prog.Program.CapAmount.HasValue ? prog.Program.CapAmount.Value.ToString("F0") : ""));
+                        prog.Program.CapAmount.HasValue ? prog.Program.CapAmount.Value.ToString("F0") : "",
+                        stageTraceText));
                 }
             }
         }

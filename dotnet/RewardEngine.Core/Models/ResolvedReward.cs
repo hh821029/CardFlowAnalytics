@@ -9,4 +9,9 @@ public record ResolvedReward
     public required string TransactionId { get; init; }
     public required IReadOnlyList<ProgramRateResolution> AppliedPrograms { get; init; }
     public required decimal TotalRewardAmount { get; init; }
+
+    /// <summary>
+    /// 各 Stage 的中間配對過程紀錄，僅供 Debug / 稽核用，不影響計算結果
+    /// </summary>
+    public IReadOnlyList<string> StageTrace { get; init; } = [];
 }

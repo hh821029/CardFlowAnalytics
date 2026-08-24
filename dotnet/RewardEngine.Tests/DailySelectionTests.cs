@@ -139,10 +139,10 @@ public class DailySelectionTests
     }
 
     [Fact]
-    public void D08_兩個_selection_區間重疊_應拋出例外()
+    public void D08_兩個_selection_區間重疊_回傳多個候選且標記人工確認()
     {
         // 情境：5/1~5/31 和 5/15~6/15 重疊，5/20 的交易會命中兩個 selection
-        // 預期：拋出 InvalidOperationException 
+        // 預期：回傳多筆 ResolvedPrograms，且 RequiresManualVerification = true
         var selections = new List<DailyBenefitSelection>
         {
             ScenarioBuilder.DailySelection("PROGRAM_A", new DateOnly(2026, 5, 1),  new DateOnly(2026, 5, 31)),
@@ -150,6 +150,13 @@ public class DailySelectionTests
         };
         var strategy = new DailySelectionStrategy(selections);
         var txn = ScenarioBuilder.Transaction("D08", new DateOnly(2026, 5, 20), 500m);
-        Assert.Throws<InvalidOperationException>(() => strategy.ResolveActiveProgram(txn));
+        var result = strategy.ResolveActiveProgram(txn);
+
+        Assert.NotNull(result.ResolvedPrograms);
+        Assert.Equal(2, result.ResolvedPrograms.Count);
+        Assert.Contains("PROGRAM_A", result.ResolvedPrograms);
+        Assert.Contains("PROGRAM_B", result.ResolvedPrograms);
+        Assert.True(result.RequiresManualVerification);
+        Assert.Contains("多筆每日權益選擇", result.VerificationReason);
     }
 }

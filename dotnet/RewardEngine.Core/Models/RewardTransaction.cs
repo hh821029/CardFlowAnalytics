@@ -12,8 +12,8 @@ public record RewardTransaction
     public required string CardType { get; init; }
     public required string CardNo { get; init; }    
     public string? VpcNo { get; init; }
-    public required DateOnly TransactionDate { get; init; }   // 消費日 → Cube/Richart 用這個查
-    public required DateOnly PostingDate { get; init; }        // 入帳日 → Unicard 用這個查
+    public required DateOnly TransactionDate { get; init; }  
+    public required DateOnly PostingDate { get; init; }       
     public required decimal Amount { get; init; }
     public string? VpcType { get; init; }
     public string? MobilePayment { get; init; }

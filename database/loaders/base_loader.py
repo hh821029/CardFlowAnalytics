@@ -64,9 +64,28 @@ class BaseDBLoader(ABC):
             except Exception as e:
                 logger.debug(f"跳過非日期欄位 {col}: {e}")
 
-        # 2. 處理空值 (字串/object 欄位轉 None；數值/float 欄位保持原本 float64 以避開 to_sql object 轉型失敗)
+        # 2. 處理布林欄位正規化 (統一洗為標準大寫字串 'TRUE' / 'FALSE' 寫入資料庫)
+        bool_cols = {
+            'reward_cal_break', 'base_reward_cal_break', 'campaign_reward_cal_break',
+            'is_active', 'is_enable_reward_calc', 'is_co_branded', 'is_dual_currency',
+            'rfm_exclusion', 'is_nccc_listed'
+        }
         for col in df_final.columns:
-            if pd.api.types.is_object_dtype(df_final[col]) or pd.api.types.is_string_dtype(df_final[col]):
+            if col.lower() in bool_cols:
+                def to_bool_str(v):
+                    if v is None or pd.isna(v) or v == '':
+                        return 'FALSE'
+                    if isinstance(v, bool):
+                        return 'TRUE' if v else 'FALSE'
+                    s = str(v).strip().lower()
+                    if s in ('true', '1', 't', 'y', 'yes'):
+                        return 'TRUE'
+                    return 'FALSE'
+                df_final[col] = df_final[col].map(to_bool_str)
+
+        # 3. 處理空值 (字串/object 欄位轉 None；數值/float 欄位保持原本 float64 以避開 to_sql object 轉型失敗)
+        for col in df_final.columns:
+            if col.lower() not in bool_cols and (pd.api.types.is_object_dtype(df_final[col]) or pd.api.types.is_string_dtype(df_final[col])):
                 df_final[col] = df_final[col].replace({pd.NA: None, np.nan: None, 'nan': None, 'None': None, '': None})
 
         return df_final

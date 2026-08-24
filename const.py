@@ -99,15 +99,15 @@ class TransactionColumn(Enum):
 
     CARD_NETWORK = ColumnSpec('card_network', 'str', 50, 'card_network')
     SMART_CARD_TYPE = ColumnSpec('smart_card_type', 'str', 50, 'smart_card_type')
-    IS_CO_BRANDED = ColumnSpec('is_co_branded', 'bool', None, 'is_co_branded')
-    IS_DUAL_CURRENCY = ColumnSpec('is_dual_currency', 'bool', None, 'is_dual_currency')
+    IS_CO_BRANDED = ColumnSpec('is_co_branded', 'str', 10, 'is_co_branded')
+    IS_DUAL_CURRENCY = ColumnSpec('is_dual_currency', 'str', 10, 'is_dual_currency')
     FX_TYPE = ColumnSpec('fx_type', 'str', 5, 'fx_type')
     ACTIVE_STATUS = ColumnSpec('active_status', 'str', 20, 'active_status')
-    ENABLE_REWARD_CALC = ColumnSpec('enable_reward_calc', 'bool', None, 'enable_reward_calc')
+    ENABLE_REWARD_CALC = ColumnSpec('enable_reward_calc', 'str', 10, 'enable_reward_calc')
 
     CARD_START_DATE = ColumnSpec('card_start_date', 'date', None, 'card_start_date')
     CARD_END_DATE = ColumnSpec('card_end_date', 'date', None, 'card_end_date')
-    IS_ACTIVE = ColumnSpec('is_active', 'bool', None, 'is_active')
+    IS_ACTIVE = ColumnSpec('is_active', 'str', 10, 'is_active')
 
     # 回饋資訊
     # 整合所有回饋方案的相關欄位
@@ -124,11 +124,11 @@ class TransactionColumn(Enum):
     CALC_METHOD = ColumnSpec('calc_method', 'str', 50, 'calc_method')
     ROUND_STRATEGY = ColumnSpec('round_strategy', 'str', 50, 'round_strategy')
     MERCHANT_RATE = ColumnSpec('merchant_rate', 'float', None, 'merchant_rate')
-    REWARD_CAL_BREAK = ColumnSpec('reward_cal_break', 'bool', None, 'reward_cal_break')
+    REWARD_CAL_BREAK = ColumnSpec('reward_cal_break', 'str', 10, 'reward_cal_break')
     CONDITION = ColumnSpec('condition', 'str', 255, 'condition')
     MIN_SINGLE_TRANSACTION = ColumnSpec('min_single_transaction', 'float', None, 'min_single_transaction')
     CUMULATIVE_SPEND_THRESHOLD = ColumnSpec('cumulative_spend_threshold', 'float', None, 'cumulative_spend_threshold')
-    IS_ENABLE_REWARD_CALC = ColumnSpec('is_enable_reward_calc', 'bool', None, 'is_enable_reward_calc')
+    IS_ENABLE_REWARD_CALC = ColumnSpec('is_enable_reward_calc', 'str', 10, 'is_enable_reward_calc')
     
     # 適用於回饋方案本身( base )之相關欄位
     BASE_REWARD_ID = ColumnSpec('base_reward_id', 'str', 255, 'base_reward_id')
@@ -152,8 +152,8 @@ class TransactionColumn(Enum):
 
     # 維度表與控制輔助欄位
     PRIORITY = ColumnSpec('priority', 'int', None, 'priority')
-    RFM_EXCLUSION = ColumnSpec('rfm_exclusion', 'bool', None, 'rfm_exclusion')
-    IS_NCCC_LISTED = ColumnSpec('is_nccc_listed', 'bool', None, 'is_nccc_listed')
+    RFM_EXCLUSION = ColumnSpec('rfm_exclusion', 'str', 10, 'rfm_exclusion')
+    IS_NCCC_LISTED = ColumnSpec('is_nccc_listed', 'str', 10, 'is_nccc_listed')
     EC_PLATFORM_TYPE = ColumnSpec('ec_platform_type', 'str', 50, 'ec_platform_type')
 
     # 其他資訊(像是分期資訊等)

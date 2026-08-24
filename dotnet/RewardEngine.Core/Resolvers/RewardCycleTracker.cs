@@ -82,7 +82,7 @@ public class RewardCycleTracker(BillingCycleResolver? billingResolver = null)
         decimal oldTxnAmount = GetAccumulatedTxnAmount(cycleKey);
         decimal newTxnAmount = oldTxnAmount + txn.Amount;
 
-        decimal cumulativeRawReward = newTxnAmount * res.EffectiveRate;
+        decimal cumulativeRawReward = newTxnAmount * (res.EffectiveRate / 100m);
 
         var rewardTypeInfo = RewardTypeInfo.Resolve(program.RewardType);
         string strategy = !string.IsNullOrEmpty(program.RoundStrategy)

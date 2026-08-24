@@ -48,26 +48,24 @@ public sealed class DailySelectionStrategy(
             .Where(s => transaction.TransactionDate >= s.StartDate && transaction.TransactionDate <= s.EndDate)
             .ToList();
 
-        if (matches.Count > 1)
-        {
-            throw new InvalidOperationException(
-                $"交易 {transaction.TransactionId} 命中多筆每日權益選擇，資料本身重疊，需要人工檢查");
-        }
+        var resolvedPrograms = matches.Select(m => m.BaseRewardProgram).Distinct().ToList();
+        var resolvedProgram = resolvedPrograms.Count == 1 ? resolvedPrograms[0] : (resolvedPrograms.Count > 1 ? resolvedPrograms[0] : null);
 
-        var resolvedProgram = matches.Count == 1 ? matches[0].BaseRewardProgram : null;
+        bool isOverlapping = resolvedPrograms.Count > 1;
 
         // 跨境與行動支付使用各自的緩衝天數判斷，互不干擾
         bool crossBorderNearBoundary  = transaction.IsCrossBorder   && IsNearBoundary(transaction.TransactionDate, CrossBorderBufferDays);
         bool mobilePayNearBoundary    = transaction.IsMobilePayment  && IsNearBoundary(transaction.TransactionDate, MobilePaymentBufferDays);
-        bool nearBoundary             = crossBorderNearBoundary || mobilePayNearBoundary;
+        bool nearBoundary             = crossBorderNearBoundary || mobilePayNearBoundary || isOverlapping;
 
         string? verificationReason = nearBoundary
-            ? BuildVerificationReason(crossBorderNearBoundary, mobilePayNearBoundary)
+            ? BuildVerificationReason(crossBorderNearBoundary, mobilePayNearBoundary, isOverlapping, resolvedPrograms)
             : null;
 
         return new BenefitResolutionResult
         {
             ResolvedProgram = resolvedProgram,
+            ResolvedPrograms = resolvedPrograms.Count > 0 ? resolvedPrograms : null,
             RequiresManualVerification = nearBoundary,
             VerificationReason = verificationReason
         };
@@ -78,15 +76,23 @@ public sealed class DailySelectionStrategy(
             Math.Abs(transactionDate.DayNumber - s.StartDate.DayNumber) <= bufferDays ||
             Math.Abs(transactionDate.DayNumber - s.EndDate.DayNumber)   <= bufferDays);
 
-    private static string BuildVerificationReason(bool isCrossBorder, bool isMobilePay)
+    private static string BuildVerificationReason(bool isCrossBorder, bool isMobilePay, bool isOverlapping = false, IReadOnlyList<string>? overlappingPrograms = null)
     {
+        var reasons = new List<string>();
+
+        if (isOverlapping && overlappingPrograms != null)
+        {
+            reasons.Add($"命中多筆每日權益選擇 ({string.Join(", ", overlappingPrograms)})，進入瀑布式特店池自然匹配");
+        }
+
         if (isCrossBorder && isMobilePay)
-            return "跨境 + 行動支付交易，落在權益切換邊界緩衝期內（跨境 ±1 天 / 行動支付最多 2 天），銀行記錄的消費日可能與實際刷卡日不符";
+            reasons.Add("跨境 + 行動支付交易，落在權益切換邊界緩衝期內（跨境 ±1 天 / 行動支付最多 2 天），銀行記錄的消費日可能與實際刷卡日不符");
+        else if (isCrossBorder)
+            reasons.Add("跨境交易，落在權益切換邊界緩衝期（±1 天）內，銀行記錄消費日可能因時區差異（例：iCloud 愛爾蘭 UTC+0 → 台灣 UTC+8 跨午夜）與實際刷卡日差 1 天");
+        else if (isMobilePay)
+            reasons.Add("行動支付交易，落在權益切換邊界緩衝期（2 天）內，銀行記錄消費日可能較實際刷卡日延遲 1-2 天");
 
-        if (isCrossBorder)
-            return "跨境交易，落在權益切換邊界緩衝期（±1 天）內，銀行記錄消費日可能因時區差異（例：iCloud 愛爾蘭 UTC+0 → 台灣 UTC+8 跨午夜）與實際刷卡日差 1 天";
-
-        return "行動支付交易，落在權益切換邊界緩衝期（2 天）內，銀行記錄消費日可能較實際刷卡日延遲 1-2 天";
+        return string.Join("；", reasons);
     }
 }
 
@@ -102,7 +108,7 @@ public sealed class CompositeDailySelectionStrategy(IEnumerable<IBenefitSelectio
         foreach (var strategy in _strategies)
         {
             var result = strategy.ResolveActiveProgram(transaction);
-            if (result != null && (result.ResolvedProgram != null || result.RequiresManualVerification))
+            if (result != null && (result.ResolvedProgram != null || (result.ResolvedPrograms != null && result.ResolvedPrograms.Count > 0) || result.RequiresManualVerification))
             {
                 return result;
             }
