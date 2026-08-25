@@ -8,7 +8,7 @@ payment_process_pattern,payment_process,process_prefix,priority,說明,欄位定
 (?i)(?:全支付),全支付,全支付,7,全支付，全聯為主的電子支付,payment_prefix：清洗完商家資料後要加的前綴詞
 (?i)(?:橘子支付|橘支|Ｇａｍａ.*ｐａｙ|Gamapay),橘子支付,橘子支付,8,遊戲橘子的電子支付,備註：解釋說明這個正則表達的處理情境
 (?i)(?:TQ|ＴＱ),台灣pay,台灣pay,9,財金公司的台灣行動支付,(?i)代表忽略大小寫
-(?i).*(玉山Ｗａｌｌｅｔ|玉山WALLET|玉山電子支付).*,玉山Wallet,玉山Wallet,13,玉山Wallet，玉山銀行的電子錢包服務，可使用玉山信用卡支付,
+(?i).*(?:玉山(?:[wWＷｗ][aAＡａ][lLＬｌ][lLＬｌ][eEＥｅ][tTＴｔ]|電子支付|Wallet|WALLET|Ｗａｌｌｅｔ)).*,玉山Wallet,玉山Wallet,13,玉山Wallet，玉山銀行的電子錢包服務，可使用玉山信用卡支付,
 (?i)(?:ＯＰ錢包|ＯＰＥＮ錢包),OPEN錢包,ＯＰ錢包,14,統一超商的第三方支付,
 (?i)(?:FamiPay|ＦＡＭＩＰＡＹ),Famipay,Famipay,15,全家便利商店的第三方支付,
 (?i)(?:ＰＸＰａｙ|PXPay),PXPay,PXPay,16,全聯的第三方支付,

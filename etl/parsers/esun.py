@@ -52,13 +52,16 @@ class EsunParser(BaseCsvParser):
         # 在處理邏輯之前，先把所有欄位內容的前後空白修掉，並將空字串轉為 None
         df = self._cleanup_whitespace(df)
 
-        # 4. 玉山專屬拆解 (消費地/日期)
+        # 4. [新增] 玉山行動支付特例處理 (玉山Wallet(掃碼) 轉為 payment_process)
+        df = self._process_mobile_payment(df)
+
+        # 5. 玉山專屬拆解 (消費地/日期)
         df = self._parse_details(df)
 
-        # 5. e.Point 折抵處理 (需在卡號提取前，且金額欄位已清洗過)
+        # 6. e.Point 折抵處理 (需在卡號提取前，且金額欄位已清洗過)
         df = self._process_epoint(df)
         
-        # 6. 卡號歸戶提取
+        # 7. 卡號歸戶提取
         df = self.extract_card_info_generic(df, self.card_extraction_config)
 
         # 7. 日期標準化 + 雜訊過濾 (BaseParser 功能)
@@ -80,6 +83,27 @@ class EsunParser(BaseCsvParser):
         
         # 將空字串取代為 NaN，方便後續處理
         df.replace('', pd.NA, inplace=True)
+        return df
+
+    def _process_mobile_payment(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        處理玉山帳單特有的『行動支付』欄位：
+        若包含『玉山Wallet』或『掃碼』，本質為支付管道 (Payment Process)，應轉入 payment_process 欄位並清空 vpc_type。
+        """
+        if const.COL_VPC_TYPE not in df.columns:
+            return df
+        
+        if const.COL_PAYMENT_PROCESS not in df.columns:
+            df[const.COL_PAYMENT_PROCESS] = None
+
+        vpc_series = df[const.COL_VPC_TYPE].fillna('').astype(str).str.strip()
+        
+        # 匹配玉山 Wallet (包含全半形、掃碼等)
+        mask_wallet = vpc_series.str.contains(r'(?i)(?:玉山.*(?:wallet|電子支付|掃碼)|wallet.*掃碼)', regex=True)
+        if mask_wallet.any():
+            df.loc[mask_wallet, const.COL_PAYMENT_PROCESS] = '玉山Wallet'
+            df.loc[mask_wallet, const.COL_VPC_TYPE] = None
+
         return df
 
     def _parse_details(self, df: pd.DataFrame) -> pd.DataFrame:
