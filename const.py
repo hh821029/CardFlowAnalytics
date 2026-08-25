@@ -656,16 +656,21 @@ BRIDGE_REWARD_LINKED_LISTS_PATH = os.path.join(COMMON_CONFIG_DIR, 'bridge_reward
 # 核心目錄 (指向 profiles/common/)
 DATA_DIR = COMMON_DATA_DIR                         # 輸入區 (profiles/common/data)
 OUTPUT_DIR = os.path.join(ROOT_DIR, 'output')       # 輸出區
+REWARD_DOTNET_OUTPUT_DIR = os.path.join(OUTPUT_DIR, 'reward_dotnet', 'detail')  # C# 回饋報表輸出區
 CONFIG_DIR = COMMON_CONFIG_DIR                     # 規則設定檔區 (profiles/common/configs)
 DATABASE_DIR = os.path.join(ROOT_DIR, 'database')    # 資料庫區
 
 # 資料庫路徑 (多資料庫獨立設計)
 TRANSACTIONS_DB_PATH = os.path.join(DATABASE_DIR, 'TransactionsBills.db')
 CONFIGS_DB_PATH = os.path.join(DATABASE_DIR, 'TransactionsConfigs.db')
-ANALYSIS_DB_PATH = os.path.join(OUTPUT_DIR, 'TransactionsAnalysis.db')
+ANALYSIS_DB_PATH = os.path.join(DATABASE_DIR, 'TransactionsAnalysis.db')
+# 向後相容別名：指向主要交易資料庫，避免專案其他地方崩潰
+DB_PATH = TRANSACTIONS_DB_PATH
+
 
 # 確保輸出目錄與 Profile 目錄存在
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(REWARD_DOTNET_OUTPUT_DIR, exist_ok=True)
 os.makedirs(CONFIG_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(COMMON_CONFIG_DIR, exist_ok=True)
@@ -679,9 +684,6 @@ BANK_REWARDS_DB_MAP = {
 }
 REWARDS_CONFIGS_MOCK_DB_PATH = os.path.join(DATABASE_DIR, 'RewardsConfigs_mock.db')
 BANK_REWARDS_DB_MAP['mock'] = REWARDS_CONFIGS_MOCK_DB_PATH
-
-# 向後相容別名：指向主要交易資料庫，避免專案其他地方崩潰
-DB_PATH = TRANSACTIONS_DB_PATH
 
 # 資料庫 Backend 設定 (支援: postgres (預設) / sqlite)
 DEFAULT_DB_BACKEND = os.getenv('DB_BACKEND', 'postgres')

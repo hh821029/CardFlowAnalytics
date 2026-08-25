@@ -203,7 +203,7 @@ public sealed class RewardsApiService
                 channel.Writer.TryWrite($"data: ✅ 計算完成！共計算 {resolvedItems.Count} 筆，合計回饋金額 {totalReward:F2} 元\n\n");
 
                 // 匯出回饋池套用明細 CSV 報表
-                var outputDir = ResolvePath(section, "OutputPath", "output");
+                var outputDir = ResolvePath(section, "OutputPath", "output/reward_dotnet/detail");
                 ExportRewardAuditCsv(outputDir, resolvedItems, channel.Writer);
 
                 // 若有錯誤交易，寫入 errorlog CSV
