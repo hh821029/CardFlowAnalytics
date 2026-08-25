@@ -74,7 +74,7 @@ async def api_run_analytics(
     loc_list = [l.strip() for l in location.split(',')] if location else None
     cat_list = [c.strip() for c in categories.split(',')] if categories else None
     sub_cat_list = [sc.strip() for sc in sub_categories.split(',')] if sub_categories else None
-    is_include_direct = str(include_direct_payment).strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
+    is_include_direct = include_direct_payment.strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
 
     def run_task():
         run_analytics(
@@ -144,7 +144,7 @@ async def api_run_query_export(
     loc_list = [l.strip() for l in location.split(',')] if location else None
     cat_list = [c.strip() for c in categories.split(',')] if categories else None
     sub_cat_list = [sc.strip() for sc in sub_categories.split(',')] if sub_categories else None
-    is_include_direct = str(include_direct_payment).strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
+    is_include_direct = include_direct_payment.strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
 
     def run_task():
         logger.info("⚙️ 啟動 SQL 條件篩選與匯出任務...")
