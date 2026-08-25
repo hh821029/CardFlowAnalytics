@@ -111,12 +111,11 @@ def _resolve_bank_names(bank_inputs: List[str]) -> List[str]:
             bank_map[n.lower()] = valid_names
     
     for item in bank_inputs:
-        item_str = str(item).strip()
-        item_lower = item_str.lower()
+        item_lower = item.lower()
         if item_lower in bank_map:
             resolved.update(bank_map[item_lower])
         else:
-            resolved.add(item_str)
+            resolved.add(item)
             
     return [r for r in resolved if r]
 
