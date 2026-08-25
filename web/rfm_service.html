@@ -139,20 +139,24 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="filter-section">
-                        <!-- 日期與地點篩選 -->
+                <div class="filter-section">
+                    <div class="filter-container" style="grid-template-columns: repeat(2, 1fr);">
+                        <!-- 日期範圍篩選 -->
                         <div class="filter-card">
                             <div class="filter-card-header">
-                                <span>📅 日期與地點範圍</span>
+                                <span>📅 日期範圍篩選</span>
                             </div>
                             <div class="filter-list" style="max-height: none; overflow-y: visible; gap: 8px;">
                                 <!-- 時間區間 Preset Checkboxes -->
                                 <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <span
-                                        style="font-size: 11px; color: var(--text-secondary); margin-bottom: 2px;">快速時間篩選
-                                        (迄日為最新交易日)</span>
-                                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px;">
+                                    <span style="font-size: 11px; color: var(--text-secondary); margin-bottom: 2px;">快速時間篩選 (迄日為最新交易日)</span>
+                                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;">
+                                        <label class="checkbox-label" style="padding: 2px 4px;">
+                                            <input type="checkbox" name="timePreset" value="LIFETIME" checked
+                                                onchange="handleTimePresetClick(this)"> 全時段
+                                        </label>
                                         <label class="checkbox-label" style="padding: 2px 4px;">
                                             <input type="checkbox" name="timePreset" value="LAST_MONTH"
                                                 onchange="handleTimePresetClick(this)"> 近一個月
@@ -175,22 +179,33 @@
                                 <div style="display: flex; gap: 8px; margin-top: 4px;">
                                     <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
                                         <span style="font-size: 11px; color: var(--text-secondary);">自訂起日</span>
-                                        <input type="date" id="startDate"
+                                        <input type="date" id="startDate" disabled
                                             style="background-color: var(--card-bg); border: 1px solid var(--btn-border); border-radius: 4px; padding: 4px 6px; color: var(--text-primary); font-family: var(--font-family); font-size: 12px; width: 100%; box-sizing: border-box;">
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 2px; flex: 1;">
                                         <span style="font-size: 11px; color: var(--text-secondary);">自訂迄日</span>
-                                        <input type="date" id="endDate"
+                                        <input type="date" id="endDate" disabled
                                             style="background-color: var(--card-bg); border: 1px solid var(--btn-border); border-radius: 4px; padding: 4px 6px; color: var(--text-primary); font-family: var(--font-family); font-size: 12px; width: 100%; box-sizing: border-box;">
                                     </div>
                                 </div>
-                                <!-- 地點下拉選單 -->
-                                <div style="display: flex; flex-direction: column; gap: 2px; margin-top: 6px;">
-                                    <span style="font-size: 11px; color: var(--text-secondary);">地點篩選 (兩碼國家代碼)</span>
+                            </div>
+                        </div>
+
+                        <!-- 地點範圍篩選 -->
+                        <div class="filter-card">
+                            <div class="filter-card-header">
+                                <span>🌐 地點範圍篩選</span>
+                            </div>
+                            <div class="filter-list" style="max-height: none; overflow-y: visible; gap: 8px;">
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <span style="font-size: 11px; color: var(--text-secondary);">地點篩選 (兩碼國家代碼，如 TW、JP、US)</span>
                                     <select id="locationSelect"
-                                        style="background-color: var(--card-bg); border: 1px solid var(--btn-border); border-radius: 4px; padding: 4px 6px; color: var(--text-primary); font-family: var(--font-family); font-size: 12px; width: 100%; cursor: pointer;">
-                                        <option value="">全部地區</option>
+                                        style="background-color: var(--card-bg); border: 1px solid var(--btn-border); border-radius: 4px; padding: 6px 8px; color: var(--text-primary); font-family: var(--font-family); font-size: 12px; width: 100%; cursor: pointer;">
+                                        <option value="">全部地區 (不限地點)</option>
                                     </select>
+                                    <span style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+                                        💡 選擇特定消費國家或地區代碼，以針對海外/境內交易進行獨立 RFM 分析。
+                                    </span>
                                 </div>
                             </div>
                         </div>
