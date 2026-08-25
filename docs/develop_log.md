@@ -2,10 +2,12 @@
 
 * **2026-08-25**
    * **回饋計算更新6**：
-     * 檢查dotnet回饋程式與 python ETL資料庫的整合狀況，並持續進行程式碼整理。
+     * 檢查dotnet回饋程式與 python ETL資料庫的整合狀況，並將明細報表輸出收束至 `output/reward_dotnet/detail/`。
    * **Legacy code整理1**：
      * 確認舊有的Legacy code的作用目的，若有新的code已經實作了相同的功能，則移除舊有的code。
-         - 因應PostgreSQL資料庫做為主資料庫中心，移除原本實作在SQLite主資料庫的邏輯，避免程式碼混亂跟多餘。
+         - 因應PostgreSQL資料庫做為主資料庫中心，移除原本實作在SQLite主資料庫的邏輯與 `dual_loader.py` 雙寫機制。
+   * **架構決策與規劃**：
+     * 確立分析結果（RFM、Spending Matrix）收集至專屬 SQLite 分析庫 (`TransactionsAnalysis.db`)，以支援後續圖表視覺化與歷史跨期比對。
    * **Git 歷史更新3**：
      * git分支整理。
 
