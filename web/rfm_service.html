@@ -104,7 +104,15 @@
                                 </div>
                             </summary>
                             <div id="paymentList" class="filter-list">
-                                <span style="color: #64748b; font-size: 13px; padding: 6px;">正在讀取支付...</span>
+                                <!-- 獨立置頂：一般刷卡 / 無第三方支付 -->
+                                <div style="padding: 2px 4px 6px 4px; margin-bottom: 4px; border-bottom: 1px dashed var(--btn-border);">
+                                    <label class="checkbox-label" style="font-weight: 600; color: var(--text-primary);">
+                                        <input type="checkbox" id="chkDirectPayment" name="include_direct_payment" value="true" checked> 💳 一般刷卡 / 無第三方支付
+                                    </label>
+                                </div>
+                                <div id="paymentDynamicList" style="display: flex; flex-direction: column; gap: 4px;">
+                                    <span style="color: #64748b; font-size: 13px; padding: 6px;">正在讀取支付...</span>
+                                </div>
                             </div>
                         </details>
                     </div>
@@ -304,17 +312,19 @@
                             }
 
                             // 3. 渲染第三方支付
-                            const paymentList = document.getElementById('paymentList');
-                            paymentList.innerHTML = '';
-                            if (data.payment_processes && data.payment_processes.length > 0) {
-                                data.payment_processes.forEach(pay => {
-                                    const label = document.createElement('label');
-                                    label.className = 'checkbox-label';
-                                    label.innerHTML = `<input type="checkbox" name="payment" value="${pay}" checked> ${pay}`;
-                                    paymentList.appendChild(label);
-                                });
-                            } else {
-                                paymentList.innerHTML = '<span style="color: #64748b; font-size: 13px; padding: 6px;">無支付管道資料</span>';
+                            const paymentDynamicList = document.getElementById('paymentDynamicList');
+                            if (paymentDynamicList) {
+                                paymentDynamicList.innerHTML = '';
+                                if (data.payment_processes && data.payment_processes.length > 0) {
+                                    data.payment_processes.forEach(pay => {
+                                        const label = document.createElement('label');
+                                        label.className = 'checkbox-label';
+                                        label.innerHTML = `<input type="checkbox" name="payment" value="${pay}" checked> ${pay}`;
+                                        paymentDynamicList.appendChild(label);
+                                    });
+                                } else {
+                                    paymentDynamicList.innerHTML = '<span style="color: #64748b; font-size: 13px; padding: 6px;">無支付管道資料</span>';
+                                }
                             }
 
                             // 4. 渲染消費類別
@@ -437,6 +447,7 @@
                     const checkedBanks = Array.from(document.querySelectorAll('input[name="bank"]:checked')).map(cb => cb.value);
                     const checkedCards = Array.from(document.querySelectorAll('input[name="card"]:checked')).map(cb => cb.value);
                     const checkedPayments = Array.from(document.querySelectorAll('input[name="payment"]:checked')).map(cb => cb.value);
+                    const includeDirect = document.getElementById('chkDirectPayment')?.checked ?? true;
                     const checkedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(cb => cb.value);
                     const checkedSubCategories = Array.from(document.querySelectorAll('input[name="sub_category"]:checked')).map(cb => cb.value);
 
@@ -450,6 +461,7 @@
                     if (checkedBanks.length > 0) params.append('banks', checkedBanks.join(','));
                     if (checkedCards.length > 0) params.append('cards', checkedCards.join(','));
                     if (checkedPayments.length > 0) params.append('payments', checkedPayments.join(','));
+                    params.append('include_direct_payment', includeDirect ? 'true' : 'false');
                     if (checkedCategories.length > 0) params.append('categories', checkedCategories.join(','));
                     if (checkedSubCategories.length > 0) params.append('sub_categories', checkedSubCategories.join(','));
                     if (timeWindow) params.append('time_window', timeWindow);

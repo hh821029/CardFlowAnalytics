@@ -59,6 +59,7 @@ async def api_run_analytics(
     banks: Optional[str] = None,
     cards: Optional[str] = None,
     payments: Optional[str] = None,
+    include_direct_payment: Optional[str] = "true",
     time_window: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -73,12 +74,14 @@ async def api_run_analytics(
     loc_list = [l.strip() for l in location.split(',')] if location else None
     cat_list = [c.strip() for c in categories.split(',')] if categories else None
     sub_cat_list = [sc.strip() for sc in sub_categories.split(',')] if sub_categories else None
+    is_include_direct = str(include_direct_payment).strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
 
     def run_task():
         run_analytics(
             banks=bank_list,
             cards=card_list,
             payments=pay_list,
+            include_direct_payment=is_include_direct,
             time_window=time_window,
             start_date=start_date,
             end_date=end_date,
@@ -126,6 +129,7 @@ async def api_run_query_export(
     banks: Optional[str] = None,
     cards: Optional[str] = None,
     payments: Optional[str] = None,
+    include_direct_payment: Optional[str] = "true",
     time_window: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -140,15 +144,17 @@ async def api_run_query_export(
     loc_list = [l.strip() for l in location.split(',')] if location else None
     cat_list = [c.strip() for c in categories.split(',')] if categories else None
     sub_cat_list = [sc.strip() for sc in sub_categories.split(',')] if sub_categories else None
+    is_include_direct = str(include_direct_payment).strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
 
     def run_task():
         logger.info("⚙️ 啟動 SQL 條件篩選與匯出任務...")
-        logger.info(f"篩選參數 -> 銀行數: {len(bank_list) if bank_list else '未限制'}, 卡片數: {len(card_list) if card_list else '未限制'}, 支付管道數: {len(pay_list) if pay_list else '未限制'}, 時間視窗: {time_window or '未設定'}, 開始日: {start_date or '未設定'}, 結束日: {end_date or '未設定'}, 地點/國家代碼: {location or '未限制'}, 消費主類別: {cat_list or '未限制'}, 消費次類別: {sub_cat_list or '未限制'}")
+        logger.info(f"篩選參數 -> 銀行數: {len(bank_list) if bank_list else '未限制'}, 卡片數: {len(card_list) if card_list else '未限制'}, 支付管道數: {len(pay_list) if pay_list else '未限制'}, 包含一般刷卡: {is_include_direct}, 時間視窗: {time_window or '未設定'}, 開始日: {start_date or '未設定'}, 結束日: {end_date or '未設定'}, 地點/國家代碼: {location or '未限制'}, 消費主類別: {cat_list or '未限制'}, 消費次類別: {sub_cat_list or '未限制'}")
         
         df = query_transactions_modular(
             banks=bank_list,
             cards=card_list,
             payments=pay_list,
+            include_direct_payment=is_include_direct,
             time_window=time_window,
             start_date=start_date,
             end_date=end_date,

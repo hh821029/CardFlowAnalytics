@@ -39,6 +39,7 @@ def run_analytics(
     banks: Optional[List[str]] = None,
     cards: Optional[List[str]] = None,
     payments: Optional[List[str]] = None,
+    include_direct_payment: bool = True,
     time_window: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -58,12 +59,13 @@ def run_analytics(
 
     # 2. 資料提取 (動態條件篩選 vs 全歷史)
     df_raw: pd.DataFrame
-    if any([banks, cards, payments, time_window, start_date, end_date, location]):
+    if any([banks, cards, payments, time_window, start_date, end_date, location]) or not include_direct_payment:
         logger.info("⚙️ 偵測到篩選參數，採用動態條件提取交易資料...")
         df_raw = query_transactions_modular(
             banks=banks,
             cards=cards,
             payments=payments,
+            include_direct_payment=include_direct_payment,
             time_window=time_window,
             start_date=start_date,
             end_date=end_date,

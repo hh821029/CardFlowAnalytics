@@ -124,6 +124,7 @@ def query_transactions_modular(
     banks: Optional[List[str]] = None,
     cards: Optional[List[str]] = None,
     payments: Optional[List[str]] = None,
+    include_direct_payment: bool = True,
     time_window: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -197,11 +198,22 @@ def query_transactions_modular(
             params[f"card_{i}"] = c
         conditions.append(f"t.card_type IN ({', '.join(card_placeholders)})")
 
-    if payments:
-        pay_placeholders = [f":pay_{i}" for i in range(len(payments))]
-        for i, p in enumerate(payments):
-            params[f"pay_{i}"] = p
-        conditions.append(f"t.payment_process IN ({', '.join(pay_placeholders)})")
+    if payments is not None:
+        if payments:
+            pay_placeholders = [f":pay_{i}" for i in range(len(payments))]
+            for i, p in enumerate(payments):
+                params[f"pay_{i}"] = p
+            if include_direct_payment:
+                conditions.append(f"(t.payment_process IN ({', '.join(pay_placeholders)}) OR t.payment_process IS NULL OR t.payment_process = '')")
+            else:
+                conditions.append(f"t.payment_process IN ({', '.join(pay_placeholders)})")
+        else:
+            if include_direct_payment:
+                conditions.append("(t.payment_process IS NULL OR t.payment_process = '')")
+            else:
+                conditions.append("1 = 0")
+    elif not include_direct_payment:
+        conditions.append("(t.payment_process IS NOT NULL AND t.payment_process <> '')")
 
     if location:
         if isinstance(location, list):
