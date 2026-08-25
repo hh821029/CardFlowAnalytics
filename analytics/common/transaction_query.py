@@ -94,6 +94,32 @@ def get_transactions(
             logger.error(f"❌ 讀取交易資料庫失敗: {fb_err}", exc_info=True)
             return pd.DataFrame()
 
+def _resolve_bank_names(bank_inputs: List[str]) -> List[str]:
+    """
+    依據 dim_banks.yaml 定義，將傳入之 bank_id 或 bank_name 解析為所有可能的中文名稱與代碼集合
+    """
+    resolved = set()
+    all_banks = const.get_all_banks()
+    bank_map = {}
+    for b in all_banks:
+        b_id = str(b.get('bank_id', '')).strip().lower()
+        b_name = str(b.get('bank_name', '')).strip()
+        b_mapping = str(b.get('bills_mapping_name', '')).strip()
+        names = {b_id, b_name, b_mapping}.union(set(b.get('keywords', [])))
+        valid_names = {n for n in names if n and n.lower() != 'none' and n.lower() != 'nan'}
+        for n in valid_names:
+            bank_map[n.lower()] = valid_names
+    
+    for item in bank_inputs:
+        item_str = str(item).strip()
+        item_lower = item_str.lower()
+        if item_lower in bank_map:
+            resolved.update(bank_map[item_lower])
+        else:
+            resolved.add(item_str)
+            
+    return [r for r in resolved if r]
+
 def query_transactions_modular(
     banks: Optional[List[str]] = None,
     cards: Optional[List[str]] = None,
@@ -159,8 +185,9 @@ def query_transactions_modular(
             params["end_date"] = end_date
 
     if banks:
-        bank_placeholders = [f":bank_{i}" for i in range(len(banks))]
-        for i, b in enumerate(banks):
+        resolved_banks = _resolve_bank_names(banks)
+        bank_placeholders = [f":bank_{i}" for i in range(len(resolved_banks))]
+        for i, b in enumerate(resolved_banks):
             params[f"bank_{i}"] = b
         conditions.append(f"t.bank_name IN ({', '.join(bank_placeholders)})")
 

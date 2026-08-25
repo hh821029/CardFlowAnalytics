@@ -282,7 +282,7 @@
                                 data.banks.forEach(bank => {
                                     const label = document.createElement('label');
                                     label.className = 'checkbox-label';
-                                    label.innerHTML = `<input type="checkbox" name="bank" value="${bank.id}" checked> ${bank.name}`;
+                                    label.innerHTML = `<input type="checkbox" name="bank" value="${bank.name || bank.id}" checked> ${bank.name}`;
                                     bankList.appendChild(label);
                                 });
                             } else {
