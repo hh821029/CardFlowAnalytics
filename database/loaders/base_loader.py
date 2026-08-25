@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 class BaseDBLoader(ABC):
     """
     [資料載入層 - 抽象介面]
-    所有資料庫載入器 (SQLite, PostgreSQL, DualDB) 的基類。
+    所有資料庫載入器 (SQLite, PostgreSQL) 的基類。
     提供通用的 DataFrame 清理工具 (日期格式化、NaN/NaT 處理) 及統一的 load 介面。
     """
 

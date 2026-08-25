@@ -50,7 +50,7 @@ public sealed class RewardsApiService
             yield break;
         }
 
-        // 2. 檢查資料庫是否存在 (SQLite 模式檢查本機檔，PostgreSQL / Dual 模式直接連線網路庫)
+        // 2. 檢查資料庫是否存在 (SQLite 模式檢查本機檔，PostgreSQL 模式直接連線網路庫)
         var section = _config.GetSection("RewardEngine");
 
         var dbPath = ResolvePath(section, "DbPath", "database/TransactionsBills.db");
@@ -58,8 +58,7 @@ public sealed class RewardsApiService
         var csvSection = section.GetSection("CsvFiles");
 
         var dbBackend = Environment.GetEnvironmentVariable("DB_BACKEND") ?? "postgres";
-        bool isPostgresMode = string.Equals(dbBackend, "postgres", StringComparison.OrdinalIgnoreCase) 
-                           || string.Equals(dbBackend, "dual", StringComparison.OrdinalIgnoreCase);
+        bool isPostgresMode = string.Equals(dbBackend, "postgres", StringComparison.OrdinalIgnoreCase);
 
         if (!isPostgresMode && !File.Exists(dbPath))
         {

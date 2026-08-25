@@ -30,7 +30,7 @@ class ConfigSyncManager:
     負責將 configs/*.csv 資料同步至 SQLite / PostgreSQL 資料庫。
     遵循 GEMINI.md 規範：
     1. 使用 ConfigLoader 處理編碼與私有檔合併 (Append/Replace)
-    2. 使用 get_db_loader 支援 sqlite / postgres / dual 模式寫入與索引建立
+    2. 使用 get_db_loader 支援 sqlite / postgres 模式寫入與索引建立
     """
     def __init__(self, config_dir: Optional[str] = None, db_path=None, db_backend: Optional[str] = None):
         self.config_dir = config_dir if config_dir is not None else const.CONFIG_DIR
@@ -273,7 +273,7 @@ class ConfigSyncManager:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="configs/*.csv 資料同步至資料庫腳本")
-    parser.add_argument("--backend", choices=["sqlite", "postgres", "dual"], default=None, help="指定 DB Backend (sqlite/postgres/dual)")
+    parser.add_argument("--backend", choices=["sqlite", "postgres"], default=None, help="指定 DB Backend (sqlite/postgres)")
     args = parser.parse_args()
 
     # 設置基礎 Log 格式

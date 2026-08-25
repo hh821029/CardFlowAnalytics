@@ -22,8 +22,8 @@ from .db_config import get_postgres_url, get_postgres_engine
 class DBReader:
     """
     [資料庫讀取連線工廠 (Read Abstraction)]
-    職責：根據 DB_BACKEND 設定 (sqlite / postgres / dual) 動態選擇讀取連線。
-    1. 當 DB_BACKEND 為 'postgres' 或 'dual' 時，優先嘗試連線至 PostgreSQL (credit_card_db)。
+    職責：根據 DB_BACKEND 設定 (postgres / sqlite) 動態選擇讀取連線。
+    1. 當 DB_BACKEND 為 'postgres' (預設) 時，優先嘗試連線至 PostgreSQL (credit_card_db)。
     2. 若 PostgreSQL 連線失敗或設定為 'sqlite'，自動平滑降級 (Fallback) 讀取本機 SQLite (TransactionsBills.db)。
     3. 自動統一 SQL 命名參數處理，確保與 pd.read_sql 完美整合。
     """
@@ -52,8 +52,8 @@ class DBReader:
         backend = os.getenv('DB_BACKEND', getattr(const, 'DEFAULT_DB_BACKEND', 'postgres')).strip().lower()
         sqlite_db_path = db_path or const.DB_PATH
 
-        # 1. 嘗試 PostgreSQL 讀取 (若 backend 為 postgres 或 dual)
-        if backend in ('postgres', 'dual') and HAS_SQLALCHEMY:
+        # 1. 嘗試 PostgreSQL 讀取 (若 backend 為 postgres)
+        if backend == 'postgres' and HAS_SQLALCHEMY:
             engine = cls.get_engine()
             if engine:
                 try:

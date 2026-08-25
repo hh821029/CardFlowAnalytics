@@ -683,7 +683,7 @@ BANK_REWARDS_DB_MAP['mock'] = REWARDS_CONFIGS_MOCK_DB_PATH
 # 向後相容別名：指向主要交易資料庫，避免專案其他地方崩潰
 DB_PATH = TRANSACTIONS_DB_PATH
 
-# 資料庫 Backend 設定 (Phase 4.3 重構: sqlite / postgres / dual)
+# 資料庫 Backend 設定 (支援: postgres (預設) / sqlite)
 DEFAULT_DB_BACKEND = os.getenv('DB_BACKEND', 'postgres')
 
 def _check_is_in_docker() -> bool:
