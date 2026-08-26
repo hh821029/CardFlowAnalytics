@@ -263,7 +263,22 @@ async def get_monthly_trend(
             categories=categories, sub_categories=sub_categories
         )
         if df.empty:
-            return JSONResponse(content={"success": True, "data": {"months": [], "series": [], "categories": [], "cards": []}})
+            return JSONResponse(content={
+                "success": True,
+                "data": {
+                    "months": [],
+                    "categories": [],
+                    "series": [],
+                    "category_summary": [],
+                    "card_summary": [],
+                    "summary": {
+                        "total_amount": 0.0,
+                        "active_months": 0,
+                        "card_count": 0,
+                        "payment_count": 0
+                    }
+                }
+            })
 
         df_cat = aggregate_monthly_by_category(df)
         df_card = aggregate_monthly_by_card(df)
@@ -286,6 +301,11 @@ async def get_monthly_trend(
                 "data": data_points
             })
 
+        total_amount = round(float(df['payment_amount'].sum()), 2)
+        active_months = len(months)
+        card_count = df['card_type'].nunique() if 'card_type' in df.columns else 0
+        payment_count = df['payment_process'].nunique() if 'payment_process' in df.columns else 0
+
         return JSONResponse(content={
             "success": True,
             "data": {
@@ -293,7 +313,13 @@ async def get_monthly_trend(
                 "categories": all_categories,
                 "series": series,
                 "category_summary": df_cat.to_dict(orient='records'),
-                "card_summary": df_card.to_dict(orient='records')
+                "card_summary": df_card.to_dict(orient='records'),
+                "summary": {
+                    "total_amount": total_amount,
+                    "active_months": active_months,
+                    "card_count": card_count,
+                    "payment_count": payment_count
+                }
             }
         })
     except Exception as e:

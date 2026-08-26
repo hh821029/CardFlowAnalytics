@@ -67,11 +67,16 @@ async function loadDashboardData() {
         if (trendJson.success && trendJson.data) {
             renderTrendChart(trendJson.data);
             renderPieCharts(trendJson.data);
+            if (trendJson.data.summary) {
+                updateKpiCards(trendJson.data.summary);
+            }
         }
 
         if (sankeyJson.success && sankeyJson.data) {
             renderSankeyChart(sankeyJson.data);
-            updateKpiCards(sankeyJson.data.summary, trendJson.data);
+            if (!trendJson.data?.summary && sankeyJson.data.summary) {
+                updateKpiCards(sankeyJson.data.summary);
+            }
         }
 
     } catch (error) {
@@ -95,16 +100,13 @@ function hideLoading() {
     if (paymentPieChartInstance) paymentPieChartInstance.hideLoading();
 }
 
-function updateKpiCards(sankeySummary, trendData) {
-    if (sankeySummary) {
-        const total = (sankeySummary.total_amount || 0).toLocaleString('zh-TW', { minimumFractionDigits: 0 });
-        document.getElementById('kpiTotalAmount').innerText = `NT$ ${total}`;
-        document.getElementById('kpiCardCount').innerText = `${sankeySummary.card_count || 0} 張`;
-        document.getElementById('kpiPaymentCount').innerText = `${sankeySummary.payment_count || 0} 種`;
-    }
-    if (trendData && trendData.months) {
-        document.getElementById('kpiActiveMonths').innerText = `${trendData.months.length} 個月`;
-    }
+function updateKpiCards(summary) {
+    if (!summary) return;
+    const total = (summary.total_amount || 0).toLocaleString('zh-TW', { minimumFractionDigits: 0 });
+    document.getElementById('kpiTotalAmount').innerText = `NT$ ${total}`;
+    document.getElementById('kpiActiveMonths').innerText = `${summary.active_months !== undefined ? summary.active_months : 0} 個月`;
+    document.getElementById('kpiCardCount').innerText = `${summary.card_count || 0} 張`;
+    document.getElementById('kpiPaymentCount').innerText = `${summary.payment_count || 0} 種`;
 }
 
 function renderTrendChart(data) {
