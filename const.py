@@ -481,11 +481,15 @@ class TimeWindow(Enum):
     LAST_QUARTER = (90, '近一季', '90d', '90d_')
     LAST_HALF_YEAR = (180, '近半年', '180d', '180d_')
     LAST_YEAR = (365, '近一年', '365d', '365d_')
+    LAST_2_YEARS = (730, '近兩年', '730d', '730d_')
+    THIS_YEAR = ('THIS_YEAR', '今年', 'this_year', 'this_year_')
+    LAST_CALENDAR_YEAR = ('LAST_CALENDAR_YEAR', '去年(曆年)', 'prev_year', 'prev_year_')
     LIFETIME = (None, '全歷史', 'life', 'life_')
 
     @property
     def days(self) -> Optional[int]:
-        return self.value[0]
+        val = self.value[0]
+        return val if isinstance(val, int) else None
 
     @property
     def desc(self) -> str:
@@ -499,21 +503,84 @@ class TimeWindow(Enum):
     def prefix(self) -> str:
         return self.value[3]
 
-    def get_start_date(self, anchor_date: Optional[str] = None) -> Optional[str]:
+    def get_date_range(self, anchor_date: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
         """
-        根據基準日動態計算起始日期 (YYYY-MM-DD)。
-        :param anchor_date: YYYY-MM-DD 格式基準日，若為 None 則預設為今天。
+        根據基準日動態計算起始與結束日期 (YYYY-MM-DD, YYYY-MM-DD)。
         """
-        if self.days is None:
-            return None
         base_dt = datetime.strptime(anchor_date, "%Y-%m-%d") if anchor_date else datetime.today()
-        start_dt = base_dt - timedelta(days=self.days)
-        return start_dt.strftime("%Y-%m-%d")
+        base_year = base_dt.year
+
+        if self == TimeWindow.LIFETIME or self.value[0] is None:
+            return None, None
+        elif self == TimeWindow.THIS_YEAR or self.name == 'THIS_YEAR':
+            # 今年：當年 1 月 1 日 ~ 基準日 (今天或最新交易日)
+            start_date = f"{base_year}-01-01"
+            end_date = anchor_date or base_dt.strftime("%Y-%m-%d")
+            return start_date, end_date
+        elif self == TimeWindow.LAST_CALENDAR_YEAR or self.name == 'LAST_CALENDAR_YEAR':
+            # 去年 (曆年)：前一年 1 月 1 日 ~ 前一年 12 月 31 日
+            start_date = f"{base_year - 1}-01-01"
+            end_date = f"{base_year - 1}-12-31"
+            return start_date, end_date
+        elif isinstance(self.value[0], int):
+            # 滾動天數 (30d, 90d, 180d, 365d, 730d)
+            start_dt = base_dt - timedelta(days=self.value[0])
+            end_date = anchor_date or base_dt.strftime("%Y-%m-%d")
+            return start_dt.strftime("%Y-%m-%d"), end_date
+
+        return None, None
+
+    def get_start_date(self, anchor_date: Optional[str] = None) -> Optional[str]:
+        """相容舊版：取得起始日期"""
+        start, _ = self.get_date_range(anchor_date)
+        return start
+
+    @classmethod
+    def resolve_range(cls, time_window_str: Optional[str], anchor_date: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+        """
+        將任意前端傳入的時間視窗字串 (包含 THIS_YEAR, LAST_CALENDAR_YEAR, 1Y, 3M, 6M, 2Y, LAST_YEAR 等)
+        解析為精確的 (start_date, end_date)
+        """
+        if not time_window_str or time_window_str.upper() in ('LIFETIME', 'ALL', '全歷史', '全時段', 'NONE'):
+            return None, None
+
+        tw = time_window_str.strip().upper()
+        base_dt = datetime.strptime(anchor_date, "%Y-%m-%d") if anchor_date else datetime.today()
+        base_year = base_dt.year
+        end_anchor = anchor_date or base_dt.strftime("%Y-%m-%d")
+
+        # 1. 曆年：今年
+        if tw in ('THIS_YEAR', 'THIS_CALENDAR_YEAR', '今年', 'YTD'):
+            return f"{base_year}-01-01", end_anchor
+
+        # 2. 曆年：去年
+        if tw in ('LAST_CALENDAR_YEAR', 'PREV_YEAR', 'PREVIOUS_YEAR', '去年', 'LAST_YEAR_CALENDAR'):
+            return f"{base_year - 1}-01-01", f"{base_year - 1}-12-31"
+
+        # 3. 滾動區間 (月份/天數代碼)
+        rolling_map = {
+            '1M': 30, 'LAST_MONTH': 30, '30D': 30,
+            '3M': 90, 'LAST_QUARTER': 90, '90D': 90,
+            '6M': 180, 'LAST_HALF_YEAR': 180, '180D': 180,
+            '1Y': 365, 'LAST_YEAR': 365, '365D': 365,
+            '2Y': 730, 'LAST_2_YEARS': 730, '730D': 730
+        }
+
+        if tw in rolling_map:
+            days = rolling_map[tw]
+            start_dt = base_dt - timedelta(days=days)
+            return start_dt.strftime("%Y-%m-%d"), end_anchor
+
+        # 4. 嘗試 Enum 名稱匹配
+        if tw in cls.__members__:
+            return cls[tw].get_date_range(anchor_date)
+
+        return None, None
 
     @classmethod
     def to_list(cls) -> List[Dict[str, Any]]:
         """
-        轉換為相容新系統分析模組 (rfm_modules) 的字典陣列格式。
+        轉換為相容新系統分析模組 (rfm_modules / matrix) 的字典陣列格式 (僅包含有效天數之成員)。
         """
         return [
             {
@@ -522,7 +589,7 @@ class TimeWindow(Enum):
                 'suffix': member.key_suffix,
                 'prefix': member.prefix
             }
-            for member in cls
+            for member in cls if member.days is not None or member == cls.LIFETIME
         ]
         
     @classmethod
@@ -537,7 +604,7 @@ class TimeWindow(Enum):
                 'suffix': member.key_suffix,
                 'desc': member.desc 
             }
-            for member in cls
+            for member in cls if member.days is not None or member == cls.LIFETIME
         ]
 
 # ==========================================
