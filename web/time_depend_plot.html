@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCreditCardProjectPro - 消費趨勢與金流桑基圖</title>
+    <!-- 引入 Outfit 字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 AI風 CSS模組 -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- 引入 Apache ECharts 視覺化引擎 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+
+<body>
+    <div class="container" style="max-width: 1200px;">
+        <!-- 頁首標題區塊 -->
+        <div class="page-header">
+            <div>
+                <h1>📈 時間相依趨勢與金流桑基圖</h1>
+                <p class="page-desc">信用卡多維度月度消費走勢分析、類別佔比與金流穿透視覺化儀表板</p>
+            </div>
+        </div>
+
+        <!-- 導覽超連結 -->
+        <div class="nav-bar">
+            <a href="index.html">🏠 總控制台</a> |
+            <a href="etl.html">📦 ETL帳單處理</a> |
+            <a href="cards_manager.html">💳 卡片管理</a> |
+            <a href="sync_config.html">⚙️ 設定同步面板</a> |
+            <a href="rfm_service.html">📊 RFM分析</a> |
+            <a href="reward_service.html">💰 回饋計算分析</a> |
+            <span class="active">📈 視覺化圖表</span>
+        </div>
+
+        <!-- 圖表控制列 -->
+        <div class="plot-toolbar">
+            <div class="plot-filter-group">
+                <label for="timeWindowSelect" style="font-size: 13px; color: var(--text-secondary);">⏳ 時間範圍：</label>
+                <select id="timeWindowSelect" class="plot-select" onchange="loadDashboardData()">
+                    <option value="LIFETIME" selected>全歷史 (Lifetime)</option>
+                    <option value="THIS_YEAR">今年 (年初至今)</option>
+                    <option value="LAST_CALENDAR_YEAR">去年 (前一完整曆年)</option>
+                    <option value="1Y">近 1 年 (近 365 天)</option>
+                    <option value="6M">近 6 個月 (近半年)</option>
+                    <option value="3M">近 3 個月 (近一季)</option>
+                    <option value="2Y">近 2 年 (近 730 天)</option>
+                </select>
+
+                <label for="includeDirectPay" style="font-size: 13px; color: var(--text-secondary); margin-left: 10px;">
+                    <input type="checkbox" id="includeDirectPay" checked onchange="loadDashboardData()"> 包含一般實體刷卡
+                </label>
+            </div>
+            <div>
+                <button class="btn-primary" onclick="loadDashboardData()" style="padding: 8px 16px; font-size: 13px;">🔄 重新整理數據</button>
+            </div>
+        </div>
+
+        <!-- KPI 摘要指標欄 -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">💵 區間總消費金額</div>
+                <div id="kpiTotalAmount" class="kpi-value">NT$ 0</div>
+            </div>
+            <div class="kpi-card purple">
+                <div class="kpi-title">📅 活躍消費月份數</div>
+                <div id="kpiActiveMonths" class="kpi-value">0 個月</div>
+            </div>
+            <div class="kpi-card green">
+                <div class="kpi-title">💳 交易信用卡數</div>
+                <div id="kpiCardCount" class="kpi-value">0 張</div>
+            </div>
+            <div class="kpi-card amber">
+                <div class="kpi-title">📱 支付管道數</div>
+                <div id="kpiPaymentCount" class="kpi-value">0 種</div>
+            </div>
+        </div>
+
+        <!-- 圖表 1：月度消費趨勢堆疊面積圖 -->
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <div class="chart-card-title">📊 每月消費類別趨勢圖 (Monthly Category Trend)</div>
+                    <span style="font-size: 12px; color: var(--text-secondary);">各月份大類金額堆疊走勢</span>
+                </div>
+                <div id="trendChart" class="chart-container">
+                    <div class="chart-loading">載入數據中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 圖表 2：金流桑基圖 (Sankey Flow Diagram) -->
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <div class="chart-card-title">🌊 金流穿透桑基圖 (Sankey Flow: 卡片 ➔ 支付管道 ➔ 消費類別)</div>
+                    <span style="font-size: 12px; color: var(--text-secondary);">線條寬度代表消費金額比例</span>
+                </div>
+                <div id="sankeyChart" class="chart-container-large">
+                    <div class="chart-loading">載入數據中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 圖表 3：雙圓餅圖分佈 -->
+        <div class="chart-grid-2col">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <div class="chart-card-title">💳 信用卡消費佔比分佈</div>
+                </div>
+                <div id="cardPieChart" class="chart-container" style="height: 350px; min-height: 350px;">
+                    <div class="chart-loading">載入數據中...</div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <div class="chart-card-title">📱 支付管道消費佔比分佈</div>
+                </div>
+                <div id="paymentPieChart" class="chart-container" style="height: 350px; min-height: 350px;">
+                    <div class="chart-loading">載入數據中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入主邏輯腳本 -->
+    <script src="scripts/time_depend_plot.js"></script>
+</body>
+
+</html>
