@@ -35,12 +35,6 @@ def calculate_rfm_base(
         'payment_amount': 'sum'
     }
     
-    group_list = [group_cols] if isinstance(group_cols, str) else list(group_cols)
-    if 'category' in df_subset.columns and 'category' not in group_list:
-        agg_rules['category'] = 'first'
-    if 'sub_category' in df_subset.columns and 'sub_category' not in group_list:
-        agg_rules['sub_category'] = 'first'
-        
     rfm = df_subset.groupby(group_cols).agg(agg_rules).rename(columns={
         'transaction_date': f'{prefix}recency_days',
         'transaction_id': f'{prefix}frequency',
@@ -80,7 +74,7 @@ def calculate_multi_window_rfm(
             final_df = rfm_part
         else:
             cols_to_drop = [col for col in rfm_part.columns if col in ['category', 'sub_category']]
-            rfm_part_clean = rfm_part.drop(columns=cols_to_drop)
+            rfm_part_clean = rfm_part.drop(columns=cols_to_drop) if cols_to_drop else rfm_part
             final_df = final_df.join(rfm_part_clean, how='outer')
             
     if final_df is None:
@@ -101,21 +95,96 @@ def calculate_multi_window_rfm(
     final_df = final_df.fillna(value=fill_values)
     return final_df
 
+def _load_merchant_dim_mapping() -> Dict[str, Dict[str, str]]:
+    """
+    從 dim_merchants (ConfigLoader) 載入 normalized_merchant -> {category, sub_category} 映射
+    """
+    mapping: Dict[str, Dict[str, str]] = {}
+    try:
+        df_dim = ConfigLoader.load_config(base_name='dim_merchants')
+        if not df_dim.empty and 'normalized_merchant' in df_dim.columns:
+            if 'priority' in df_dim.columns:
+                p_num = pd.to_numeric(df_dim['priority'], errors='coerce')
+                if isinstance(p_num, pd.Series):
+                    df_dim['priority_num'] = p_num.fillna(999.0)
+                else:
+                    df_dim['priority_num'] = 999.0 if pd.isna(p_num) else p_num
+                df_dim = df_dim.sort_values('priority_num')
+            for _, row in df_dim.iterrows():
+                m_name = str(row.get('normalized_merchant', '')).strip()
+                if not m_name or m_name in mapping:
+                    continue
+                cat = str(row.get('category', '')).strip() if pd.notna(row.get('category')) else ''
+                sub_cat = str(row.get('sub_category', '')).strip() if pd.notna(row.get('sub_category')) else ''
+                if cat and cat.lower() != 'nan':
+                    mapping[m_name] = {'category': cat, 'sub_category': sub_cat if sub_cat.lower() != 'nan' else ''}
+    except Exception as e:
+        logger.debug(f"讀取 dim_merchants 失敗: {e}")
+    return mapping
+
 def calculate_merchant_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, Any]]) -> pd.DataFrame:
     """
     商家維度 RFM 分群計算 (以 normalized_merchant 聚合)
     """
     df_clean = get_clean_df(df_raw)
-    if 'normalized_merchant' not in df_clean.columns or df_clean['normalized_merchant'].dropna().empty:
-        df_clean['normalized_merchant'] = df_clean.get('merchant_display', df_clean.get('merchant', ''))
+    if 'normalized_merchant' not in df_clean.columns:
+        if 'merchant_display' in df_clean.columns:
+            df_clean['normalized_merchant'] = df_clean['merchant_display']
+        elif 'merchant' in df_clean.columns:
+            df_clean['normalized_merchant'] = df_clean['merchant']
+        else:
+            df_clean['normalized_merchant'] = ''
     else:
-        df_clean['normalized_merchant'] = df_clean['normalized_merchant'].fillna(df_clean.get('merchant_display', ''))
+        fallback = df_clean['merchant_display'] if 'merchant_display' in df_clean.columns else (
+            df_clean['merchant'] if 'merchant' in df_clean.columns else ''
+        )
+        df_clean['normalized_merchant'] = df_clean['normalized_merchant'].fillna(fallback)
         
     final_df = calculate_multi_window_rfm(df_clean, 'normalized_merchant', windows_config)
     
     if final_df.empty:
         return pd.DataFrame()
         
+    # 1. 建立全域類別映射 (從 df_clean 提取非空的最新/眾數分類)
+    global_cat_map: Dict[str, Dict[str, str]] = {}
+    if 'category' in df_clean.columns:
+        valid_cat_df = df_clean[df_clean['category'].notna() & (df_clean['category'] != '') & (df_clean['category'] != '未分類')]
+        for m_name, group in valid_cat_df.groupby('normalized_merchant'):
+            cat = group['category'].mode().iloc[0] if not group['category'].empty else ''
+            sub_cat = ''
+            if 'sub_category' in group.columns:
+                valid_sub = group[group['sub_category'].notna() & (group['sub_category'] != '')]
+                if not valid_sub.empty:
+                    sub_cat = valid_sub['sub_category'].mode().iloc[0]
+            global_cat_map[str(m_name).strip()] = {'category': cat, 'sub_category': sub_cat}
+
+    # 2. 載入 dim_merchants 維度表作為 Fallback 補齊
+    dim_map = _load_merchant_dim_mapping()
+
+    # 3. 填補 category 與 sub_category
+    cats = []
+    sub_cats = []
+    for idx, row in final_df.iterrows():
+        m_name = idx.strip() if isinstance(idx, str) else str(row.name).strip()
+        curr_cat = row.get('category', '')
+        curr_sub = row.get('sub_category', '')
+
+        if not curr_cat or curr_cat == '未分類':
+            if m_name in global_cat_map:
+                curr_cat = global_cat_map[m_name]['category']
+                curr_sub = global_cat_map[m_name]['sub_category']
+            elif m_name in dim_map:
+                curr_cat = dim_map[m_name]['category']
+                curr_sub = dim_map[m_name]['sub_category']
+            else:
+                curr_cat = '未分類'
+                curr_sub = ''
+        cats.append(curr_cat if curr_cat else '未分類')
+        sub_cats.append(curr_sub if curr_sub else '')
+
+    final_df['category'] = cats
+    final_df['sub_category'] = sub_cats
+
     short_prefix = windows_config[-1]['prefix']
     
     def _label_segment(row):
@@ -136,14 +205,20 @@ def calculate_merchant_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, 
             return "沉睡 (Dormant)"
 
     final_df['segment'] = final_df.apply(_label_segment, axis=1)
-    return final_df.reset_index()
+    res_df = final_df.reset_index()
+    
+    # 組織欄位順序: normalized_merchant, category, sub_category, segment, ... 其餘指標
+    lead_cols = ['normalized_merchant', 'category', 'sub_category', 'segment']
+    other_cols = [c for c in res_df.columns if c not in lead_cols]
+    ordered_cols = [c for c in lead_cols if c in res_df.columns] + other_cols
+    return cast(pd.DataFrame, res_df[ordered_cols])
 
 def calculate_category_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, Any]]) -> pd.DataFrame:
     """
     消費類別維度 RFM 分群計算 (以 category 聚合)
     """
     df_clean = get_clean_df(df_raw)
-    if 'category' not in df_clean.columns or df_clean['category'].dropna().empty:
+    if 'category' not in df_clean.columns:
         df_clean['category'] = '未分類'
     else:
         df_clean['category'] = df_clean['category'].fillna('未分類')

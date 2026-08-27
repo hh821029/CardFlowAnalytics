@@ -67,8 +67,18 @@ def prepare_analytics_dataset(
     else:
         df_raw['payment_amount'] = pd.Series(amount_series).fillna(0)
 
-    if 'normalized_merchant' not in df_raw.columns or df_raw['normalized_merchant'].dropna().empty:
-        df_raw['normalized_merchant'] = df_raw.get('merchant_display', df_raw.get('merchant_name', ''))
+    if 'normalized_merchant' not in df_raw.columns:
+        if 'merchant_display' in df_raw.columns:
+            df_raw['normalized_merchant'] = df_raw['merchant_display']
+        elif 'merchant_name' in df_raw.columns:
+            df_raw['normalized_merchant'] = df_raw['merchant_name']
+        else:
+            df_raw['normalized_merchant'] = ''
+    else:
+        fallback = df_raw['merchant_display'] if 'merchant_display' in df_raw.columns else (
+            df_raw['merchant_name'] if 'merchant_name' in df_raw.columns else ''
+        )
+        df_raw['normalized_merchant'] = df_raw['normalized_merchant'].fillna(fallback)
 
     if 'category' not in df_raw.columns:
         df_raw['category'] = '未分類'

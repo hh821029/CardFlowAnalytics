@@ -221,14 +221,19 @@ def query_transactions_modular(
         conditions.append("(t.payment_process IS NOT NULL AND t.payment_process <> '')")
 
     if location:
-        if isinstance(location, list):
-            loc_placeholders = [f":loc_{i}" for i in range(len(location))]
-            for i, l in enumerate(location):
-                params[f"loc_{i}"] = l
-            conditions.append(f"t.merchant_location IN ({', '.join(loc_placeholders)})")
-        else:
-            conditions.append("t.merchant_location = :location")
-            params["location"] = location
+        loc_list = [location] if isinstance(location, str) else list(location)
+        loc_set = set(loc_list)
+        # 若同時包含國內與國外，或為全選，則視為不限制地點
+        if not (('國內' in loc_set and '國外' in loc_set) or 'all' in loc_set or len(loc_set) == 0):
+            if '國內' in loc_set:
+                conditions.append("(t.merchant_location IN ('TW', 'TWN', '台灣', '臺灣', '國內') OR t.merchant_location IS NULL OR t.merchant_location = '')")
+            elif '國外' in loc_set:
+                conditions.append("(t.merchant_location NOT IN ('TW', 'TWN', '台灣', '臺灣', '國內') AND t.merchant_location IS NOT NULL AND t.merchant_location <> '')")
+            else:
+                loc_placeholders = [f":loc_{i}" for i in range(len(loc_list))]
+                for i, l in enumerate(loc_list):
+                    params[f"loc_{i}"] = l
+                conditions.append(f"t.merchant_location IN ({', '.join(loc_placeholders)})")
 
     sql = f"SELECT {', '.join(query_parts)} FROM rfm_transactions t"
     if conditions:
