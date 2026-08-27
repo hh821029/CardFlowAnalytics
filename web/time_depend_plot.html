@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="0; url=analytics_dashboard.html?tab=trends">
     <title>MyCreditCardProjectPro - 消費趨勢與金流桑基圖</title>
     <!-- 引入 Outfit 字型 -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -11,6 +12,7 @@
     <link rel="stylesheet" href="styles.css">
     <!-- 引入 Apache ECharts 視覺化引擎 -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script>window.location.replace("analytics_dashboard.html?tab=trends");</script>
 </head>
 
 <body>
@@ -26,11 +28,9 @@
         <!-- 導覽超連結 -->
         <div class="nav-bar">
             <a href="index.html">🏠 總控制台</a> |
-            <a href="etl.html">📦 ETL帳單處理</a> |
+            <a href="etl_manager.html">📦 資料管理中樞</a> |
             <a href="cards_manager.html">💳 卡片管理</a> |
-            <a href="sync_config.html">⚙️ 設定同步面板</a> |
-            <a href="rfm_service.html">📊 RFM分析</a> |
-            <a href="reward_service.html">💰 回饋計算分析</a> |
+            <a href="analytics_service.html">💰 分析與回饋中樞</a> |
             <span class="active">📈 視覺化圖表</span>
         </div>
 

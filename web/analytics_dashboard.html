@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCreditCardProjectPro - 視覺化分析儀表板</title>
+    <!-- 引入 Outfit 字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 ECharts 視覺化庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <!-- 引入 AI風 CSS模組 -->
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-box {
+            background-color: var(--card-bg-inner);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .chart-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .kpi-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+        .kpi-val {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin: 4px 0;
+        }
+        .kpi-lbl {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .table-container {
+            max-height: 380px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        table.dashboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+        table.dashboard-table th {
+            background-color: #1e293b;
+            color: var(--text-primary);
+            padding: 10px 12px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        table.dashboard-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+        }
+        table.dashboard-table tr:hover td {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 頁首標題區塊 -->
+        <div class="page-header">
+            <div>
+                <h1>📊 視覺化分析與決策儀表板</h1>
+                <p class="page-desc">信用卡消費趨勢走勢、金流桑基穿透、RFM 客群價值模型與回饋池監控</p>
+            </div>
+            <div>
+                <a href="task_console.html" class="btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                    ⚡ 前往任務控制中心
+                </a>
+            </div>
+        </div>
+
+        <!-- 導覽超連結 -->
+        <div class="nav-bar">
+            <a href="index.html">🏠 總控制台</a> |
+            <a href="task_console.html">⚡ 任務控制中心</a> |
+            <a href="cards_manager.html">💳 卡片管理</a> |
+            <span class="active">📊 視覺化儀表板</span>
+        </div>
+
+        <!-- 頁籤切換元件 -->
+        <div class="tab-nav">
+            <button id="tabBtn-trends" class="tab-btn active" onclick="switchTab('trends')">
+                <span>📈 消費趨勢與金流桑基圖</span>
+            </button>
+            <button id="tabBtn-rfm" class="tab-btn" onclick="switchTab('rfm')">
+                <span>🎈 RFM 價值氣泡與客群分群</span>
+            </button>
+            <button id="tabBtn-rewards" class="tab-btn" onclick="switchTab('rewards')">
+                <span>💰 回饋效益與回饋池監控</span>
+            </button>
+        </div>
+
+        <!-- Tab 1: 消費趨勢與金流桑基圖 -->
+        <div id="tabContent-trends" class="tab-content active">
+            <!-- KPI 總覽 -->
+            <div class="kpi-row">
+                <div class="kpi-card">
+                    <div class="kpi-lbl">總累積消費金額</div>
+                    <div id="kpiTotalAmount" class="kpi-val">NT$ -</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-lbl">活躍月份數</div>
+                    <div id="kpiMonths" class="kpi-val" style="color: #a855f7;">-</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-lbl">使用信用卡數</div>
+                    <div id="kpiCards" class="kpi-val" style="color: #10b981;">-</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-lbl">支付管道數</div>
+                    <div id="kpiPayments" class="kpi-val" style="color: #fbbf24;">-</div>
+                </div>
+            </div>
+
+            <!-- 月度消費大類堆疊趨勢圖 -->
+            <div class="chart-box" style="margin-bottom: 20px;">
+                <div class="chart-header">
+                    <div class="chart-title">📈 月度消費大類堆疊趨勢分析</div>
+                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadMonthlyTrend()">🔄 重新整理</button>
+                </div>
+                <div id="trendChart" style="width: 100%; height: 380px;"></div>
+            </div>
+
+            <!-- 金流桑基圖 -->
+            <div class="chart-box">
+                <div class="chart-header">
+                    <div class="chart-title">🌊 多層級金流桑基圖 (發卡行 ➔ 信用卡別 ➔ 支付管道 ➔ 消費大類)</div>
+                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadSankeyFlow()">🔄 重新整理</button>
+                </div>
+                <div id="sankeyChart" style="width: 100%; height: 460px;"></div>
+            </div>
+        </div>
+
+        <!-- Tab 2: RFM 價值氣泡與客群分群 -->
+        <div id="tabContent-rfm" class="tab-content">
+            <!-- 客群分佈統計九宮格 -->
+            <div class="chart-box" style="margin-bottom: 20px;">
+                <div class="chart-header">
+                    <div class="chart-title">👑 RFM 商家客群價值分佈</div>
+                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadRfmData()">🔄 讀取 RFM 數據</button>
+                </div>
+                <div class="kpi-row">
+                    <div class="kpi-card">
+                        <div class="kpi-lbl">核心商家 (Core)</div>
+                        <div id="segCore" class="kpi-val" style="color: #38bdf8;">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-lbl">潛力新星 (Rising)</div>
+                        <div id="segRising" class="kpi-val" style="color: #c084fc;">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-lbl">一般活躍 (Active)</div>
+                        <div id="segActive" class="kpi-val" style="color: #34d399;">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-lbl">流失高價值 (Churned)</div>
+                        <div id="segChurned" class="kpi-val" style="color: #f87171;">-</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-lbl">沉睡 (Dormant)</div>
+                        <div id="segDormant" class="kpi-val" style="color: #94a3b8;">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RFM 價值氣泡矩陣圖 -->
+            <div class="chart-box" style="margin-bottom: 20px;">
+                <div class="chart-header">
+                    <div class="chart-title">🎈 商家價值氣泡圖 (X: 消費間隔天數, Y: 交易次數, 氣泡大小: 累積金額)</div>
+                </div>
+                <div id="rfmBubbleChart" style="width: 100%; height: 440px;"></div>
+            </div>
+
+            <!-- 卡片價值與使用狀態表 -->
+            <div class="chart-box">
+                <div class="chart-header">
+                    <div class="chart-title">💳 信用卡資產價值分群</div>
+                </div>
+                <div class="table-container">
+                    <table class="dashboard-table" id="cardRfmTable">
+                        <thead>
+                            <tr>
+                                <th>發卡行</th>
+                                <th>卡片名稱</th>
+                                <th>持卡狀態</th>
+                                <th>價值分群</th>
+                                <th>交易次數</th>
+                                <th>累積金額</th>
+                                <th>平均客單價</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cardRfmTbody">
+                            <tr><td colspan="7" style="text-align: center; color: #64748b;">暫無卡片 RFM 數據</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: 回饋效益與回饋池監控 -->
+        <div id="tabContent-rewards" class="tab-content">
+            <!-- 回饋金趨勢圖 -->
+            <div class="chart-box" style="margin-bottom: 20px;">
+                <div class="chart-header">
+                    <div class="chart-title">💰 月度消費與回饋金收益趨勢對比</div>
+                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadRewardsData()">🔄 重新整理</button>
+                </div>
+                <div id="rewardsChart" style="width: 100%; height: 350px;"></div>
+            </div>
+
+            <!-- 回饋金明細匯總表 -->
+            <div class="chart-box" style="margin-bottom: 20px;">
+                <div class="chart-header">
+                    <div class="chart-title">📋 月度卡片實質回饋率明細 (Data Mart: rewards_monthly_summary)</div>
+                </div>
+                <div class="table-container">
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>月份</th>
+                                <th>發卡行</th>
+                                <th>卡片名稱</th>
+                                <th>消費總額</th>
+                                <th>回饋總額</th>
+                                <th>實質回饋率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rewardsMonthlyTbody">
+                            <tr><td colspan="6" style="text-align: center; color: #64748b;">暫無回饋彙總數據</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 回饋池上限使用率監控 -->
+            <div class="chart-box">
+                <div class="chart-header">
+                    <div class="chart-title">🔒 回饋池上限使用狀況 (Data Mart: rewards_pool_utilization)</div>
+                </div>
+                <div class="table-container">
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>月份</th>
+                                <th>發卡行</th>
+                                <th>卡片名稱</th>
+                                <th>回饋池名稱</th>
+                                <th>已獲回饋</th>
+                                <th>回饋池上限</th>
+                                <th>是否達上限</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poolUtilTbody">
+                            <tr><td colspan="7" style="text-align: center; color: #64748b;">暫無回饋池數據</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trendChartInst = null;
+        let sankeyChartInst = null;
+        let rfmChartInst = null;
+        let rewardsChartInst = null;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            const targetBtn = document.getElementById(`tabBtn-${tabId}`);
+            const targetContent = document.getElementById(`tabContent-${tabId}`);
+            if (targetBtn && targetContent) {
+                targetBtn.classList.add('active');
+                targetContent.classList.add('active');
+            }
+
+            setTimeout(() => {
+                if (tabId === 'trends') {
+                    if (trendChartInst) trendChartInst.resize();
+                    if (sankeyChartInst) sankeyChartInst.resize();
+                } else if (tabId === 'rfm') {
+                    loadRfmData();
+                } else if (tabId === 'rewards') {
+                    loadRewardsData();
+                }
+            }, 100);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadMonthlyTrend();
+            loadSankeyFlow();
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab') || window.location.hash.replace('#', '');
+            if (tabParam === 'trends' || tabParam === 'rfm' || tabParam === 'rewards') {
+                switchTab(tabParam);
+            }
+        });
+
+        // 1. 載入月度趨勢
+        async function loadMonthlyTrend() {
+            try {
+                const res = await fetch('/api/analytics/monthly-trend');
+                const result = await res.json();
+                if (!result.success || !result.data) return;
+
+                const { months, series, summary } = result.data;
+
+                // KPI 更新
+                if (summary) {
+                    document.getElementById('kpiTotalAmount').textContent = `NT$ ${Number(summary.total_amount || 0).toLocaleString()}`;
+                    document.getElementById('kpiMonths').textContent = summary.active_months || 0;
+                    document.getElementById('kpiCards').textContent = summary.card_count || 0;
+                    document.getElementById('kpiPayments').textContent = summary.payment_count || 0;
+                }
+
+                const dom = document.getElementById('trendChart');
+                if (!trendChartInst) trendChartInst = echarts.init(dom, 'dark');
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: { trigger: 'axis' },
+                    legend: { top: 0, textStyle: { color: '#94a3b8' } },
+                    grid: { top: 50, right: 30, bottom: 30, left: 60 },
+                    xAxis: { type: 'category', data: months },
+                    yAxis: { type: 'value', name: '消費 (NT$)', splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } } },
+                    series: series
+                };
+
+                trendChartInst.setOption(option);
+                window.addEventListener('resize', () => trendChartInst.resize());
+            } catch (e) {
+                console.error("載入月度趨勢失敗:", e);
+            }
+        }
+
+        // 2. 載入金流桑基圖
+        async function loadSankeyFlow() {
+            try {
+                const res = await fetch('/api/analytics/sankey');
+                const result = await res.json();
+                if (!result.success || !result.data) return;
+
+                const dom = document.getElementById('sankeyChart');
+                if (!sankeyChartInst) sankeyChartInst = echarts.init(dom, 'dark');
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+                    series: [{
+                        type: 'sankey',
+                        data: result.data.nodes,
+                        links: result.data.links,
+                        emphasis: { focus: 'adjacency' },
+                        lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.35 },
+                        label: { color: '#f8fafc', fontSize: 11 }
+                    }]
+                };
+
+                sankeyChartInst.setOption(option);
+                window.addEventListener('resize', () => sankeyChartInst.resize());
+            } catch (e) {
+                console.error("載入桑基圖失敗:", e);
+            }
+        }
+
+        // 3. 載入 RFM 圖表
+        async function loadRfmData() {
+            try {
+                const res = await fetch('/api/analytics/rfm-chart?limit=150');
+                const result = await res.json();
+                if (!result.success || !result.data) return;
+
+                const { merchants, segment_counts, cards } = result.data;
+
+                // 九宮格計數
+                document.getElementById('segCore').textContent = segment_counts['核心商家 (Core)'] || 0;
+                document.getElementById('segRising').textContent = segment_counts['潛力新星 (Rising)'] || 0;
+                document.getElementById('segActive').textContent = segment_counts['一般活躍 (Active)'] || 0;
+                document.getElementById('segChurned').textContent = segment_counts['流失高價值 (Churned)'] || 0;
+                document.getElementById('segDormant').textContent = segment_counts['沉睡 (Dormant)'] || 0;
+
+                // 氣泡圖
+                const bubbleData = merchants.map(m => [
+                    m.recency,
+                    m.frequency,
+                    m.monetary,
+                    m.name,
+                    m.segment,
+                    m.category,
+                    m.sub_category
+                ]);
+
+                const dom = document.getElementById('rfmBubbleChart');
+                if (!rfmChartInst) rfmChartInst = echarts.init(dom, 'dark');
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        formatter: function (param) {
+                            const val = param.value;
+                            return `
+                                <div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${val[3]}</div>
+                                <div>🏷️ 分類: ${val[5]} ${val[6] ? '(' + val[6] + ')' : ''}</div>
+                                <div>👑 分群: ${val[4]}</div>
+                                <div>⏱️ 最近消費: ${val[0]} 天前</div>
+                                <div>🔄 交易次數: ${val[1]} 次</div>
+                                <div>💰 累積消費: NT$ ${Number(val[2]).toLocaleString()}</div>
+                            `;
+                        }
+                    },
+                    grid: { top: 40, right: 40, bottom: 50, left: 60 },
+                    xAxis: {
+                        name: '消費間隔 (天)',
+                        nameLocation: 'middle',
+                        nameGap: 30,
+                        type: 'value',
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+                    },
+                    yAxis: {
+                        name: '交易次數 (次)',
+                        type: 'value',
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+                    },
+                    series: [{
+                        type: 'scatter',
+                        data: bubbleData,
+                        symbolSize: function (val) {
+                            return Math.min(Math.max(Math.sqrt(val[2]) * 0.8, 12), 65);
+                        },
+                        itemStyle: {
+                            color: function (params) {
+                                const seg = params.value[4];
+                                if (seg.includes('Core') || seg.includes('核心')) return '#38bdf8';
+                                if (seg.includes('Rising') || seg.includes('潛力')) return '#c084fc';
+                                if (seg.includes('Active') || seg.includes('活躍')) return '#34d399';
+                                if (seg.includes('Churned') || seg.includes('流失')) return '#f87171';
+                                return '#64748b';
+                            },
+                            opacity: 0.85
+                        }
+                    }]
+                };
+
+                rfmChartInst.setOption(option);
+                window.addEventListener('resize', () => rfmChartInst.resize());
+
+                // 卡片表格
+                const cardTbody = document.getElementById('cardRfmTbody');
+                if (cards && cards.length > 0) {
+                    cardTbody.innerHTML = cards.map(c => `
+                        <tr>
+                            <td>${c.bank_name || ''}</td>
+                            <td><strong>${c.card_type || ''}</strong></td>
+                            <td><span class="quick-badge" style="background: ${c.status === 'active' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)'}; color: ${c.status === 'active' ? '#34d399' : '#f87171'};">${c.status}</span></td>
+                            <td>${c.segment || ''}</td>
+                            <td>${c.frequency || 0}</td>
+                            <td>NT$ ${Number(c.monetary || 0).toLocaleString()}</td>
+                            <td>NT$ ${Number(c.avg_ticket || 0).toLocaleString()}</td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (e) {
+                console.error("載入 RFM 數據失敗:", e);
+            }
+        }
+
+        // 4. 載入回饋圖表與 Data Mart
+        async function loadRewardsData() {
+            try {
+                const res = await fetch('/api/analytics/rewards-summary');
+                const result = await res.json();
+                if (!result.success || !result.data) return;
+
+                const { monthly_summary, pool_utilization } = result.data;
+
+                // 填入月度回饋表格
+                const monthlyTbody = document.getElementById('rewardsMonthlyTbody');
+                if (monthly_summary && monthly_summary.length > 0) {
+                    monthlyTbody.innerHTML = monthly_summary.map(r => `
+                        <tr>
+                            <td><strong>${r.month || ''}</strong></td>
+                            <td>${r.bank_name || ''}</td>
+                            <td>${r.card_type || ''}</td>
+                            <td>NT$ ${Number(r.total_spending || 0).toLocaleString()}</td>
+                            <td style="color: #34d399; font-weight: 600;">NT$ ${Number(r.total_reward || 0).toLocaleString()}</td>
+                            <td><span class="quick-badge" style="background: rgba(56,189,248,0.15); color: #38bdf8;">${r.effective_rate || 0}%</span></td>
+                        </tr>
+                    `).join('');
+                }
+
+                // 填入回饋池表格
+                const poolTbody = document.getElementById('poolUtilTbody');
+                if (pool_utilization && pool_utilization.length > 0) {
+                    poolTbody.innerHTML = pool_utilization.map(p => `
+                        <tr>
+                            <td><strong>${p.month || ''}</strong></td>
+                            <td>${p.bank_name || ''}</td>
+                            <td>${p.card_type || ''}</td>
+                            <td>${p.pool_name || p.pool_id || ''}</td>
+                            <td style="color: #34d399;">NT$ ${Number(p.total_reward || 0).toLocaleString()}</td>
+                            <td>${p.cap_amount ? 'NT$ ' + Number(p.cap_amount).toLocaleString() : '無上限'}</td>
+                            <td><span class="quick-badge" style="background: ${p.is_capped ? 'rgba(248,113,113,0.15)' : 'rgba(52,211,153,0.15)'}; color: ${p.is_capped ? '#f87171' : '#34d399'};">${p.is_capped ? '🔒 已達上限' : '正常'}</span></td>
+                        </tr>
+                    `).join('');
+                }
+
+                // 柱狀/折線圖
+                if (monthly_summary && monthly_summary.length > 0) {
+                    const months = [...new Set(monthly_summary.map(r => r.month))].sort();
+                    const spendingByMonth = {};
+                    const rewardByMonth = {};
+
+                    monthly_summary.forEach(r => {
+                        spendingByMonth[r.month] = (spendingByMonth[r.month] || 0) + (r.total_spending || 0);
+                        rewardByMonth[r.month] = (rewardByMonth[r.month] || 0) + (r.total_reward || 0);
+                    });
+
+                    const dom = document.getElementById('rewardsChart');
+                    if (!rewardsChartInst) rewardsChartInst = echarts.init(dom, 'dark');
+
+                    const option = {
+                        backgroundColor: 'transparent',
+                        tooltip: { trigger: 'axis' },
+                        legend: { data: ['消費總金額', '回饋總金額'], top: 5 },
+                        grid: { top: 40, right: 50, bottom: 30, left: 60 },
+                        xAxis: { type: 'category', data: months },
+                        yAxis: [
+                            { type: 'value', name: '消費 (NT$)' },
+                            { type: 'value', name: '回饋 (NT$)', splitLine: { show: false } }
+                        ],
+                        series: [
+                            {
+                                name: '消費總金額',
+                                type: 'bar',
+                                data: months.map(m => spendingByMonth[m] || 0),
+                                itemStyle: { color: '#3b82f6', borderRadius: [4, 4, 0, 0] }
+                            },
+                            {
+                                name: '回饋總金額',
+                                type: 'line',
+                                yAxisIndex: 1,
+                                data: months.map(m => rewardByMonth[m] || 0),
+                                itemStyle: { color: '#10b981' },
+                                lineStyle: { width: 3 }
+                            }
+                        ]
+                    };
+
+                    rewardsChartInst.setOption(option);
+                    window.addEventListener('resize', () => rewardsChartInst.resize());
+                }
+            } catch (e) {
+                console.error("載入回饋數據失敗:", e);
+            }
+        }
+    </script>
+</body>
+
+</html>
