@@ -23,7 +23,7 @@ generate_mock_data.py
 ~$*.xlsx
 ~$*.doc
 ~$*.pptx
-
+.dotnet_temp
 
 # 忽略資料檔 (保護隱私！)
 *.xlsx
