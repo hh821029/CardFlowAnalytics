@@ -7,7 +7,7 @@ import os
 import sqlite3
 import logging
 import pandas as pd
-from typing import Optional, List, Union, Dict, Any
+from typing import Optional, List, Union, Dict, Any, cast
 
 import const
 from analytics import (
@@ -248,7 +248,7 @@ def sync_rewards_data_mart(detailed_csv_path: Optional[str] = None, db_path: str
         pool_util = df.groupby(valid_pool_cols).agg(**agg_dict).reset_index()
         pool_util['total_reward'] = pool_util['total_reward'].round(2)
         if 'cap_amount' in pool_util.columns:
-            pool_util['cap_amount'] = pd.to_numeric(pool_util['cap_amount'], errors='coerce').fillna(0.0)
+            pool_util['cap_amount'] = cast(pd.Series, pd.to_numeric(pool_util['cap_amount'], errors='coerce')).fillna(0.0)
         # 清除任何 NaN/inf，避免 JSON 序列化失敗
         pool_util = pool_util.replace([float('inf'), float('-inf')], 0.0)
         pool_util = pool_util.where(pd.notna(pool_util), other=None)
