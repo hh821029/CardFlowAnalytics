@@ -21,12 +21,13 @@
             </div>
         </div>
 
-        <!-- 導覽超連結 -->
+        <!-- 導覽超連結 (全站對齊) -->
         <div class="nav-bar">
             <span class="active">🏠 總控制台</span> |
             <a href="task_console.html">⚡ 任務控制中心</a> |
             <a href="cards_manager.html">💳 卡片管理</a> |
-            <a href="analytics_dashboard.html">📊 視覺化儀表板</a>
+            <a href="time_depend_plot.html">📈 時間趨勢分析</a> |
+            <a href="analytics_dashboard.html">👑 卡片回饋與客群</a>
         </div>
 
         <!-- 系統狀態摘要儀表板 -->
@@ -34,8 +35,8 @@
             🟢 API 服務運作正常 | 點擊下方模組進入專屬操作頁面
         </div>
 
-        <!-- 三大核心功能模組區 -->
-        <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+        <!-- 四大核心功能模組區 -->
+        <div class="dashboard-grid">
             <!-- 模組一：任務執行控制中心 (唯一 Console 所在地) -->
             <div class="module-card">
                 <div>
@@ -72,22 +73,41 @@
                 </div>
             </div>
 
-            <!-- 模組三：純視覺化分析儀表板 -->
+            <!-- 模組三：依時間維度 - 時間趨勢與金流桑基圖 -->
             <div class="module-card">
                 <div>
                     <div class="module-header">
-                        <span class="module-icon">📊</span>
-                        <h2 class="module-title">視覺化儀表板 (Visual Analytics)</h2>
+                        <span class="module-icon">📈</span>
+                        <h2 class="module-title">時間趨勢分析 (Time Trends)</h2>
                     </div>
                     <p class="module-desc">
-                        專注於數據決策洞察：月度消費大類堆疊趨勢、多層級金流桑基圖 (Sankey Flow)、RFM 商家價值氣泡矩陣、客群九宮格與回饋池上限監控。
+                        依時間維度穿透分析：月度消費大類堆疊趨勢、跨期消費走勢與多層級金流桑基圖 (Sankey Flow)。
+                    </p>
+                </div>
+                <div class="module-footer">
+                    <a href="time_depend_plot.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #10b981, #059669);">📈
+                        進入時間趨勢</a>
+                    <span class="quick-badge">Time & Sankey</span>
+                </div>
+            </div>
+
+            <!-- 模組四：依卡片與商家維度 - 卡片回饋與客群分析 -->
+            <div class="module-card">
+                <div>
+                    <div class="module-header">
+                        <span class="module-icon">👑</span>
+                        <h2 class="module-title">卡片回饋與客群 (Cards & RFM)</h2>
+                    </div>
+                    <p class="module-desc">
+                        依卡片與商家維度聚合：RFM 客群價值氣泡圖、五大價值九宮格分群統計、月度卡片實質回饋率與回饋池上限監控。
                     </p>
                 </div>
                 <div class="module-footer">
                     <a href="analytics_dashboard.html" class="btn-primary"
-                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #10b981, #3b82f6);">📊
-                        進入視覺化儀表板</a>
-                    <span class="quick-badge">Charts & Insights</span>
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #ec4899, #8b5cf6);">👑
+                        進入卡片與客群</a>
+                    <span class="quick-badge">RFM & Rewards</span>
                 </div>
             </div>
         </div>

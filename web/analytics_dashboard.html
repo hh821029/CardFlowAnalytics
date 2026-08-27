@@ -54,7 +54,8 @@
                             style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;">
                             <option value="all">🌐 全部類別 (All Categories)</option>
                         </select>
-                        <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px;" onclick="loadRfmData()">🔄
+                        <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px;"
+                            onclick="loadRfmData()">🔄
                             讀取數據</button>
                     </div>
                 </div>
@@ -86,7 +87,8 @@
             <div class="chart-box" style="margin-bottom: 20px;">
                 <div class="chart-header">
                     <div class="chart-title">🎈 商家價值氣泡圖 (X: 消費間隔天數, Y: 交易次數, 氣泡大小: 累積金額)</div>
-                    <span id="bubbleFilterLabel" style="font-size: 12px; color: var(--accent-blue); font-weight: 500;">當前類別：全部類別</span>
+                    <span id="bubbleFilterLabel"
+                        style="font-size: 12px; color: var(--accent-blue); font-weight: 500;">當前類別：全部類別</span>
                 </div>
                 <div id="rfmBubbleChart" style="width: 100%; height: 440px;"></div>
             </div>
@@ -148,7 +150,7 @@
 
         <!-- Tab 2: 回饋效益與回饋池監控 -->
         <div id="tabContent-rewards" class="tab-content">
-            <!-- 回饋金趨勢圖 -->
+            <!-- [暫撤] 月度消費與回饋金收益趨勢對比 圖表 - 等 rewards-summary API 穩定後恢復
             <div class="chart-box" style="margin-bottom: 20px;">
                 <div class="chart-header">
                     <div class="chart-title">💰 月度消費與回饋金收益趨勢對比</div>
@@ -156,6 +158,13 @@
                         onclick="loadRewardsData()">🔄 重新整理</button>
                 </div>
                 <div id="rewardsChart" style="width: 100%; height: 350px;"></div>
+            </div>
+            -->
+
+            <!-- 回饋資料重新整理按鈕 -->
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+                <button class="btn-secondary" style="font-size: 12px; padding: 6px 14px;" onclick="loadRewardsData()">🔄
+                    重新整理回饋資料</button>
             </div>
 
             <!-- 回饋金明細匯總表 -->
@@ -266,7 +275,7 @@
             try {
                 const categorySelect = document.getElementById('rfmCategorySelect');
                 const cat = selectedCategory !== null ? selectedCategory : (categorySelect ? categorySelect.value : 'all');
-                
+
                 const res = await fetch(`/api/analytics/rfm-chart?limit=150&category=${encodeURIComponent(cat)}`);
                 const result = await res.json();
                 if (!result.success || !result.data) return;
@@ -405,101 +414,68 @@
             }
         }
 
-        /* [暫時停用] loadRewardsData - 2026-08-27 debug 中
-        // 2. 載入回饋圖表與 Data Mart
+        // 2. 載入回饋 Data Mart 表格 (圖表暫撤，只渲染兩張明細表)
         async function loadRewardsData() {
+            const monthlyTbody = document.getElementById('rewardsMonthlyTbody');
+            const poolTbody = document.getElementById('poolUtilTbody');
+
+            // 顯示載入中
+            if (monthlyTbody) monthlyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">⏳ 載入中...</td></tr>';
+            if (poolTbody) poolTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">⏳ 載入中...</td></tr>';
+
             try {
                 const res = await fetch('/api/analytics/rewards-summary');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const result = await res.json();
-                if (!result.success || !result.data) return;
+
+                if (!result.success || !result.data) {
+                    throw new Error(result.error || '回傳資料格式錯誤');
+                }
 
                 const { monthly_summary, pool_utilization } = result.data;
 
-                // 填入月度回饋表格
-                const monthlyTbody = document.getElementById('rewardsMonthlyTbody');
-                if (monthly_summary && monthly_summary.length > 0) {
-                    monthlyTbody.innerHTML = monthly_summary.map(r => `
-                        <tr>
-                            <td><strong>${r.month || ''}</strong></td>
-                            <td>${r.bank_name || ''}</td>
-                            <td>${r.card_type || ''}</td>
-                            <td>NT$ ${Number(r.total_spending || 0).toLocaleString()}</td>
-                            <td style="color: #34d399; font-weight: 600;">NT$ ${Number(r.total_reward || 0).toLocaleString()}</td>
-                            <td><span class="quick-badge" style="background: rgba(56,189,248,0.15); color: #38bdf8;">${r.effective_rate || 0}%</span></td>
-                        </tr>
-                    `).join('');
+                // ── 月度回饋表格 ─────────────────────────────────
+                if (monthlyTbody) {
+                    if (monthly_summary && monthly_summary.length > 0) {
+                        monthlyTbody.innerHTML = monthly_summary.map(r => `
+                            <tr>
+                                <td><strong>${r.month || ''}</strong></td>
+                                <td>${r.bank_name || ''}</td>
+                                <td>${r.card_type || ''}</td>
+                                <td>NT$ ${Number(r.total_spending || 0).toLocaleString()}</td>
+                                <td style="color: #34d399; font-weight: 600;">NT$ ${Number(r.total_reward || 0).toLocaleString()}</td>
+                                <td><span class="quick-badge" style="background: rgba(56,189,248,0.15); color: #38bdf8;">${Number(r.effective_rate || 0).toFixed(2)}%</span></td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        monthlyTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;">暫無月度回饋數據</td></tr>';
+                    }
                 }
 
-                // 填入回饋池表格
-                const poolTbody = document.getElementById('poolUtilTbody');
-                if (pool_utilization && pool_utilization.length > 0) {
-                    poolTbody.innerHTML = pool_utilization.map(p => `
-                        <tr>
-                            <td><strong>${p.month || ''}</strong></td>
-                            <td>${p.bank_name || ''}</td>
-                            <td>${p.card_type || ''}</td>
-                            <td>${p.pool_name || p.pool_id || ''}</td>
-                            <td style="color: #34d399;">NT$ ${Number(p.total_reward || 0).toLocaleString()}</td>
-                            <td>${p.cap_amount ? 'NT$ ' + Number(p.cap_amount).toLocaleString() : '無上限'}</td>
-                            <td><span class="quick-badge" style="background: ${p.is_capped ? 'rgba(248,113,113,0.15)' : 'rgba(52,211,153,0.15)'}; color: ${p.is_capped ? '#f87171' : '#34d399'};">${p.is_capped ? '🔒 已達上限' : '正常'}</span></td>
-                        </tr>
-                    `).join('');
+                // ── 回饋池表格 ────────────────────────────────────
+                if (poolTbody) {
+                    if (pool_utilization && pool_utilization.length > 0) {
+                        poolTbody.innerHTML = pool_utilization.map(p => `
+                            <tr>
+                                <td><strong>${p.month || ''}</strong></td>
+                                <td>${p.bank_name || ''}</td>
+                                <td>${p.card_type || ''}</td>
+                                <td>${p.pool_name || p.pool_id || ''}</td>
+                                <td style="color: #34d399;">NT$ ${Number(p.total_reward || 0).toLocaleString()}</td>
+                                <td>${(p.cap_amount && Number(p.cap_amount) > 0) ? 'NT$ ' + Number(p.cap_amount).toLocaleString() : '無上限'}</td>
+                                <td><span class="quick-badge" style="background: ${p.is_capped ? 'rgba(248,113,113,0.15)' : 'rgba(52,211,153,0.15)'}; color: ${p.is_capped ? '#f87171' : '#34d399'};">${p.is_capped ? '🔒 已達上限' : '✅ 正常'}</span></td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        poolTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b;">暫無回饋池數據</td></tr>';
+                    }
                 }
 
-                // 柱狀/折線圖
-                if (monthly_summary && monthly_summary.length > 0) {
-                    const months = [...new Set(monthly_summary.map(r => r.month))].sort();
-                    const spendingByMonth = {};
-                    const rewardByMonth = {};
-
-                    monthly_summary.forEach(r => {
-                        spendingByMonth[r.month] = (spendingByMonth[r.month] || 0) + (r.total_spending || 0);
-                        rewardByMonth[r.month] = (rewardByMonth[r.month] || 0) + (r.total_reward || 0);
-                    });
-
-                    const dom = document.getElementById('rewardsChart');
-                    if (!rewardsChartInst) rewardsChartInst = echarts.init(dom, 'dark');
-
-                    const option = {
-                        backgroundColor: 'transparent',
-                        tooltip: { trigger: 'axis' },
-                        legend: { data: ['消費總金額', '回饋總金額'], top: 5 },
-                        grid: { top: 40, right: 50, bottom: 30, left: 60 },
-                        xAxis: { type: 'category', data: months },
-                        yAxis: [
-                            { type: 'value', name: '消費 (NT$)' },
-                            { type: 'value', name: '回饋 (NT$)', splitLine: { show: false } }
-                        ],
-                        series: [
-                            {
-                                name: '消費總金額',
-                                type: 'bar',
-                                data: months.map(m => spendingByMonth[m] || 0),
-                                itemStyle: { color: '#3b82f6', borderRadius: [4, 4, 0, 0] }
-                            },
-                            {
-                                name: '回饋總金額',
-                                type: 'line',
-                                yAxisIndex: 1,
-                                data: months.map(m => rewardByMonth[m] || 0),
-                                itemStyle: { color: '#10b981' },
-                                lineStyle: { width: 3 }
-                            }
-                        ]
-                    };
-
-                    rewardsChartInst.setOption(option);
-                    window.addEventListener('resize', () => rewardsChartInst.resize());
-                }
             } catch (e) {
-                console.error("載入回饋數據失敗:", e);
+                console.error('[loadRewardsData] 載入回饋數據失敗:', e);
+                if (monthlyTbody) monthlyTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#f87171;">❌ 載入失敗：${e.message}</td></tr>`;
+                if (poolTbody) poolTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#f87171;">❌ 載入失敗：${e.message}</td></tr>`;
             }
-        }
-        */
-
-        // [暫時替代] loadRewardsData stub - 等回饋視覺化修復後恢復
-        async function loadRewardsData() {
-            console.log("[loadRewardsData] 暫時停用中，等待 rewards-summary API 修復");
         }
     </script>
 </body>

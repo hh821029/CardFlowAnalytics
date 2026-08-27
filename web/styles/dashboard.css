@@ -70,3 +70,94 @@
             align-items: center;
             gap: 6px;
         }
+
+        /* 視覺化圖表盒與 KPI 卡片 */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .chart-box {
+            background-color: var(--card-bg, #273549);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: var(--radius-md, 12px);
+            padding: 24px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            margin-bottom: 24px;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .kpi-card {
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 14px;
+            text-align: center;
+            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        .kpi-val {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin: 4px 0;
+        }
+        .kpi-lbl {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background-color: rgba(15, 23, 42, 0.55);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+        table.dashboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+        table.dashboard-table th {
+            background-color: #1e293b;
+            color: var(--text-primary);
+            padding: 12px 14px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        table.dashboard-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-secondary);
+        }
+        table.dashboard-table tr:hover td {
+            background-color: rgba(255, 255, 255, 0.04);
+            color: var(--text-primary);
+        }

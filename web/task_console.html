@@ -56,12 +56,13 @@
             </div>
         </div>
 
-        <!-- 導覽超連結 -->
+        <!-- 導覽超連結 (全站對齊) -->
         <div class="nav-bar">
             <a href="index.html">🏠 總控制台</a> |
             <span class="active">⚡ 任務控制中心</span> |
             <a href="cards_manager.html">💳 卡片管理</a> |
-            <a href="analytics_dashboard.html">📊 視覺化儀表板</a>
+            <a href="time_depend_plot.html">📈 時間趨勢分析</a> |
+            <a href="analytics_dashboard.html">👑 卡片回饋與客群</a>
         </div>
 
         <!-- 頁籤切換元件 -->
@@ -310,7 +311,7 @@
 
         // 初始化
         window.addEventListener('DOMContentLoaded', () => {
-            loadCardsMeta();
+            loadAnalyzableData();
             const params = new URLSearchParams(window.location.search);
             const tabParam = params.get('tab') || window.location.hash.replace('#', '');
             if (tabParam === 'etl' || tabParam === 'sync' || tabParam === 'analytics' || tabParam === 'rewards' || tabParam === 'rfm') {
@@ -318,45 +319,48 @@
             }
         });
 
-        // 讀取卡片與銀行元資料填入篩選清單
-        async function loadCardsMeta() {
+        // 讀取可分析維度資料填入篩選清單
+        async function loadAnalyzableData() {
             try {
-                const res = await fetch('/api/cards/all');
+                const res = await fetch('/api/analyzable-data');
                 const data = await res.json();
-                if (data.cards) {
-                    const banks = [...new Set(data.cards.map(c => c.bank_name).filter(Boolean))];
-                    const cards = [...new Set(data.cards.map(c => c.card_type).filter(Boolean))];
+                if (data.error) {
+                    console.warn("讀取可分析資料失敗:", data.error);
+                    return;
+                }
 
-                    const bankListDiv = document.getElementById('bankList');
-                    if (bankListDiv) {
-                        bankListDiv.innerHTML = banks.map(b => `
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="bank" value="${b}"> ${b}
-                            </label>
-                        `).join('');
-                    }
+                // 1. 銀行名稱
+                const bankListDiv = document.getElementById('bankList');
+                if (bankListDiv && data.banks && data.banks.length > 0) {
+                    bankListDiv.innerHTML = data.banks.map(b => {
+                        const name = typeof b === 'object' ? (b.name || b.id) : b;
+                        return `<label class="checkbox-label"><input type="checkbox" name="bank" value="${name}" checked> ${name}</label>`;
+                    }).join('');
+                } else if (bankListDiv) {
+                    bankListDiv.innerHTML = '<span style="color: #64748b; font-size: 13px; padding: 6px;">暫無銀行資料</span>';
+                }
 
-                    const cardListDiv = document.getElementById('cardList');
-                    if (cardListDiv) {
-                        cardListDiv.innerHTML = cards.map(c => `
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="card" value="${c}"> ${c}
-                            </label>
-                        `).join('');
-                    }
+                // 2. 卡片名稱
+                const cardListDiv = document.getElementById('cardList');
+                if (cardListDiv && data.cards && data.cards.length > 0) {
+                    cardListDiv.innerHTML = data.cards.map(c => `
+                        <label class="checkbox-label"><input type="checkbox" name="card" value="${c}" checked> ${c}</label>
+                    `).join('');
+                } else if (cardListDiv) {
+                    cardListDiv.innerHTML = '<span style="color: #64748b; font-size: 13px; padding: 6px;">暫無卡片資料</span>';
+                }
 
-                    const payments = ["Apple Pay", "LINE Pay", "街口支付", "全支付", "悠遊卡", "一卡通", "icash", "實體卡/直接刷卡"];
-                    const payListDiv = document.getElementById('paymentList');
-                    if (payListDiv) {
-                        payListDiv.innerHTML = payments.map(p => `
-                            <label class="checkbox-label">
-                                <input type="checkbox" name="payment" value="${p}"> ${p}
-                            </label>
-                        `).join('');
-                    }
+                // 3. 第三方支付
+                const payListDiv = document.getElementById('paymentList');
+                if (payListDiv && data.payment_processes && data.payment_processes.length > 0) {
+                    payListDiv.innerHTML = data.payment_processes.map(p => `
+                        <label class="checkbox-label"><input type="checkbox" name="payment" value="${p}" checked> ${p}</label>
+                    `).join('');
+                } else if (payListDiv) {
+                    payListDiv.innerHTML = '<span style="color: #64748b; font-size: 13px; padding: 6px;">暫無支付管道資料</span>';
                 }
             } catch (e) {
-                console.warn("載入卡片元資料失敗:", e);
+                console.warn("載入可分析資料失敗:", e);
             }
         }
 
@@ -366,15 +370,29 @@
 
         function buildFilterParams() {
             const params = new URLSearchParams();
-            const banks = Array.from(document.querySelectorAll('input[name="bank"]:checked')).map(cb => cb.value);
-            const cards = Array.from(document.querySelectorAll('input[name="card"]:checked')).map(cb => cb.value);
-            const payments = Array.from(document.querySelectorAll('input[name="payment"]:checked')).map(cb => cb.value);
-            const locations = Array.from(document.querySelectorAll('input[name="location"]:checked')).map(cb => cb.value);
 
-            if (banks.length > 0) params.append('banks', banks.join(','));
-            if (cards.length > 0) params.append('cards', cards.join(','));
-            if (payments.length > 0) params.append('payments', payments.join(','));
-            if (locations.length > 0) params.append('location', locations.join(','));
+            const totalBanks = document.querySelectorAll('input[name="bank"]').length;
+            const checkedBanks = Array.from(document.querySelectorAll('input[name="bank"]:checked')).map(cb => cb.value);
+            if (checkedBanks.length > 0 && checkedBanks.length < totalBanks) {
+                params.append('banks', checkedBanks.join(','));
+            }
+
+            const totalCards = document.querySelectorAll('input[name="card"]').length;
+            const checkedCards = Array.from(document.querySelectorAll('input[name="card"]:checked')).map(cb => cb.value);
+            if (checkedCards.length > 0 && checkedCards.length < totalCards) {
+                params.append('cards', checkedCards.join(','));
+            }
+
+            const totalPayments = document.querySelectorAll('input[name="payment"]').length;
+            const checkedPayments = Array.from(document.querySelectorAll('input[name="payment"]:checked')).map(cb => cb.value);
+            if (checkedPayments.length > 0 && checkedPayments.length < totalPayments) {
+                params.append('payments', checkedPayments.join(','));
+            }
+
+            const checkedLocations = Array.from(document.querySelectorAll('input[name="location"]:checked')).map(cb => cb.value);
+            if (checkedLocations.length === 1) {
+                params.append('location', checkedLocations[0]);
+            }
 
             const timeWindow = document.querySelector('input[name="time_window"]:checked');
             if (timeWindow && timeWindow.value) params.append('time_window', timeWindow.value);
