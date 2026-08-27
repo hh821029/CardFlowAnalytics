@@ -3,13 +3,15 @@
 RFM 分析、回饋金計算 (直連 C# 瀑布式引擎)、交易 SQL 篩選導出與視覺化數據查詢 API 路由器模組
 """
 import os
+import re
+import json
 import sqlite3
 import logging
 from typing import Optional, List, Dict, Any, cast, Union
 import httpx
 import pandas as pd
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, Response
 
 import const
 from analytics.api import run_analytics
@@ -510,13 +512,27 @@ async def get_rfm_chart_data(
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
+def _safe_json_response(payload: Any) -> Response:
+    """
+    安全 JSON 回應：使用 allow_nan=True 序列化後，以 regex 將所有 NaN/Infinity/-Infinity
+    替換為 JSON null，再以 application/json 回傳。
+    完全迴避 JSONResponse 內部 allow_nan=False 導致的序列化錯誤。
+    """
+    raw = json.dumps(payload, allow_nan=True, ensure_ascii=False,
+                     separators=(',', ':'), default=str)
+    # NaN / Infinity / -Infinity → null
+    raw = re.sub(r'\bNaN\b', 'null', raw)
+    raw = re.sub(r'\b-?Infinity\b', 'null', raw)
+    return Response(content=raw, media_type='application/json')
+
+
 @data_router.get("/rewards-summary")
 async def get_rewards_summary_data():
     """查詢 C# 回饋金月度彙總與回饋池上限使用率 (Data Mart)"""
     try:
         db_path = const.ANALYSIS_DB_PATH
-        monthly_summary = []
-        pool_utilization = []
+        monthly_summary: List[Dict] = []
+        pool_utilization: List[Dict] = []
 
         # 每次都嘗試同步 Data Mart (確保資料是最新計算結果)
         from analytics.api import sync_rewards_data_mart
@@ -526,38 +542,51 @@ async def get_rewards_summary_data():
         if os.path.exists(db_path):
             with sqlite3.connect(db_path) as conn:
                 try:
-                    df_m = pd.read_sql_query("SELECT * FROM rewards_monthly_summary ORDER BY month DESC", conn)
-                    df_m = df_m.replace([float('inf'), float('-inf')], 0.0)
-                    df_m = df_m.where(pd.notna(df_m), other=0.0)
+                    df_m = pd.read_sql_query(
+                        "SELECT * FROM rewards_monthly_summary ORDER BY month DESC", conn
+                    )
+                    for col in df_m.select_dtypes(include='number').columns:
+                        df_m[col] = df_m[col].replace(
+                            [float('inf'), float('-inf')], 0.0
+                        ).fillna(0.0)
+                    for col in df_m.select_dtypes(include='object').columns:
+                        df_m[col] = df_m[col].fillna('')
                     logger.info(f"✅ rewards_monthly_summary: {len(df_m)} 筆")
                     monthly_summary = df_m.to_dict(orient='records')
                 except Exception as e:
                     logger.warning(f"⚠️ 讀取 rewards_monthly_summary 失敗: {e}")
 
                 try:
-                    df_p = pd.read_sql_query("SELECT * FROM rewards_pool_utilization ORDER BY month DESC", conn)
-                    df_p = df_p.replace([float('inf'), float('-inf')], 0.0)
-                    # is_capped 統一轉 bool；NaN 型態的字串欄位轉為 None
+                    df_p = pd.read_sql_query(
+                        "SELECT * FROM rewards_pool_utilization ORDER BY month DESC", conn
+                    )
+                    for col in df_p.select_dtypes(include='number').columns:
+                        df_p[col] = df_p[col].replace(
+                            [float('inf'), float('-inf')], 0.0
+                        ).fillna(0.0)
                     if 'is_capped' in df_p.columns:
-                        df_p['is_capped'] = df_p['is_capped'].apply(lambda x: bool(str(x).upper() == 'TRUE') if pd.notna(x) else False)
-                    if 'cap_amount' in df_p.columns:
-                        df_p['cap_amount'] = pd.to_numeric(df_p['cap_amount'], errors='coerce').fillna(0.0)
+                        df_p['is_capped'] = df_p['is_capped'].apply(
+                            lambda x: bool(str(x).strip().upper() in ('TRUE', '1', 'YES'))
+                            if pd.notna(x) else False
+                        )
+                    for col in df_p.select_dtypes(include='object').columns:
+                        df_p[col] = df_p[col].fillna('')
                     logger.info(f"✅ rewards_pool_utilization: {len(df_p)} 筆")
-                    pool_utilization = df_p.where(pd.notna(df_p), other=None).to_dict(orient='records')
+                    pool_utilization = df_p.to_dict(orient='records')
                 except Exception as e:
                     logger.warning(f"⚠️ 讀取 rewards_pool_utilization 失敗: {e}")
         else:
             logger.warning(f"⚠️ 找不到 TransactionsAnalysis.db: {db_path}")
 
-        import json as _json
-        return JSONResponse(content=_json.loads(_json.dumps({
+        return _safe_json_response({
             "success": True,
             "data": {
                 "monthly_summary": monthly_summary,
                 "pool_utilization": pool_utilization
             }
-        }, default=lambda x: None if (isinstance(x, float) and (x != x or x == float('inf') or x == float('-inf'))) else x)))
+        })
+
     except Exception as e:
-        logger.error(f"❌ 查詢回饋彙總數據失敗: {e}")
+        logger.error(f"❌ 查詢回饋彙總數據失敗: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
