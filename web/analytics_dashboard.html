@@ -4,96 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyCreditCardProjectPro - 視覺化分析儀表板</title>
+    <title>MyCreditCardProjectPro - 卡片回饋與客群分析</title>
     <!-- 引入 Outfit 字型 -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- 引入 ECharts 視覺化庫 -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-    <!-- 引入 AI風 CSS模組 -->
+    <!-- 引入 AI風 CSS模組 (樣式收斂至 styles.css / styles/dashboard.css) -->
     <link rel="stylesheet" href="styles.css">
-    <style>
-        .chart-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .chart-box {
-            background-color: var(--card-bg-inner);
-            border: 1px solid var(--border-subtle);
-            border-radius: var(--radius-md);
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .chart-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .kpi-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-        .kpi-card {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            border-radius: 8px;
-            padding: 12px;
-            text-align: center;
-        }
-        .kpi-val {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--accent-blue);
-            margin: 4px 0;
-        }
-        .kpi-lbl {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-        .table-container {
-            max-height: 380px;
-            overflow-y: auto;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        table.dashboard-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            text-align: left;
-        }
-        table.dashboard-table th {
-            background-color: #1e293b;
-            color: var(--text-primary);
-            padding: 10px 12px;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        table.dashboard-table td {
-            padding: 8px 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            color: var(--text-secondary);
-        }
-        table.dashboard-table tr:hover td {
-            background-color: rgba(255, 255, 255, 0.03);
-            color: var(--text-primary);
-        }
-    </style>
 </head>
 
 <body>
@@ -101,30 +18,23 @@
         <!-- 頁首標題區塊 -->
         <div class="page-header">
             <div>
-                <h1>📊 視覺化分析與決策儀表板</h1>
-                <p class="page-desc">信用卡消費趨勢走勢、金流桑基穿透、RFM 客群價值模型與回饋池監控</p>
-            </div>
-            <div>
-                <a href="task_console.html" class="btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-                    ⚡ 前往任務控制中心
-                </a>
+                <h1>👑 卡片回饋與客群分析儀表板</h1>
+                <p class="page-desc">依卡片與商家維度聚合：RFM 客群價值模型、五大價值九宮格分群、實質回饋率與回饋池上限監控</p>
             </div>
         </div>
 
-        <!-- 導覽超連結 -->
+        <!-- 導覽超連結 (全站對齊) -->
         <div class="nav-bar">
             <a href="index.html">🏠 總控制台</a> |
             <a href="task_console.html">⚡ 任務控制中心</a> |
             <a href="cards_manager.html">💳 卡片管理</a> |
-            <span class="active">📊 視覺化儀表板</span>
+            <a href="time_depend_plot.html">📈 時間趨勢分析</a> |
+            <span class="active">👑 卡片回饋與客群</span>
         </div>
 
         <!-- 頁籤切換元件 -->
         <div class="tab-nav">
-            <button id="tabBtn-trends" class="tab-btn active" onclick="switchTab('trends')">
-                <span>📈 消費趨勢與金流桑基圖</span>
-            </button>
-            <button id="tabBtn-rfm" class="tab-btn" onclick="switchTab('rfm')">
+            <button id="tabBtn-rfm" class="tab-btn active" onclick="switchTab('rfm')">
                 <span>🎈 RFM 價值氣泡與客群分群</span>
             </button>
             <button id="tabBtn-rewards" class="tab-btn" onclick="switchTab('rewards')">
@@ -132,54 +42,21 @@
             </button>
         </div>
 
-        <!-- Tab 1: 消費趨勢與金流桑基圖 -->
-        <div id="tabContent-trends" class="tab-content active">
-            <!-- KPI 總覽 -->
-            <div class="kpi-row">
-                <div class="kpi-card">
-                    <div class="kpi-lbl">總累積消費金額</div>
-                    <div id="kpiTotalAmount" class="kpi-val">NT$ -</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-lbl">活躍月份數</div>
-                    <div id="kpiMonths" class="kpi-val" style="color: #a855f7;">-</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-lbl">使用信用卡數</div>
-                    <div id="kpiCards" class="kpi-val" style="color: #10b981;">-</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-lbl">支付管道數</div>
-                    <div id="kpiPayments" class="kpi-val" style="color: #fbbf24;">-</div>
-                </div>
-            </div>
-
-            <!-- 月度消費大類堆疊趨勢圖 -->
-            <div class="chart-box" style="margin-bottom: 20px;">
-                <div class="chart-header">
-                    <div class="chart-title">📈 月度消費大類堆疊趨勢分析</div>
-                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadMonthlyTrend()">🔄 重新整理</button>
-                </div>
-                <div id="trendChart" style="width: 100%; height: 380px;"></div>
-            </div>
-
-            <!-- 金流桑基圖 -->
-            <div class="chart-box">
-                <div class="chart-header">
-                    <div class="chart-title">🌊 多層級金流桑基圖 (發卡行 ➔ 信用卡別 ➔ 支付管道 ➔ 消費大類)</div>
-                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadSankeyFlow()">🔄 重新整理</button>
-                </div>
-                <div id="sankeyChart" style="width: 100%; height: 460px;"></div>
-            </div>
-        </div>
-
-        <!-- Tab 2: RFM 價值氣泡與客群分群 -->
-        <div id="tabContent-rfm" class="tab-content">
+        <!-- Tab 1: RFM 價值氣泡與客群分群 -->
+        <div id="tabContent-rfm" class="tab-content active">
             <!-- 客群分佈統計九宮格 -->
             <div class="chart-box" style="margin-bottom: 20px;">
                 <div class="chart-header">
                     <div class="chart-title">👑 RFM 商家客群價值分佈</div>
-                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadRfmData()">🔄 讀取 RFM 數據</button>
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <label style="font-size: 13px; color: var(--text-secondary);">🏷️ 消費類別篩選：</label>
+                        <select id="rfmCategorySelect" onchange="onCategoryChange()"
+                            style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;">
+                            <option value="all">🌐 全部類別 (All Categories)</option>
+                        </select>
+                        <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px;" onclick="loadRfmData()">🔄
+                            讀取數據</button>
+                    </div>
                 </div>
                 <div class="kpi-row">
                     <div class="kpi-card">
@@ -209,8 +86,36 @@
             <div class="chart-box" style="margin-bottom: 20px;">
                 <div class="chart-header">
                     <div class="chart-title">🎈 商家價值氣泡圖 (X: 消費間隔天數, Y: 交易次數, 氣泡大小: 累積金額)</div>
+                    <span id="bubbleFilterLabel" style="font-size: 12px; color: var(--accent-blue); font-weight: 500;">當前類別：全部類別</span>
                 </div>
                 <div id="rfmBubbleChart" style="width: 100%; height: 440px;"></div>
+            </div>
+
+            <!-- 各生活消費領域 Top 3 核心商家排行表 -->
+            <div class="chart-box" style="margin-bottom: 20px;">
+                <div class="chart-header">
+                    <div class="chart-title">🏆 各生活消費領域 Top 3 核心主力商家 (依累積消費金額 M 排名)</div>
+                </div>
+                <div class="table-container">
+                    <table class="dashboard-table" id="topCategoryTable">
+                        <thead>
+                            <tr>
+                                <th>消費類別</th>
+                                <th style="width: 70px; text-align: center;">排名</th>
+                                <th>商家名稱</th>
+                                <th>次分類 / 備註</th>
+                                <th>累積消費金額 (M)</th>
+                                <th>交易次數 (F)</th>
+                                <th>客群分群</th>
+                            </tr>
+                        </thead>
+                        <tbody id="topCategoryTbody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #64748b;">暫無排名數據</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- 卡片價值與使用狀態表 -->
@@ -232,20 +137,23 @@
                             </tr>
                         </thead>
                         <tbody id="cardRfmTbody">
-                            <tr><td colspan="7" style="text-align: center; color: #64748b;">暫無卡片 RFM 數據</td></tr>
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #64748b;">暫無卡片 RFM 數據</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- Tab 3: 回饋效益與回饋池監控 -->
+        <!-- Tab 2: 回饋效益與回饋池監控 -->
         <div id="tabContent-rewards" class="tab-content">
             <!-- 回饋金趨勢圖 -->
             <div class="chart-box" style="margin-bottom: 20px;">
                 <div class="chart-header">
                     <div class="chart-title">💰 月度消費與回饋金收益趨勢對比</div>
-                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadRewardsData()">🔄 重新整理</button>
+                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;"
+                        onclick="loadRewardsData()">🔄 重新整理</button>
                 </div>
                 <div id="rewardsChart" style="width: 100%; height: 350px;"></div>
             </div>
@@ -268,7 +176,9 @@
                             </tr>
                         </thead>
                         <tbody id="rewardsMonthlyTbody">
-                            <tr><td colspan="6" style="text-align: center; color: #64748b;">暫無回饋彙總數據</td></tr>
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: #64748b;">暫無回饋彙總數據</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -293,7 +203,9 @@
                             </tr>
                         </thead>
                         <tbody id="poolUtilTbody">
-                            <tr><td colspan="7" style="text-align: center; color: #64748b;">暫無回饋池數據</td></tr>
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #64748b;">暫無回饋池數據</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -302,8 +214,6 @@
     </div>
 
     <script>
-        let trendChartInst = null;
-        let sankeyChartInst = null;
         let rfmChartInst = null;
         let rewardsChartInst = null;
 
@@ -319,102 +229,62 @@
             }
 
             setTimeout(() => {
-                if (tabId === 'trends') {
-                    if (trendChartInst) trendChartInst.resize();
-                    if (sankeyChartInst) sankeyChartInst.resize();
-                } else if (tabId === 'rfm') {
+                if (tabId === 'rfm') {
+                    if (rfmChartInst) rfmChartInst.resize();
                     loadRfmData();
                 } else if (tabId === 'rewards') {
+                    if (rewardsChartInst) rewardsChartInst.resize();
                     loadRewardsData();
                 }
             }, 100);
         }
 
         window.addEventListener('DOMContentLoaded', () => {
-            loadMonthlyTrend();
-            loadSankeyFlow();
             const params = new URLSearchParams(window.location.search);
             const tabParam = params.get('tab') || window.location.hash.replace('#', '');
-            if (tabParam === 'trends' || tabParam === 'rfm' || tabParam === 'rewards') {
-                switchTab(tabParam);
+            if (tabParam === 'rewards') {
+                switchTab('rewards');
+            } else {
+                switchTab('rfm');
             }
         });
 
-        // 1. 載入月度趨勢
-        async function loadMonthlyTrend() {
+        let cachedCategories = [];
+
+        function onCategoryChange() {
+            const select = document.getElementById('rfmCategorySelect');
+            const category = select ? select.value : 'all';
+            const label = document.getElementById('bubbleFilterLabel');
+            if (label) {
+                label.textContent = `當前類別：${category === 'all' ? '全部類別' : category}`;
+            }
+            loadRfmData(category);
+        }
+
+        // 1. 載入 RFM 圖表與排行
+        async function loadRfmData(selectedCategory = null) {
             try {
-                const res = await fetch('/api/analytics/monthly-trend');
+                const categorySelect = document.getElementById('rfmCategorySelect');
+                const cat = selectedCategory !== null ? selectedCategory : (categorySelect ? categorySelect.value : 'all');
+                
+                const res = await fetch(`/api/analytics/rfm-chart?limit=150&category=${encodeURIComponent(cat)}`);
                 const result = await res.json();
                 if (!result.success || !result.data) return;
 
-                const { months, series, summary } = result.data;
+                const { merchants, segment_counts, categories, top_by_category, cards } = result.data;
 
-                // KPI 更新
-                if (summary) {
-                    document.getElementById('kpiTotalAmount').textContent = `NT$ ${Number(summary.total_amount || 0).toLocaleString()}`;
-                    document.getElementById('kpiMonths').textContent = summary.active_months || 0;
-                    document.getElementById('kpiCards').textContent = summary.card_count || 0;
-                    document.getElementById('kpiPayments').textContent = summary.payment_count || 0;
+                // 填充類別下拉選單 (若尚未填充)
+                if (categories && categories.length > 0 && categorySelect) {
+                    const currentVal = categorySelect.value;
+                    const catOptions = ['<option value="all">🌐 全部類別 (All Categories)</option>'];
+                    categories.forEach(c => {
+                        catOptions.push(`<option value="${c}" ${c === currentVal ? 'selected' : ''}>🏷️ ${c}</option>`);
+                    });
+                    categorySelect.innerHTML = catOptions.join('');
+                    if (currentVal && currentVal !== 'all') {
+                        categorySelect.value = currentVal;
+                    }
                 }
-
-                const dom = document.getElementById('trendChart');
-                if (!trendChartInst) trendChartInst = echarts.init(dom, 'dark');
-
-                const option = {
-                    backgroundColor: 'transparent',
-                    tooltip: { trigger: 'axis' },
-                    legend: { top: 0, textStyle: { color: '#94a3b8' } },
-                    grid: { top: 50, right: 30, bottom: 30, left: 60 },
-                    xAxis: { type: 'category', data: months },
-                    yAxis: { type: 'value', name: '消費 (NT$)', splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } } },
-                    series: series
-                };
-
-                trendChartInst.setOption(option);
-                window.addEventListener('resize', () => trendChartInst.resize());
-            } catch (e) {
-                console.error("載入月度趨勢失敗:", e);
-            }
-        }
-
-        // 2. 載入金流桑基圖
-        async function loadSankeyFlow() {
-            try {
-                const res = await fetch('/api/analytics/sankey');
-                const result = await res.json();
-                if (!result.success || !result.data) return;
-
-                const dom = document.getElementById('sankeyChart');
-                if (!sankeyChartInst) sankeyChartInst = echarts.init(dom, 'dark');
-
-                const option = {
-                    backgroundColor: 'transparent',
-                    tooltip: { trigger: 'item', triggerOn: 'mousemove' },
-                    series: [{
-                        type: 'sankey',
-                        data: result.data.nodes,
-                        links: result.data.links,
-                        emphasis: { focus: 'adjacency' },
-                        lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.35 },
-                        label: { color: '#f8fafc', fontSize: 11 }
-                    }]
-                };
-
-                sankeyChartInst.setOption(option);
-                window.addEventListener('resize', () => sankeyChartInst.resize());
-            } catch (e) {
-                console.error("載入桑基圖失敗:", e);
-            }
-        }
-
-        // 3. 載入 RFM 圖表
-        async function loadRfmData() {
-            try {
-                const res = await fetch('/api/analytics/rfm-chart?limit=150');
-                const result = await res.json();
-                if (!result.success || !result.data) return;
-
-                const { merchants, segment_counts, cards } = result.data;
 
                 // 九宮格計數
                 document.getElementById('segCore').textContent = segment_counts['核心商家 (Core)'] || 0;
@@ -488,6 +358,33 @@
                 rfmChartInst.setOption(option);
                 window.addEventListener('resize', () => rfmChartInst.resize());
 
+                // 渲染各領域 Top 3 商家排行表
+                const topTbody = document.getElementById('topCategoryTbody');
+                if (topTbody) {
+                    if (top_by_category && top_by_category.length > 0) {
+                        const rankMedals = { 1: '🥇 1', 2: '🥈 2', 3: '🥉 3' };
+                        topTbody.innerHTML = top_by_category.map(item => `
+                            <tr>
+                                <td><span class="quick-badge" style="font-size:11px; padding:3px 8px;">🏷️ ${item.category}</span></td>
+                                <td style="text-align: center; font-weight: 700; font-size: 14px;">
+                                    ${rankMedals[item.rank] || item.rank}
+                                </td>
+                                <td><strong>${item.name}</strong></td>
+                                <td style="color: #94a3b8; font-size: 12px;">${item.sub_category || '-'}</td>
+                                <td style="color: #38bdf8; font-weight: 600;">NT$ ${Number(item.monetary || 0).toLocaleString()}</td>
+                                <td>${item.frequency || 0} 次</td>
+                                <td>
+                                    <span class="quick-badge" style="background: rgba(255,255,255,0.05); color: #e2e8f0; font-size: 11px;">
+                                        ${item.segment}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        topTbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b;">暫無類別排行數據</td></tr>';
+                    }
+                }
+
                 // 卡片表格
                 const cardTbody = document.getElementById('cardRfmTbody');
                 if (cards && cards.length > 0) {
@@ -508,7 +405,8 @@
             }
         }
 
-        // 4. 載入回饋圖表與 Data Mart
+        /* [暫時停用] loadRewardsData - 2026-08-27 debug 中
+        // 2. 載入回饋圖表與 Data Mart
         async function loadRewardsData() {
             try {
                 const res = await fetch('/api/analytics/rewards-summary');
@@ -596,6 +494,12 @@
             } catch (e) {
                 console.error("載入回饋數據失敗:", e);
             }
+        }
+        */
+
+        // [暫時替代] loadRewardsData stub - 等回饋視覺化修復後恢復
+        async function loadRewardsData() {
+            console.log("[loadRewardsData] 暫時停用中，等待 rewards-summary API 修復");
         }
     </script>
 </body>

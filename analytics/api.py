@@ -150,4 +150,119 @@ def run_analytics(
     logger.info("🎉 [Analytics Pipeline] 全方位消費分析執行完畢！")
 
 
-__all__ = ['run_analytics']
+def sync_rewards_data_mart(detailed_csv_path: Optional[str] = None, db_path: str = const.ANALYSIS_DB_PATH) -> bool:
+    """
+    將 C# 回饋計算結果 (reward_calculation_detailed.csv) 彙總並結構化寫入 TransactionsAnalysis.db
+    產生兩張資料超市表：
+    1. rewards_monthly_summary (月份 x 銀行 x 卡別之消費總額、回饋總額、實質回饋率)
+    2. rewards_pool_utilization (回饋池使用狀況與上限使用率)
+    """
+    import numpy as np
+    if not detailed_csv_path:
+        detailed_csv_path = os.path.join(const.OUTPUT_DIR, 'reward_dotnet', 'detail', 'reward_calculation_detailed.csv')
+
+    if not os.path.exists(detailed_csv_path):
+        alt_path = os.path.join(const.OUTPUT_DIR, 'reward_calculation_detailed.csv')
+        if os.path.exists(alt_path):
+            detailed_csv_path = alt_path
+        else:
+            logger.warning(f"⚠️ 找不到回饋明細檔: {detailed_csv_path}")
+            return False
+
+    try:
+        df = pd.read_csv(detailed_csv_path, encoding='utf-8')
+        if df.empty:
+            return False
+
+        if 'transaction_date' in df.columns:
+            dt_series = pd.to_datetime(df['transaction_date'], errors='coerce')
+            if isinstance(dt_series, pd.Series):
+                df['month'] = dt_series.dt.strftime('%Y-%m').fillna('未知月份')
+            elif hasattr(dt_series, 'strftime') and pd.notna(dt_series):
+                df['month'] = dt_series.strftime('%Y-%m')
+            else:
+                df['month'] = '未知月份'
+        else:
+            df['month'] = '未知月份'
+
+        if 'payment_amount' in df.columns:
+            payment_series = pd.to_numeric(df['payment_amount'], errors='coerce')
+            df['payment_amount'] = payment_series.fillna(0.0) if isinstance(payment_series, pd.Series) else (0.0 if pd.isna(payment_series) else payment_series)
+        else:
+            df['payment_amount'] = 0.0
+
+        if 'calculated_reward' in df.columns:
+            reward_series = pd.to_numeric(df['calculated_reward'], errors='coerce')
+            df['calculated_reward'] = reward_series.fillna(0.0) if isinstance(reward_series, pd.Series) else (0.0 if pd.isna(reward_series) else reward_series)
+        else:
+            df['calculated_reward'] = 0.0
+
+        # 1. rewards_monthly_summary 彙總 (消費金額依交易 ID 去重後加總)
+        group_keys = ['month', 'bank_name', 'card_type']
+        valid_keys = [k for k in group_keys if k in df.columns]
+
+        if 'transaction_id' in df.columns:
+            txn_spending = df.groupby(valid_keys + ['transaction_id'])['payment_amount'].first().reset_index()
+            monthly_spending = txn_spending.groupby(valid_keys)['payment_amount'].sum().reset_index(name='total_spending')
+        else:
+            monthly_spending = df.groupby(valid_keys)['payment_amount'].sum().reset_index(name='total_spending')
+
+        monthly_reward = df.groupby(valid_keys)['calculated_reward'].sum().reset_index(name='total_reward')
+        monthly_summary = pd.merge(monthly_spending, monthly_reward, on=valid_keys, how='outer').fillna(0)
+
+        monthly_summary['effective_rate'] = np.where(
+            monthly_summary['total_spending'] > 0,
+            (monthly_summary['total_reward'] / monthly_summary['total_spending'] * 100).round(2),
+            0.0
+        )
+        monthly_summary['total_spending'] = monthly_summary['total_spending'].round(2)
+        monthly_summary['total_reward'] = monthly_summary['total_reward'].round(2)
+        # 清除任何 NaN/inf，避免 JSON 序列化失敗
+        monthly_summary = monthly_summary.replace([float('inf'), float('-inf')], 0.0)
+        monthly_summary = monthly_summary.where(pd.notna(monthly_summary), other=0.0)
+
+        # 2. rewards_pool_utilization 彙總
+        pool_cols = ['month', 'bank_name', 'card_type', 'pool_id', 'pool_name']
+        valid_pool_cols = [c for c in pool_cols if c in df.columns]
+
+        def _get_first_cap(x):
+            if isinstance(x, (pd.Series, list, tuple, np.ndarray)):
+                for v in x:
+                    if pd.notna(v):
+                        val = pd.to_numeric(v, errors='coerce')
+                        if pd.notna(val):
+                            return val
+                return None
+            if pd.notna(x):
+                val = pd.to_numeric(x, errors='coerce')
+                return val if pd.notna(val) else None
+            return None
+
+        agg_dict: Dict[str, Any] = {
+            'total_reward': ('calculated_reward', 'sum'),
+            'is_capped': ('is_capped', lambda x: any(str(v).upper() == 'TRUE' for v in x))
+        }
+        if 'cap_amount' in df.columns:
+            agg_dict['cap_amount'] = ('cap_amount', _get_first_cap)
+
+        pool_util = df.groupby(valid_pool_cols).agg(**agg_dict).reset_index()
+        pool_util['total_reward'] = pool_util['total_reward'].round(2)
+        if 'cap_amount' in pool_util.columns:
+            pool_util['cap_amount'] = pd.to_numeric(pool_util['cap_amount'], errors='coerce').fillna(0.0)
+        # 清除任何 NaN/inf，避免 JSON 序列化失敗
+        pool_util = pool_util.replace([float('inf'), float('-inf')], 0.0)
+        pool_util = pool_util.where(pd.notna(pool_util), other=None)
+
+        # 3. 寫入 Data Mart
+        _save_to_data_mart({
+            'rewards_monthly_summary': monthly_summary,
+            'rewards_pool_utilization': pool_util
+        }, db_path=db_path)
+        logger.info(f"✅ [Data Mart] 成功同步回饋彙總數據至 {db_path}")
+        return True
+    except Exception as e:
+        logger.error(f"❌ [Data Mart] 同步回饋數據失敗: {e}")
+        return False
+
+
+__all__ = ['run_analytics', 'sync_rewards_data_mart']

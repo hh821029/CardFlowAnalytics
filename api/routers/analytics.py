@@ -5,7 +5,7 @@ RFM 分析、回饋金計算 (直連 C# 瀑布式引擎)、交易 SQL 篩選導�
 import os
 import sqlite3
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, cast, Union
 import httpx
 import pandas as pd
 from fastapi import APIRouter, HTTPException
@@ -65,6 +65,14 @@ async def stream_csharp_rewards_calculation(
             async with client.stream("GET", CSHARP_REWARDS_API_URL, params=params) as response:
                 async for chunk in response.aiter_text():
                     yield chunk
+            
+            # C# 運算完成後，自動將明細匯總寫入 Data Mart
+            try:
+                from analytics.api import sync_rewards_data_mart
+                if sync_rewards_data_mart():
+                    yield "data: 💾 [Data Mart] 回饋計算摘要已成功寫入 TransactionsAnalysis.db ([rewards_monthly_summary], [rewards_pool_utilization])\n\n"
+            except Exception as dm_err:
+                logger.warning(f"⚠️ 自動同步回饋至 Data Mart 失敗: {dm_err}")
         except Exception as e:
             yield f"data: ❌ [C# 引擎連線失敗] 無法連線至 C# RewardEngine 服務 ({CSHARP_REWARDS_API_URL}): {e}\n\n"
 
@@ -355,3 +363,201 @@ async def get_sankey_flow_data(
     except Exception as e:
         logger.error(f"❌ 查詢桑基圖數據失敗: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@data_router.get("/rfm-chart")
+async def get_rfm_chart_data(
+    window: Optional[str] = "life",
+    category: Optional[str] = None,
+    limit: int = 200
+):
+    """查詢 RFM 視覺化圖表資料 (氣泡圖、客群分佈統計、卡片價值)"""
+    try:
+        prefix = f"{window}_" if window and window != "life" else "life_"
+        db_path = const.ANALYSIS_DB_PATH
+        df_merchants = pd.DataFrame()
+        df_cards = pd.DataFrame()
+
+        # 優先從 TransactionsAnalysis.db 讀取
+        if os.path.exists(db_path):
+            try:
+                with sqlite3.connect(db_path) as conn:
+                    df_merchants = pd.read_sql_query("SELECT * FROM rfm_merchants", conn)
+                    try:
+                        df_cards = pd.read_sql_query("SELECT * FROM rfm_cards", conn)
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning(f"⚠️ 從 DB 讀取 RFM 失敗: {e}")
+
+        # Fallback 讀取 CSV
+        if df_merchants.empty:
+            csv_path = os.path.join(const.OUTPUT_DIR, 'rfm', 'merchant_rfm.csv')
+            if os.path.exists(csv_path):
+                df_merchants = pd.read_csv(csv_path, encoding='utf-8')
+
+        if df_cards.empty:
+            card_csv_path = os.path.join(const.OUTPUT_DIR, 'rfm', 'card_rfm.csv')
+            if os.path.exists(card_csv_path):
+                df_cards = pd.read_csv(card_csv_path, encoding='utf-8')
+
+        if df_merchants.empty:
+            return JSONResponse(content={
+                "success": True,
+                "data": {
+                    "merchants": [],
+                    "segment_counts": {},
+                    "categories": [],
+                    "top_by_category": [],
+                    "cards": []
+                }
+            })
+
+        # 1. 提取所有有效分類清單 (在篩選前提取)
+        all_categories = sorted([str(c) for c in df_merchants['category'].unique() if pd.notna(c) and str(c).strip() != '' and str(c).strip() != 'nan']) if 'category' in df_merchants.columns else []
+
+        m_col = f"{prefix}monetary" if f"{prefix}monetary" in df_merchants.columns else "life_monetary"
+        f_col = f"{prefix}frequency" if f"{prefix}frequency" in df_merchants.columns else "life_frequency"
+        r_col = f"{prefix}recency_days" if f"{prefix}recency_days" in df_merchants.columns else "life_recency_days"
+
+        # 2. 計算各生活消費領域 Top 3 商家排行 (依 M 累積金額降冪)
+        top_by_category = []
+        if 'category' in df_merchants.columns and m_col in df_merchants.columns:
+            df_calc = df_merchants.copy()
+            df_calc[m_col] = cast(pd.Series, pd.to_numeric(df_calc[m_col], errors='coerce')).fillna(0.0)
+            
+            valid_cats = cast(pd.DataFrame, df_calc[
+                df_calc['category'].notna() & 
+                (df_calc['category'] != '') & 
+                (df_calc['category'] != '未分類') & 
+                (df_calc['category'] != 'nan') &
+                (df_calc[m_col] > 0)
+            ])
+
+            # 若前端指定特定類別，則僅計算該類別 Top 3
+            if category and category != 'all':
+                valid_cats = cast(pd.DataFrame, valid_cats[valid_cats['category'] == category])
+
+            for cat_name, group in valid_cats.groupby('category'):
+                group_df = cast(pd.DataFrame, group)
+                top_3 = cast(pd.DataFrame, group_df.sort_values(by=m_col, ascending=False)).head(3)
+                for rank, (_, row) in enumerate(top_3.iterrows(), start=1):
+                    top_by_category.append({
+                        "category": str(cat_name),
+                        "rank": rank,
+                        "name": str(row.get('normalized_merchant', '')),
+                        "sub_category": str(row.get('sub_category', '') if pd.notna(row.get('sub_category')) and str(row.get('sub_category')) != 'nan' else ''),
+                        "monetary": float(pd.to_numeric(row.get(m_col, 0), errors='coerce') or 0.0),
+                        "frequency": int(pd.to_numeric(row.get(f_col, 0), errors='coerce') or 0),
+                        "recency": int(pd.to_numeric(row.get(r_col, 9999), errors='coerce') or 9999),
+                        "segment": str(row.get('segment', '一般活躍 (Active)'))
+                    })
+
+        # 3. 類別篩選 (若有傳入特定 category，供氣泡圖與九宮格)
+        df_filtered = df_merchants.copy()
+        if category and category != 'all' and 'category' in df_filtered.columns:
+            df_filtered = cast(pd.DataFrame, df_filtered[df_filtered['category'] == category])
+
+        # 依 Monetary 排序並限制筆數 (供氣泡圖)
+        if m_col in df_filtered.columns:
+            df_filtered = cast(pd.DataFrame, df_filtered.sort_values(by=m_col, ascending=False))
+
+        merchants_list = []
+        for _, row in df_filtered.head(limit).iterrows():
+            m_val = float(pd.to_numeric(row.get(m_col, 0), errors='coerce') or 0.0)
+            f_val = int(pd.to_numeric(row.get(f_col, 0), errors='coerce') or 0)
+            r_val = int(pd.to_numeric(row.get(r_col, 9999), errors='coerce') or 9999)
+            merchants_list.append({
+                "name": str(row.get('normalized_merchant', '')),
+                "recency": r_val,
+                "frequency": f_val,
+                "monetary": m_val,
+                "segment": str(row.get('segment', '一般活躍 (Active)')),
+                "category": str(row.get('category', '未分類')),
+                "sub_category": str(row.get('sub_category', '') if pd.notna(row.get('sub_category')) and str(row.get('sub_category')) != 'nan' else '')
+            })
+
+        # 客群分佈統計 (基於篩選後的商家資料)
+        segment_counts = df_filtered['segment'].value_counts().to_dict() if 'segment' in df_filtered.columns else {}
+
+        # 卡片資料
+        cards_list = []
+        if not df_cards.empty:
+            for _, row in df_cards.iterrows():
+                cards_list.append({
+                    "bank_name": str(row.get('bank_name', '')),
+                    "card_type": str(row.get('card_type', '')),
+                    "status": str(row.get('status', 'active')),
+                    "segment": str(row.get('segment', '')),
+                    "recency": int(pd.to_numeric(row.get(r_col, row.get('life_recency_days', 9999)), errors='coerce') or 9999),
+                    "frequency": int(pd.to_numeric(row.get(f_col, row.get('life_frequency', 0)), errors='coerce') or 0),
+                    "monetary": float(pd.to_numeric(row.get(m_col, row.get('life_monetary', 0)), errors='coerce') or 0.0),
+                    "avg_ticket": float(pd.to_numeric(row.get('avg_ticket', 0), errors='coerce') or 0.0)
+                })
+
+        return JSONResponse(content={
+            "success": True,
+            "data": {
+                "merchants": merchants_list,
+                "segment_counts": segment_counts,
+                "categories": all_categories,
+                "top_by_category": top_by_category,
+                "cards": cards_list
+            }
+        })
+    except Exception as e:
+        logger.error(f"❌ 查詢 RFM 圖表數據失敗: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@data_router.get("/rewards-summary")
+async def get_rewards_summary_data():
+    """查詢 C# 回饋金月度彙總與回饋池上限使用率 (Data Mart)"""
+    try:
+        db_path = const.ANALYSIS_DB_PATH
+        monthly_summary = []
+        pool_utilization = []
+
+        # 每次都嘗試同步 Data Mart (確保資料是最新計算結果)
+        from analytics.api import sync_rewards_data_mart
+        sync_ok = sync_rewards_data_mart()
+        logger.info(f"🔄 [rewards-summary] Data Mart 同步結果: {sync_ok}")
+
+        if os.path.exists(db_path):
+            with sqlite3.connect(db_path) as conn:
+                try:
+                    df_m = pd.read_sql_query("SELECT * FROM rewards_monthly_summary ORDER BY month DESC", conn)
+                    df_m = df_m.replace([float('inf'), float('-inf')], 0.0)
+                    df_m = df_m.where(pd.notna(df_m), other=0.0)
+                    logger.info(f"✅ rewards_monthly_summary: {len(df_m)} 筆")
+                    monthly_summary = df_m.to_dict(orient='records')
+                except Exception as e:
+                    logger.warning(f"⚠️ 讀取 rewards_monthly_summary 失敗: {e}")
+
+                try:
+                    df_p = pd.read_sql_query("SELECT * FROM rewards_pool_utilization ORDER BY month DESC", conn)
+                    df_p = df_p.replace([float('inf'), float('-inf')], 0.0)
+                    # is_capped 統一轉 bool；NaN 型態的字串欄位轉為 None
+                    if 'is_capped' in df_p.columns:
+                        df_p['is_capped'] = df_p['is_capped'].apply(lambda x: bool(str(x).upper() == 'TRUE') if pd.notna(x) else False)
+                    if 'cap_amount' in df_p.columns:
+                        df_p['cap_amount'] = pd.to_numeric(df_p['cap_amount'], errors='coerce').fillna(0.0)
+                    logger.info(f"✅ rewards_pool_utilization: {len(df_p)} 筆")
+                    pool_utilization = df_p.where(pd.notna(df_p), other=None).to_dict(orient='records')
+                except Exception as e:
+                    logger.warning(f"⚠️ 讀取 rewards_pool_utilization 失敗: {e}")
+        else:
+            logger.warning(f"⚠️ 找不到 TransactionsAnalysis.db: {db_path}")
+
+        import json as _json
+        return JSONResponse(content=_json.loads(_json.dumps({
+            "success": True,
+            "data": {
+                "monthly_summary": monthly_summary,
+                "pool_utilization": pool_utilization
+            }
+        }, default=lambda x: None if (isinstance(x, float) and (x != x or x == float('inf') or x == float('-inf'))) else x)))
+    except Exception as e:
+        logger.error(f"❌ 查詢回饋彙總數據失敗: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
