@@ -1,6 +1,6 @@
 # 信用卡記帳專案資料庫架構與未來擴充規劃 (Database Architecture & Expansion Roadmap)
 
-本文件旨在說明 `MyCreditCardProjectPro` 專案當前採用之「**PostgreSQL (主資料庫) + SQLite (查詢結果快取) 本地專案架構**」設計決策、背後的技術考量、優缺點分析，並保留專案初期「多 SQLite 獨立資料庫架構」的歷史演進脈絡與未來的擴充/遷移路線圖。
+本文件旨在說明 `CardFlow Analytics` 專案當前採用之「**PostgreSQL (主資料庫) + SQLite (查詢結果快取) 本地專案架構**」設計決策、背後的技術考量、優缺點分析，並保留專案初期「多 SQLite 獨立資料庫架構」的歷史演進脈絡與未來的擴充/遷移路線圖。
 
 ---
 

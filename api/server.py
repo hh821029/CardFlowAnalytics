@@ -16,8 +16,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="MyCreditCardProjectPro API",
-    description="信用卡帳單 ETL、RFM 分析與回饋計算 API 控制台"
+    title="CardFlow Analytics API",
+    description="信用卡帳單 ETL、RFM 客群分析與回饋計算 API 控制台"
 )
 
 # 1. 設定 CORS (允許前端存取 API)

@@ -64,10 +64,10 @@ def safe_execute(task_name, func, require_db=False):
         _is_running = False
 
 def show_menu():
-    """顯示控制台選單"""
-    print("\n" + "■"*40)
-    print("  MyCreditCardProjectPro 控制台 (CLI)")
-    print("■"*40)
+    """顯示控制台選單 (與 Web 端功能完全對齊)"""
+    print("\n" + "■"*50)
+    print("  CardFlow Analytics 控制台 (CLI)")
+    print("■"*50)
     print("  1.  [ETL] 掃描原始檔案並產生/更新資料庫 (去重檢查)")
     print("  1F. [ETL Force] 強制全量重新解析所有帳單檔案")
     print("  2.  [RFM] 執行全方位 RFM 分析 (需資料庫)")

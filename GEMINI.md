@@ -1,4 +1,4 @@
-# MyCreditCardProjectPro 專案執行指令集 (GEMINI.md)
+# CardFlow Analytics 專案執行指令集 (GEMINI.md)
 
 
 ## 1. 編碼處理規範 (Encoding)
