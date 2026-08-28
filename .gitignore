@@ -85,6 +85,8 @@ MyCreditCardProjectPro.csproj.lscache
 *.lscache
 .pytest_cache/
 .mypy_cache/
+.dotnet_temp/
+.dotnet_temp/.dotnet
 
 
 # docs 內部文件整理
