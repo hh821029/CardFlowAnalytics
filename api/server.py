@@ -20,12 +20,23 @@ app = FastAPI(
     description="信用卡帳單 ETL、RFM 客群分析與回饋計算 API 控制台"
 )
 
-# 1. 設定 CORS (允許前端存取 API)
+# 1. 安全的 CORS 來源白名單配置
+DEFAULT_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+# 支援從 .env 讀取自訂來源 (逗號分隔)
+env_origins = os.getenv("CORS_ALLOW_ORIGINS", "")
+allowed_origins = [o.strip() for o in env_origins.split(",") if o.strip()] if env_origins else DEFAULT_ALLOWED_ORIGINS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
