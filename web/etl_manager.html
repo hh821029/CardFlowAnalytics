@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="0; url=task_console.html">
+    <title>MyCreditCardProjectPro - 資料管理中樞</title>
+    <!-- 引入 Outfit 字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 AI風 CSS模組 -->
+    <link rel="stylesheet" href="styles.css">
+    <script>window.location.replace("task_console.html");</script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 頁首標題區塊 -->
+        <div class="page-header">
+            <div>
+                <h1>📦 個人信用卡資料管理中樞</h1>
+                <p class="page-desc">帳單資料 ETL 清洗入庫與 SSOT 維度規則同步維運中樞</p>
+            </div>
+        </div>
+
+        <!-- 導覽超連結 -->
+        <div class="nav-bar">
+            <a href="index.html">🏠 總控制台</a> |
+            <span class="active">📦 資料管理中樞</span> |
+            <a href="cards_manager.html">💳 卡片管理</a> |
+            <a href="analytics_service.html">💰 分析與回饋中樞</a> |
+            <a href="time_depend_plot.html">📈 視覺化圖表</a>
+        </div>
+
+        <!-- 頁籤切換元件 -->
+        <div class="tab-nav">
+            <button id="tabBtn-etl" class="tab-btn active" onclick="switchTab('etl')">
+                <span>📦 帳單 ETL 處理與入庫</span>
+            </button>
+            <button id="tabBtn-sync" class="tab-btn" onclick="switchTab('sync')">
+                <span>⚙️ 設定檔與維度表同步</span>
+            </button>
+        </div>
+
+        <!-- Tab 1: ETL 帳單處理 -->
+        <div id="tabContent-etl" class="tab-content active">
+            <div class="section-box">
+                <div class="section-title">📦 帳單資料處理 (ETL 流程)</div>
+                <p style="margin: 0 0 15px 0; font-size: 13px; color: var(--text-secondary);">
+                    載入各大銀行原始對帳單 (國泰、中信、華南、玉山等)，自動執行商家名稱正規化、支付管道識別與特徵提取，並寫入主資料庫。
+                </p>
+                <div class="button-group">
+                    <button id="btnEtl" class="btn-primary" onclick="runTask('etl')">🚀 產生帳單資料庫</button>
+                    <button id="btnFetch" class="btn-primary" style="background: linear-gradient(135deg, #ec4899, #8b5cf6);"
+                        onclick="fetchAnalyzableData()">🔍 取得目前可分析資料</button>
+                    <button id="btnClear1" class="btn-secondary" onclick="clearConsole()">🧹 清空控制台</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: 設定檔與維度表同步 -->
+        <div id="tabContent-sync" class="tab-content">
+            <div class="section-box">
+                <div class="section-title">📄 維度規則與設定資料同步面板</div>
+                <p style="margin: 0 0 12px 0; font-size: 13px; color: var(--text-secondary);">
+                    將 profiles 與 configs 檔案中的維度設定資料（卡片、商家、支付、回饋規則、匯率表）更新或合併寫入至資料庫。
+                </p>
+
+                <div class="button-group" style="margin-bottom: 20px;">
+                    <button id="btnConfig_All" class="btn-primary" onclick="runTask('config_all')">⚙️ 所有設定資料全量同步</button>
+                    <button id="btnClear2" class="btn-secondary" onclick="clearConsole()">🧹 清空控制台</button>
+                </div>
+
+                <!-- 內部三欄子卡片分割 -->
+                <div class="sub-box-container">
+                    <!-- 子卡片 1：商家資料載入 -->
+                    <div class="sub-card">
+                        <div>
+                            <div class="sub-card-title">🏪 商家與支付維度</div>
+                            <p class="sub-card-desc">依特定維度獨立同步資料。</p>
+                        </div>
+                        <div class="button-group">
+                            <button id="btnConfig_Mer" onclick="runTask('config_mer')">🏪 商家資料</button>
+                            <button id="btnConfig_PayGate" onclick="runTask('config_paygate')">👛 支付錢包</button>
+                        </div>
+                    </div>
+
+                    <!-- 子卡片 2：信用卡資料同步 -->
+                    <div class="sub-card">
+                        <div>
+                            <div class="sub-card-title">💳 信用卡資料同步</div>
+                            <p class="sub-card-desc">獨立同步載入信用卡相關 CSV 設定與對照表。</p>
+                        </div>
+                        <div class="button-group">
+                            <button id="btnConfig_Card" onclick="runTask('config_card')">💳 信用卡資料</button>
+                            <button id="btnConfig_BillingHistory" onclick="runTask('config_billing_history')">📅 對帳單歷史</button>
+                        </div>
+                    </div>
+
+                    <!-- 子卡片 3：回饋資料同步 -->
+                    <div class="sub-card">
+                        <div>
+                            <div class="sub-card-title">🔄 回饋規則與匯率</div>
+                            <p class="sub-card-desc">獨立同步載入回饋規則與匯率每日表。</p>
+                        </div>
+                        <div class="button-group">
+                            <button id="btnConfig_Reward" onclick="runTask('config_reward')">📜 回饋規則</button>
+                            <button id="btnConfig_FxTable" onclick="runTask('config_fx_table')">💱 匯率每日表</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 互動狀態引導 -->
+        <div id="status" class="status-box">目前狀態：閒置中 (等待指令啟動)</div>
+
+        <!-- 即時日誌控制台 -->
+        <div id="console" class="console">--- 等待指令啟動 ---</div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let isFirstAnalyzableFetch = true;
+
+        // 頁籤切換
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            const targetBtn = document.getElementById(`tabBtn-${tabId}`);
+            const targetContent = document.getElementById(`tabContent-${tabId}`);
+            if (targetBtn && targetContent) {
+                targetBtn.classList.add('active');
+                targetContent.classList.add('active');
+            }
+        }
+
+        // 初始化時檢查 URL 參數是否指定 tab
+        window.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab') || window.location.hash.replace('#', '');
+            if (tabParam === 'sync' || tabParam === 'etl') {
+                switchTab(tabParam);
+            }
+        });
+
+        function appendLog(message) {
+            const consoleDiv = document.getElementById('console');
+            const span = document.createElement('span');
+
+            // 關鍵字上色
+            if (message.includes('INFO')) span.className = 'log-info';
+            else if (message.includes('WARNING')) span.className = 'log-warning';
+            else if (message.includes('ERROR')) span.className = 'log-error';
+
+            if (message.includes('✅') || message.includes('🎉') || message.includes('成功') || message.includes('完畢')) {
+                span.className = 'log-success';
+            }
+
+            span.textContent = message + '\n';
+            consoleDiv.appendChild(span);
+
+            // 自動捲動
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '--- 控制台已清空 ---';
+        }
+
+        function fetchAnalyzableData() {
+            const btnFetch = document.getElementById('btnFetch');
+
+            // 首次點擊：自動觸發所有設定同步 (config_all)
+            if (isFirstAnalyzableFetch) {
+                btnFetch.disabled = true;
+                btnFetch.textContent = '⚙️ 正在同步設定檔...';
+                appendLog(`\n[${new Date().toLocaleTimeString()}] >>>>> 首次讀取，自動啟動設定同步流程 <<<<<`);
+
+                const allButtons = document.querySelectorAll('button');
+                const statusDiv = document.getElementById('status');
+
+                allButtons.forEach(btn => btn.disabled = true);
+                statusDiv.className = 'status-box status-running';
+                statusDiv.textContent = '狀態：正在同步設定檔...';
+
+                if (eventSource) eventSource.close();
+
+                eventSource = new EventSource('/api/run/config_all');
+                eventSource.onmessage = function (event) {
+                    appendLog(event.data);
+                };
+
+                eventSource.onerror = function () {
+                    eventSource.close();
+                    appendLog(`[${new Date().toLocaleTimeString()}] 設定同步流程結束。`);
+                    isFirstAnalyzableFetch = false;
+                    allButtons.forEach(btn => btn.disabled = false);
+                    btnFetch.textContent = '🔍 取得目前可分析資料';
+                    statusDiv.className = 'status-box status-idle';
+                    statusDiv.textContent = '狀態：設定已同步，資料庫準備就緒！';
+                };
+            } else {
+                appendLog(`[${new Date().toLocaleTimeString()}] 查核完成，可直接進行後續分析。`);
+            }
+        }
+
+        function runTask(taskType) {
+            const allButtons = document.querySelectorAll('button');
+            const statusDiv = document.getElementById('status');
+
+            allButtons.forEach(btn => btn.disabled = true);
+            statusDiv.className = 'status-box status-running';
+            statusDiv.textContent = `狀態：任務 [${taskType}] 正在執行中...`;
+
+            appendLog(`\n[${new Date().toLocaleTimeString()}] >>>>> 啟動任務: ${taskType} <<<<<`);
+
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource(`/api/run/${taskType}`);
+
+            eventSource.onmessage = function (event) {
+                appendLog(event.data);
+            };
+
+            eventSource.onerror = function () {
+                eventSource.close();
+                allButtons.forEach(btn => btn.disabled = false);
+                statusDiv.className = 'status-box status-idle';
+                statusDiv.textContent = '目前狀態：閒置中 (任務執行結束)';
+                appendLog(`[${new Date().toLocaleTimeString()}] >>>>> 任務 ${taskType} 結束 <<<<<\n`);
+            };
+        }
+    </script>
+</body>
+
+</html>

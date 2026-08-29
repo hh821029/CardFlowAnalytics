@@ -21,14 +21,13 @@
             </div>
         </div>
 
-        <!-- 導覽超連結 -->
+        <!-- 導覽超連結 (全站對齊) -->
         <div class="nav-bar">
             <span class="active">🏠 總控制台</span> |
-            <a href="etl.html">📦 ETL帳單處理</a> |
+            <a href="task_console.html">⚡ 任務控制中心</a> |
             <a href="cards_manager.html">💳 卡片管理</a> |
-            <a href="sync_config.html">⚙️ 設定同步面板</a> |
-            <a href="rfm_service.html">📊 RFM分析</a> |
-            <a href="reward_service.html">💰 回饋計算分析</a>
+            <a href="time_depend_plot.html">📈 時間趨勢分析</a> |
+            <a href="analytics_dashboard.html">👑 卡片回饋與客群</a>
         </div>
 
         <!-- 系統狀態摘要儀表板 -->
@@ -38,79 +37,77 @@
 
         <!-- 四大核心功能模組區 -->
         <div class="dashboard-grid">
-            <!-- 模組一：ETL 帳單處理 -->
+            <!-- 模組一：任務執行控制中心 (唯一 Console 所在地) -->
             <div class="module-card">
                 <div>
                     <div class="module-header">
-                        <span class="module-icon">📦</span>
-                        <h2 class="module-title">ETL 帳單資料處理</h2>
+                        <span class="module-icon">⚡</span>
+                        <h2 class="module-title">任務控制中心 (Task Console)</h2>
                     </div>
                     <p class="module-desc">
-                        解析各大銀行 (國泰、中信、華南、玉山等) 原始 CSV/PDF 帳單，自動執行商家名稱正規化、支付管道標記與特徵提取，精確寫入主資料庫。
+                        集中調度所有後端運算管線：帳單 ETL 清洗入庫、SSOT 維度設定同步、C# 瀑布式回饋金計算、RFM 價值模型與條件篩選匯出，共享即時串流 Console。
                     </p>
                 </div>
                 <div class="module-footer">
-                    <a href="etl.html" class="btn-primary" style="text-decoration:none; padding:10px 18px;">🚀 進入 ETL
-                        處理</a>
-                    <span class="quick-badge">Pipeline Step 1</span>
+                    <a href="task_console.html" class="btn-primary" style="text-decoration:none; padding:10px 18px;">⚡ 進入任務控制</a>
+                    <span class="quick-badge">Pipeline & Engine</span>
                 </div>
             </div>
 
-            <!-- 模組二：設定與維度同步 -->
+            <!-- 模組二：卡片管理面板 -->
             <div class="module-card">
                 <div>
                     <div class="module-header">
-                        <span class="module-icon">⚙️</span>
-                        <h2 class="module-title">設定與維度同步</h2>
+                        <span class="module-icon">💳</span>
+                        <h2 class="module-title">卡片管理面板 (Cards Manager)</h2>
                     </div>
                     <p class="module-desc">
-                        同步卡片清單 (dim_cards)、回饋規則 (dim_rewards)、特約商家 (dim_merchants)、第三方支付與每日匯率，維護 Single Source of Truth
-                        (SSOT)。
+                        視覺化維護個人信用卡清單 (bridge_user_cards)、卡片開關狀態、歷史換發卡紀錄與年費/回饋方案關聯。
                     </p>
                 </div>
                 <div class="module-footer">
-                    <a href="sync_config.html" class="btn-primary"
-                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #0284c7, #3b82f6);">⚙️
-                        進入設定同步</a>
-                    <span class="quick-badge">Configs & SSOT</span>
+                    <a href="cards_manager.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #0284c7, #3b82f6);">💳
+                        進入卡片管理</a>
+                    <span class="quick-badge">Cards JSON</span>
                 </div>
             </div>
 
-            <!-- 模組三：RFM 行為分析 -->
+            <!-- 模組三：依時間維度 - 時間趨勢與金流桑基圖 -->
             <div class="module-card">
                 <div>
                     <div class="module-header">
-                        <span class="module-icon">📊</span>
-                        <h2 class="module-title">RFM 客戶與矩陣分析</h2>
+                        <span class="module-icon">📈</span>
+                        <h2 class="module-title">時間趨勢分析 (Time Trends)</h2>
                     </div>
                     <p class="module-desc">
-                        依時間區間、發卡行、卡別與支付管道進行細粒度 RFM 行為分析，產生動態消費矩陣與客群洞察報表，匯出至 output/matrix/ 目錄。
+                        依時間維度穿透分析：月度消費大類堆疊趨勢、跨期消費走勢與多層級金流桑基圖 (Sankey Flow)。
                     </p>
                 </div>
                 <div class="module-footer">
-                    <a href="rfm_service.html" class="btn-primary"
-                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #ec4899, #8b5cf6);">📊
-                        進入 RFM 分析</a>
-                    <span class="quick-badge">Analytics Engine</span>
+                    <a href="time_depend_plot.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #10b981, #059669);">📈
+                        進入時間趨勢</a>
+                    <span class="quick-badge">Time & Sankey</span>
                 </div>
             </div>
 
-            <!-- 模組四：回饋金瀑布計算 -->
+            <!-- 模組四：依卡片與商家維度 - 卡片回饋與客群分析 -->
             <div class="module-card">
                 <div>
                     <div class="module-header">
-                        <span class="module-icon">💰</span>
-                        <h2 class="module-title">回饋金瀑布計算</h2>
+                        <span class="module-icon">👑</span>
+                        <h2 class="module-title">卡片回饋與客群 (Cards & RFM)</h2>
                     </div>
                     <p class="module-desc">
-                        瀑布式 (Waterfall) 計算各筆消費之現金/紅利回饋率，結合帳單週期、專屬通路加碼與上限截斷邏輯，精確產出折抵明細與對帳單。
+                        依卡片與商家維度聚合：RFM 客群價值氣泡圖、五大價值九宮格分群統計、月度卡片實質回饋率與回饋池上限監控。
                     </p>
                 </div>
                 <div class="module-footer">
-                    <a href="reward_service.html" class="btn-primary"
-                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #10b981, #3b82f6);">💰
-                        進入回饋計算</a>
-                    <span class="quick-badge">Reward Engine</span>
+                    <a href="analytics_dashboard.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #ec4899, #8b5cf6);">👑
+                        進入卡片與客群</a>
+                    <span class="quick-badge">RFM & Rewards</span>
                 </div>
             </div>
         </div>

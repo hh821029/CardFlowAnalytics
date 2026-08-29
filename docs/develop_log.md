@@ -1,4 +1,24 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-08-27**
+   * **RFM 視覺化依類別篩選與各領域 Top 3 商家排行**：
+     - 於 [analytics_dashboard.html](file:///d:/記帳用EXCEL/MyCreditCardProjectPro/web/analytics_dashboard.html) 新增 **消費類別即時篩選下拉選單**，切換時連動縮減氣泡圖點數並更新該類別之五大客群統計數值。
+     - 新增 **「🏆 各生活消費領域 Top 3 核心主力商家」** 排行表格，依便利商店、百貨量販、連鎖飲食、商圈、生活服務、電子商務等分類，自動列出累積消費金額最高的前三名主力商家與客群分群。
+     - 於 [api/routers/analytics.py](file:///d:/記帳用EXCEL/MyCreditCardProjectPro/api/routers/analytics.py) 之 `/api/analytics/rfm-chart` 新增 `top_by_category` 彙算與全域 `categories` 清單回傳。
+   * **前端全任務控制台與純視覺化儀表板二元化重構**：
+     - **全任務控制中心 (`web/task_console.html`)**：整合所有需要 Console 串流日誌之任務（ETL 帳單處理、SSOT 設定維度同步、C# 回饋計算、RFM 價值模型、條件 SQL 匯出），並消除跨 Tab 的重複 `config_all` 按鈕。
+     - **純視覺化分析儀表板 (`web/analytics_dashboard.html`, `web/time_depend_plot.html`)**：依時間維度 (趨勢與桑基圖) 與卡片/客群維度 (RFM 氣泡九宮格與回饋池) 獨立拆分，移除所有 Console 雜訊。
+     - **Console 模組化 (`web/scripts/console_runner.js`)**：封裝 TaskConsole 工具物件，支援 SSE 任務調度、關鍵字上色、狀態列更新、清空與「一鍵複製日誌」。
+     - 總控制台 `index.html` 與 `cards_manager.html` 等 5 大核心頁面導覽列全面對齊。
+   * **RFM 商家分類修復與維度表 JOIN 機制**：
+     - 修復 `analytics/rfm/modules.py` 中多時間視窗聯集導致之 `category` / `sub_category` 遺失與被「未分類」覆蓋之問題。
+     - 導入全域分類映射與 `dim_merchants` 維度表 Fallback 補齊機制，確保 100% 分類資料完整。
+   * **C# 回饋計算結果 Data Mart 入庫**：
+     - 實作 `sync_rewards_data_mart`，將 C# 瀑布式回饋計算結果彙總寫入 `database/TransactionsAnalysis.db` 中的 `rewards_monthly_summary` 與 `rewards_pool_utilization`。
+
+* **2026-08-26**
+   * **前端 視覺化6**：
+     * 前端視覺化更新，增加時間相依圖表與金流桑基圖儀表板。
+   
 
 * **2026-08-25**
    * **回饋計算更新6**：

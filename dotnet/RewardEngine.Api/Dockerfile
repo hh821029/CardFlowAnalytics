@@ -17,6 +17,13 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
+# 安裝 Kerberos 動態連結庫 (libgssapi_krb5.so.2) - .NET 10 preview on Debian/Ubuntu 需要
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libgssapi-krb5-2 \
+        krb5-user \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV ASPNETCORE_URLS=http://+:5000
 EXPOSE 5000
 

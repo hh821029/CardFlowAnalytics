@@ -32,6 +32,7 @@ My-Credit-Card-ETL/
 │   ├── api.py                  # 分析模組統一進入點 (run_analytics)
 │   ├── common/                 # 共用資料提取、過濾與排名工具
 │   ├── rfm/                    # 商家、消費類別、支付方式、信用卡四大維度 RFM
+│   ├── sankeyflow/             # 金流桑基圖
 │   └── matrix/                 # 三層支付管道 × 消費類別之消費矩陣 (Spending Matrix)
 │
 ├── profiles/                   # [設定檔與規則層] 個人化與公開規則分離管理

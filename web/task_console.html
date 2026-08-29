@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCreditCardProjectPro - 任務執行控制中心</title>
+    <!-- 引入 Outfit 字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 AI風 CSS模組 -->
+    <link rel="stylesheet" href="styles.css">
+    <script src="scripts/console_runner.js"></script>
+    <style>
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .console-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .console-tools {
+            display: flex;
+            gap: 8px;
+        }
+        .console-btn {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-subtle);
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition-base);
+        }
+        .console-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 頁首標題區塊 -->
+        <div class="page-header">
+            <div>
+                <h1>⚡ 任務執行與管線控制中心</h1>
+                <p class="page-desc">聚合帳單 ETL、維度規則同步、C# 瀑布式回饋計算與 RFM 模型運算之調度中樞</p>
+            </div>
+        </div>
+
+        <!-- 導覽超連結 (全站對齊) -->
+        <div class="nav-bar">
+            <a href="index.html">🏠 總控制台</a> |
+            <span class="active">⚡ 任務控制中心</span> |
+            <a href="cards_manager.html">💳 卡片管理</a> |
+            <a href="time_depend_plot.html">📈 時間趨勢分析</a> |
+            <a href="analytics_dashboard.html">👑 卡片回饋與客群</a>
+        </div>
+
+        <!-- 頁籤切換元件 -->
+        <div class="tab-nav">
+            <button id="tabBtn-etl" class="tab-btn active" onclick="switchTab('etl')">
+                <span>📦 帳單 ETL 入庫</span>
+            </button>
+            <button id="tabBtn-sync" class="tab-btn" onclick="switchTab('sync')">
+                <span>⚙️ 設定檔與維度同步</span>
+            </button>
+            <button id="tabBtn-analytics" class="tab-btn" onclick="switchTab('analytics')">
+                <span>💰 回饋計算與 RFM 模型</span>
+            </button>
+        </div>
+
+        <!-- Tab 1: 帳單資料處理 (ETL) -->
+        <div id="tabContent-etl" class="tab-content active">
+            <div class="section-box">
+                <div class="section-title">📦 帳單資料處理 (ETL 流程)</div>
+                <p style="margin: 0 0 15px 0; font-size: 13px; color: var(--text-secondary);">
+                    自動掃描並載入各大銀行原始對帳單 (國泰、中信、華南、玉山等)，執行商家名稱正規化、支付管道標記、匯率折算與特徵提取，精確寫入主資料庫。
+                </p>
+                <div class="button-group">
+                    <button id="btnEtl" class="btn-primary" onclick="TaskConsole.run('etl', '', 'ETL 帳單處理')">
+                        🚀 執行帳單 ETL 入庫
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: 設定檔與維度表同步 (Configs SSOT) -->
+        <div id="tabContent-sync" class="tab-content">
+            <div class="section-box">
+                <div class="section-title">📄 維度規則與設定資料同步面板 (SSOT)</div>
+                <p style="margin: 0 0 12px 0; font-size: 13px; color: var(--text-secondary);">
+                    將 profiles 與 configs 檔案中的維度設定資料（卡片、特約商家、支付管道、回饋規則、每日匯率）更新或合併寫入至資料庫。
+                </p>
+
+                <div class="button-group" style="margin-bottom: 20px;">
+                    <button id="btnConfig_All" class="btn-primary" onclick="TaskConsole.run('config_all', '', '所有設定全量同步')">
+                        ⚙️ 執行全量設定同步
+                    </button>
+                </div>
+
+                <!-- 內部三欄子卡片分割 -->
+                <div class="sub-box-container">
+                    <!-- 子卡片 1：商家與支付維度 -->
+                    <div class="sub-card">
+                        <div>
+                            <div class="sub-card-title">🏪 商家與支付維度</div>
+                            <p class="sub-card-desc">獨立同步商家分類對照與第三方支付錢包。</p>
+                        </div>
+                        <div class="button-group">
+                            <button onclick="TaskConsole.run('config_mer', '', '商家資料同步')">🏪 商家資料</button>
+                            <button onclick="TaskConsole.run('config_paygate', '', '支付錢包同步')">👛 支付錢包</button>
+                        </div>
+                    </div>
+
+                    <!-- 子卡片 2：信用卡資料同步 -->
+                    <div class="sub-card">
+                        <div>
+                            <div class="sub-card-title">💳 信用卡資料同步</div>
+                            <p class="sub-card-desc">獨立同步卡片基本檔與帳單結帳日歷史。</p>
+                        </div>
+                        <div class="button-group">
+                            <button onclick="TaskConsole.run('config_card', '', '信用卡資料同步')">💳 信用卡資料</button>
+                            <button onclick="TaskConsole.run('config_billing_history', '', '對帳單歷史同步')">📅 結帳日歷史</button>
+                        </div>
+                    </div>
+
+                    <!-- 子卡片 3：回饋規則與匯率 -->
+                    <div class="sub-card">
+                        <div>
+                            <div class="sub-card-title">🔄 回饋規則與匯率</div>
+                            <p class="sub-card-desc">獨立同步瀑布式回饋規則與每日匯率表。</p>
+                        </div>
+                        <div class="button-group">
+                            <button onclick="TaskConsole.run('config_reward', '', '回饋規則同步')">📜 回饋規則</button>
+                            <button onclick="TaskConsole.run('config_fx_table', '', '匯率每日表同步')">💱 匯率每日表</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: 模型運算與條件導出 (Analytics & Rewards) -->
+        <div id="tabContent-analytics" class="tab-content">
+            <!-- 運算條件篩選器 -->
+            <div class="section-box" style="margin-bottom: 20px;">
+                <div class="section-title">⚙️ 計算條件篩選面板</div>
+                
+                <div class="filter-container" style="grid-template-columns: repeat(3, 1fr);">
+                    <!-- 銀行名稱 -->
+                    <div class="filter-card">
+                        <details open>
+                            <summary>
+                                <div class="filter-card-header">
+                                    <span><span class="arrow-icon">▶</span> 🏦 銀行名稱</span>
+                                    <div class="filter-actions">
+                                        <span class="filter-link" onclick="event.stopPropagation(); toggleAll('bank', true)">全選</span>
+                                        <span class="filter-link" onclick="event.stopPropagation(); toggleAll('bank', false)">清除</span>
+                                    </div>
+                                </div>
+                            </summary>
+                            <div id="bankList" class="filter-list">
+                                <span style="color: #64748b; font-size: 13px; padding: 6px;">正在讀取銀行...</span>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- 信用卡名稱 -->
+                    <div class="filter-card">
+                        <details open>
+                            <summary>
+                                <div class="filter-card-header">
+                                    <span><span class="arrow-icon">▶</span> 💳 卡片名稱</span>
+                                    <div class="filter-actions">
+                                        <span class="filter-link" onclick="event.stopPropagation(); toggleAll('card', true)">全選</span>
+                                        <span class="filter-link" onclick="event.stopPropagation(); toggleAll('card', false)">清除</span>
+                                    </div>
+                                </div>
+                            </summary>
+                            <div id="cardList" class="filter-list">
+                                <span style="color: #64748b; font-size: 13px; padding: 6px;">正在讀取卡片...</span>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- 第三方支付 -->
+                    <div class="filter-card">
+                        <details open>
+                            <summary>
+                                <div class="filter-card-header">
+                                    <span><span class="arrow-icon">▶</span> 📱 第三方支付</span>
+                                    <div class="filter-actions">
+                                        <span class="filter-link" onclick="event.stopPropagation(); toggleAll('payment', true)">全選</span>
+                                        <span class="filter-link" onclick="event.stopPropagation(); toggleAll('payment', false)">清除</span>
+                                    </div>
+                                </div>
+                            </summary>
+                            <div id="paymentList" class="filter-list">
+                                <span style="color: #64748b; font-size: 13px; padding: 6px;">正在讀取支付方式...</span>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- 次要篩選條件 (時間區間、消費地點、類別等) -->
+                <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px;">
+                    <!-- 時間視窗 -->
+                    <div style="background-color: var(--card-bg-inner); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">⏱️ 時間視窗</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <label class="checkbox-label"><input type="radio" name="time_window" value="" checked> 全歷史</label>
+                            <label class="checkbox-label"><input type="radio" name="time_window" value="30d"> 近30天</label>
+                            <label class="checkbox-label"><input type="radio" name="time_window" value="90d"> 近90天</label>
+                            <label class="checkbox-label"><input type="radio" name="time_window" value="180d"> 近半年</label>
+                            <label class="checkbox-label"><input type="radio" name="time_window" value="365d"> 近一年</label>
+                        </div>
+                    </div>
+
+                    <!-- 自訂日期 -->
+                    <div style="background-color: var(--card-bg-inner); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">📅 自訂起訖日期</div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="date" id="startDate" style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 12px; width: 100%;">
+                            <span style="color: var(--text-secondary);">-</span>
+                            <input type="date" id="endDate" style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 12px; width: 100%;">
+                        </div>
+                    </div>
+
+                    <!-- 消費地點與直接刷卡 -->
+                    <div style="background-color: var(--card-bg-inner); border-radius: 8px; padding: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">📍 地點與方式</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            <label class="checkbox-label"><input type="checkbox" name="location" value="國內" checked> 國內</label>
+                            <label class="checkbox-label"><input type="checkbox" name="location" value="國外" checked> 國外</label>
+                            <label class="checkbox-label"><input type="checkbox" id="includeDirectPayment" checked> 包含直接刷卡</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 專屬執行按鈕區 (無重複按鈕) -->
+            <div class="section-box">
+                <div class="section-title">🚀 執行運算任務</div>
+                <div class="button-group" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <!-- 按鈕 1：回饋金瀑布計算 (C# Engine) -->
+                    <button class="btn-primary"
+                        style="background: linear-gradient(135deg, #10b981, #3b82f6); border: none;"
+                        onclick="runRewardsTask()">
+                        💰 執行回饋金瀑布計算 (C# Engine)
+                    </button>
+
+                    <!-- 按鈕 2：RFM 客群價值模型 -->
+                    <button class="btn-primary"
+                        style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none;"
+                        onclick="runAnalyticsTask()">
+                        📊 執行 RFM 分析運算
+                    </button>
+
+                    <!-- 按鈕 3：條件篩選導出 CSV -->
+                    <button class="btn-secondary" onclick="runExportTask()">
+                        📥 依條件篩選匯出交易 CSV
+                    </button>
+
+                    <!-- 結帳日一致性校驗開關 -->
+                    <label class="checkbox-label" style="padding: 6px 12px; border: 1px solid var(--btn-border); border-radius: 6px; background-color: var(--card-bg);">
+                        <input type="checkbox" id="enableBillingValidation" checked> 🔒 啟用結帳日一致性校驗
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 唯一統一 Console 控制台 -->
+        <div style="margin-top: 25px;">
+            <div class="console-header">
+                <div class="console-title">🖥️ 任務即時日誌與執行狀態</div>
+                <div class="console-tools">
+                    <button id="btnCopyLog" class="console-btn no-lock" onclick="TaskConsole.copy()">📋 複製日誌</button>
+                    <button class="console-btn no-lock" onclick="TaskConsole.clear()">🧹 清空控制台</button>
+                </div>
+            </div>
+
+            <!-- 狀態指示列 -->
+            <div id="status" class="status-box">目前狀態：閒置中 (等待指令啟動)</div>
+
+            <!-- 即時日誌視窗 -->
+            <div id="console" class="console">--- 等待指令啟動 ---</div>
+        </div>
+    </div>
+
+    <script>
+        // 頁籤切換
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            const targetBtn = document.getElementById(`tabBtn-${tabId}`);
+            const targetContent = document.getElementById(`tabContent-${tabId}`);
+            if (targetBtn && targetContent) {
+                targetBtn.classList.add('active');
+                targetContent.classList.add('active');
+            }
+        }
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAnalyzableData();
+            const params = new URLSearchParams(window.location.search);
+            const tabParam = params.get('tab') || window.location.hash.replace('#', '');
+            if (tabParam === 'etl' || tabParam === 'sync' || tabParam === 'analytics' || tabParam === 'rewards' || tabParam === 'rfm') {
+                switchTab(tabParam === 'rewards' || tabParam === 'rfm' ? 'analytics' : tabParam);
+            }
+        });
+
+        // 讀取可分析維度資料填入篩選清單
+        async function loadAnalyzableData() {
+            try {
+                const res = await fetch('/api/analyzable-data');
+                const data = await res.json();
+                if (data.error) {
+                    console.warn("讀取可分析資料失敗:", data.error);
+                    return;
+                }
+
+                // 1. 銀行名稱
+                const bankListDiv = document.getElementById('bankList');
+                if (bankListDiv && data.banks && data.banks.length > 0) {
+                    bankListDiv.innerHTML = data.banks.map(b => {
+                        const name = typeof b === 'object' ? (b.name || b.id) : b;
+                        return `<label class="checkbox-label"><input type="checkbox" name="bank" value="${name}" checked> ${name}</label>`;
+                    }).join('');
+                } else if (bankListDiv) {
+                    bankListDiv.innerHTML = '<span style="color: #64748b; font-size: 13px; padding: 6px;">暫無銀行資料</span>';
+                }
+
+                // 2. 卡片名稱
+                const cardListDiv = document.getElementById('cardList');
+                if (cardListDiv && data.cards && data.cards.length > 0) {
+                    cardListDiv.innerHTML = data.cards.map(c => `
+                        <label class="checkbox-label"><input type="checkbox" name="card" value="${c}" checked> ${c}</label>
+                    `).join('');
+                } else if (cardListDiv) {
+                    cardListDiv.innerHTML = '<span style="color: #64748b; font-size: 13px; padding: 6px;">暫無卡片資料</span>';
+                }
+
+                // 3. 第三方支付
+                const payListDiv = document.getElementById('paymentList');
+                if (payListDiv && data.payment_processes && data.payment_processes.length > 0) {
+                    payListDiv.innerHTML = data.payment_processes.map(p => `
+                        <label class="checkbox-label"><input type="checkbox" name="payment" value="${p}" checked> ${p}</label>
+                    `).join('');
+                } else if (payListDiv) {
+                    payListDiv.innerHTML = '<span style="color: #64748b; font-size: 13px; padding: 6px;">暫無支付管道資料</span>';
+                }
+            } catch (e) {
+                console.warn("載入可分析資料失敗:", e);
+            }
+        }
+
+        function toggleAll(name, checked) {
+            document.querySelectorAll(`input[name="${name}"]`).forEach(cb => cb.checked = checked);
+        }
+
+        function buildFilterParams() {
+            const params = new URLSearchParams();
+
+            const totalBanks = document.querySelectorAll('input[name="bank"]').length;
+            const checkedBanks = Array.from(document.querySelectorAll('input[name="bank"]:checked')).map(cb => cb.value);
+            if (checkedBanks.length > 0 && checkedBanks.length < totalBanks) {
+                params.append('banks', checkedBanks.join(','));
+            }
+
+            const totalCards = document.querySelectorAll('input[name="card"]').length;
+            const checkedCards = Array.from(document.querySelectorAll('input[name="card"]:checked')).map(cb => cb.value);
+            if (checkedCards.length > 0 && checkedCards.length < totalCards) {
+                params.append('cards', checkedCards.join(','));
+            }
+
+            const totalPayments = document.querySelectorAll('input[name="payment"]').length;
+            const checkedPayments = Array.from(document.querySelectorAll('input[name="payment"]:checked')).map(cb => cb.value);
+            if (checkedPayments.length > 0 && checkedPayments.length < totalPayments) {
+                params.append('payments', checkedPayments.join(','));
+            }
+
+            const checkedLocations = Array.from(document.querySelectorAll('input[name="location"]:checked')).map(cb => cb.value);
+            if (checkedLocations.length === 1) {
+                params.append('location', checkedLocations[0]);
+            }
+
+            const timeWindow = document.querySelector('input[name="time_window"]:checked');
+            if (timeWindow && timeWindow.value) params.append('time_window', timeWindow.value);
+
+            const startDate = document.getElementById('startDate')?.value;
+            const endDate = document.getElementById('endDate')?.value;
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+
+            const includeDirect = document.getElementById('includeDirectPayment')?.checked;
+            if (includeDirect !== undefined) params.append('include_direct_payment', includeDirect ? 'true' : 'false');
+
+            const enableBilling = document.getElementById('enableBillingValidation')?.checked;
+            if (enableBilling !== undefined) params.append('enable_billing_validation', enableBilling ? 'true' : 'false');
+
+            return params.toString();
+        }
+
+        function runRewardsTask() {
+            const q = buildFilterParams();
+            TaskConsole.run('rewards', q, 'C# 瀑布式回饋計算');
+        }
+
+        function runAnalyticsTask() {
+            const q = buildFilterParams();
+            TaskConsole.run('analytics', q, 'RFM 客群分析運算');
+        }
+
+        function runExportTask() {
+            const q = buildFilterParams();
+            TaskConsole.run('query_export', q, '條件篩選匯出交易 CSV');
+        }
+    </script>
+</body>
+
+</html>

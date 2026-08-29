@@ -1,0 +1,172 @@
+/* web/styles/plot.css - 時間相依圖表與桑基圖視覺化儀表板專用樣式 */
+
+/* 圖表專屬控制列 */
+.plot-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--card-bg-inner, #1f293d);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    border-radius: var(--radius-md, 12px);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.plot-filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.plot-select, .plot-input {
+    background-color: var(--btn-bg, #334155);
+    border: 1px solid var(--btn-border, #475569);
+    border-radius: var(--radius-sm, 8px);
+    color: var(--text-primary, #f8fafc);
+    padding: 8px 12px;
+    font-size: 13px;
+    font-family: var(--font-family);
+    outline: none;
+    transition: var(--transition-base);
+}
+
+.plot-select:focus, .plot-input:focus {
+    border-color: var(--accent-blue, #38bdf8);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+/* KPI 摘要資訊欄 */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.kpi-card {
+    background-color: var(--card-bg, #273549);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    border-radius: var(--radius-md, 12px);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-card, 0 4px 15px rgba(0, 0, 0, 0.15));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--accent-blue, #38bdf8);
+}
+
+.kpi-card.purple::before {
+    background: linear-gradient(180deg, #a855f7, #6366f1);
+}
+
+.kpi-card.green::before {
+    background: linear-gradient(180deg, #10b981, #059669);
+}
+
+.kpi-card.amber::before {
+    background: linear-gradient(180deg, #fbbf24, #f59e0b);
+}
+
+.kpi-title {
+    font-size: 12px;
+    color: var(--text-secondary, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary, #f8fafc);
+    font-family: var(--font-mono, monospace);
+}
+
+/* 圖表排列網格 */
+.chart-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-bottom: 25px;
+}
+
+.chart-grid-2col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+    gap: 24px;
+    margin-bottom: 25px;
+}
+
+.chart-card {
+    background-color: var(--card-bg, #273549);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    border-radius: var(--radius-md, 12px);
+    padding: 20px;
+    box-shadow: var(--shadow-card, 0 4px 15px rgba(0, 0, 0, 0.15));
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    padding-bottom: 12px;
+}
+
+.chart-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #f8fafc);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-container {
+    width: 100%;
+    min-height: 420px;
+    height: 420px;
+}
+
+.chart-container-large {
+    width: 100%;
+    min-height: 520px;
+    height: 520px;
+}
+
+/* 讀取狀態提示 */
+.chart-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--text-secondary, #94a3b8);
+    font-size: 14px;
+    gap: 10px;
+}
+
+@media (max-width: 768px) {
+    .chart-grid-2col {
+        grid-template-columns: 1fr;
+    }
+    .plot-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

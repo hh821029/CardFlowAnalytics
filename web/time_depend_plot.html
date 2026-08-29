@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCreditCardProjectPro - 時間趨勢與金流桑基圖</title>
+    <!-- 引入 Outfit 字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 AI風 CSS模組 -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- 引入 Apache ECharts 視覺化引擎 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- 頁首標題區塊 -->
+        <div class="page-header">
+            <div>
+                <h1>📈 時間趨勢與金流桑基圖儀表板</h1>
+                <p class="page-desc">依時間維度穿透分析：跨月份消費大類堆疊趨勢、消費集中度與多層級金流桑基圖 (Sankey Flow)</p>
+            </div>
+        </div>
+
+        <!-- 導覽超連結 (全站對齊) -->
+        <div class="nav-bar">
+            <a href="index.html">🏠 總控制台</a> |
+            <a href="task_console.html">⚡ 任務控制中心</a> |
+            <a href="cards_manager.html">💳 卡片管理</a> |
+            <span class="active">📈 時間趨勢分析</span> |
+            <a href="analytics_dashboard.html">👑 卡片回饋與客群</a>
+        </div>
+
+        <!-- KPI 總覽 -->
+        <div class="kpi-row" style="margin-bottom: 20px;">
+            <div class="kpi-card">
+                <div class="kpi-lbl">總累積消費金額</div>
+                <div id="kpiTotalAmount" class="kpi-val">NT$ -</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-lbl">活躍月份數</div>
+                <div id="kpiMonths" class="kpi-val" style="color: #a855f7;">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-lbl">使用信用卡數</div>
+                <div id="kpiCards" class="kpi-val" style="color: #10b981;">-</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-lbl">支付管道數</div>
+                <div id="kpiPayments" class="kpi-val" style="color: #fbbf24;">-</div>
+            </div>
+        </div>
+
+        <!-- 月度消費大類堆疊趨勢圖 -->
+        <div class="chart-box" style="margin-bottom: 20px;">
+            <div class="chart-header">
+                <div class="chart-title">📈 月度消費大類堆疊趨勢分析</div>
+                <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;"
+                    onclick="loadMonthlyTrend()">🔄 重新整理</button>
+            </div>
+            <div id="trendChart" style="width: 100%; height: 420px;"></div>
+        </div>
+
+        <!-- 金流桑基圖 -->
+        <div class="chart-box">
+            <div class="chart-header">
+                <div class="chart-title">🌊 多層級金流桑基圖 (發卡行 ➔ 信用卡別 ➔ 支付管道 ➔ 消費大類)</div>
+                <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadSankeyFlow()">🔄
+                    重新整理</button>
+            </div>
+            <div id="sankeyChart" style="width: 100%; height: 500px;"></div>
+        </div>
+    </div>
+
+    <script>
+        let trendChartInst = null;
+        let sankeyChartInst = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadMonthlyTrend();
+            loadSankeyFlow();
+        });
+
+        // 1. 載入月度趨勢
+        async function loadMonthlyTrend() {
+            try {
+                const res = await fetch('/api/analytics/monthly-trend');
+                const result = await res.json();
+                if (!result.success || !result.data) return;
+
+                const { months, series, summary } = result.data;
+
+                // KPI 更新
+                if (summary) {
+                    document.getElementById('kpiTotalAmount').textContent = `NT$ ${Number(summary.total_amount || 0).toLocaleString()}`;
+                    document.getElementById('kpiMonths').textContent = summary.active_months || 0;
+                    document.getElementById('kpiCards').textContent = summary.card_count || 0;
+                    document.getElementById('kpiPayments').textContent = summary.payment_count || 0;
+                }
+
+                const dom = document.getElementById('trendChart');
+                if (!trendChartInst) trendChartInst = echarts.init(dom, 'dark');
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: { trigger: 'axis' },
+                    legend: { top: 0, textStyle: { color: '#94a3b8' } },
+                    grid: { top: 50, right: 30, bottom: 30, left: 60 },
+                    xAxis: { type: 'category', data: months },
+                    yAxis: { type: 'value', name: '消費 (NT$)', splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } } },
+                    series: series
+                };
+
+                trendChartInst.setOption(option);
+                window.addEventListener('resize', () => trendChartInst.resize());
+            } catch (e) {
+                console.error("載入月度趨勢失敗:", e);
+            }
+        }
+
+        // 2. 載入金流桑基圖
+        async function loadSankeyFlow() {
+            try {
+                const res = await fetch('/api/analytics/sankey');
+                const result = await res.json();
+                if (!result.success || !result.data) return;
+
+                const dom = document.getElementById('sankeyChart');
+                if (!sankeyChartInst) sankeyChartInst = echarts.init(dom, 'dark');
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+                    series: [{
+                        type: 'sankey',
+                        data: result.data.nodes,
+                        links: result.data.links,
+                        emphasis: { focus: 'adjacency' },
+                        lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.35 },
+                        label: { color: '#f8fafc', fontSize: 11 }
+                    }]
+                };
+
+                sankeyChartInst.setOption(option);
+                window.addEventListener('resize', () => sankeyChartInst.resize());
+            } catch (e) {
+                console.error("載入桑基圖失敗:", e);
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -38,6 +38,7 @@ app.include_router(cards_json.router)
 app.include_router(etl.router)
 app.include_router(configs.router)
 app.include_router(analytics.router)
+app.include_router(analytics.data_router)
 app.include_router(web_api_router)
 
 # 3. 設定靜態檔案路徑 (用於 web/index.html 控制台)

@@ -7,7 +7,7 @@
 import os
 import pandas as pd
 import logging
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict, Any
 import const
 from database.loaders.db_reader import DBReader
 
@@ -23,7 +23,7 @@ def get_transactions(
     通用交易資料讀取服務 (預設讀取已整合全維度資訊之 rfm_transactions 視圖，相容 SQLite / PostgreSQL)
     """
     conditions = []
-    params = {}
+    params: Dict[str, Any] = {}
     
     # 統一 SQL 欄位映射與型態強轉 (SSOT 對齊，查詢預先建構好的 rfm_transactions 視圖)
     query_parts = [
@@ -53,10 +53,13 @@ def get_transactions(
         except Exception as e:
             logger.debug(f"無法取得 max transaction_date: {e}")
 
-    start_date = window.get_start_date(anchor_date)
-    if start_date:
+    start_date_val, end_date_val = window.get_date_range(anchor_date)
+    if start_date_val:
         conditions.append("t.transaction_date >= :start_date")
-        params["start_date"] = start_date
+        params["start_date"] = start_date_val
+    if end_date_val:
+        conditions.append("t.transaction_date <= :end_date")
+        params["end_date"] = end_date_val
         
     sql = f"SELECT {', '.join(query_parts)} FROM rfm_transactions t"
     if conditions:
@@ -83,15 +86,20 @@ def get_transactions(
                 f"bank_name AS {const.COL_BANK_NAME}",
                 f"transaction_type AS {const.COL_TXN_TYPE}"
             ]
-            fallback_sql = f"SELECT {', '.join(fallback_parts)} FROM all_transactions"
-            fb_conditions = [c.replace("t.", "") for c in conditions]
-            if fb_conditions: fallback_sql += " WHERE " + " AND ".join(fb_conditions)
-            df = DBReader.read_sql(fallback_sql, params=params, parse_dates=[const.COL_TXN_DATE], db_path=db_path)
-            df['category'] = '未分類'
-            df['sub_category'] = ''
-            return df
-        except Exception as fb_err:
-            logger.error(f"❌ 讀取交易資料庫失敗: {fb_err}", exc_info=True)
+            fallback_conditions = ["transaction_type NOT IN ('繳款', '各項費用', '退刷', '紅利折抵')"]
+            fallback_params = {}
+            if start_date_val:
+                fallback_conditions.append("transaction_date >= :start_date")
+                fallback_params["start_date"] = start_date_val
+            if end_date_val:
+                fallback_conditions.append("transaction_date <= :end_date")
+                fallback_params["end_date"] = end_date_val
+            fallback_sql = f"SELECT {', '.join(fallback_parts)} FROM all_transactions WHERE " + " AND ".join(fallback_conditions)
+            df_fallback = DBReader.read_sql(fallback_sql, params=fallback_params, parse_dates=[const.COL_TXN_DATE], db_path=db_path)
+            logger.info(f"📥 [DB 提取 (all_transactions 降級)] 成功載入 {len(df_fallback)} 筆交易資料。")
+            return df_fallback
+        except Exception as e2:
+            logger.error(f"❌ 無法讀取 all_transactions: {e2}")
             return pd.DataFrame()
 
 def _resolve_bank_names(bank_inputs: List[str]) -> List[str]:
@@ -128,15 +136,15 @@ def query_transactions_modular(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     location: Optional[Union[str, List[str]]] = None,
-    exclude_non_retail: bool = False,
-    db_path: str = const.DB_PATH,
+    db_path: Optional[str] = None,
     limit_by_card_start: bool = False
 ) -> pd.DataFrame:
     """
     動態 SQL 條件查詢服務 (直接查詢預先構建好之 rfm_transactions 視圖，相容 SQLite / PostgreSQL)
     """
-    conditions = []
-    params = {}
+    if db_path is None: db_path = const.DB_PATH
+    conditions: List[str] = ["t.transaction_type NOT IN ('繳款', '各項費用', '退刷', '紅利折抵')"]
+    params: Dict[str, Any] = {}
     
     query_parts = [
         "t.transaction_id",
@@ -165,16 +173,14 @@ def query_transactions_modular(
             pass
 
     if time_window:
-        try:
-            tw_enum = const.TimeWindow[time_window]
-            calculated_start = tw_enum.get_start_date(anchor_date)
-            if calculated_start:
-                conditions.append("t.transaction_date >= :start_date")
-                params["start_date"] = calculated_start
-            if anchor_date:
-                conditions.append("t.transaction_date <= :end_date")
-                params["end_date"] = anchor_date
-        except KeyError:
+        calc_start, calc_end = const.TimeWindow.resolve_range(time_window, anchor_date)
+        if calc_start:
+            conditions.append("t.transaction_date >= :start_date")
+            params["start_date"] = calc_start
+        if calc_end:
+            conditions.append("t.transaction_date <= :end_date")
+            params["end_date"] = calc_end
+        if not calc_start and not calc_end and time_window.upper() not in ('LIFETIME', 'ALL', '全歷史', '全時段'):
             logger.warning(f"⚠️ 傳入未知的時間視窗名稱: {time_window}，將略過預設時間篩選。")
     else:
         if start_date:
@@ -215,14 +221,19 @@ def query_transactions_modular(
         conditions.append("(t.payment_process IS NOT NULL AND t.payment_process <> '')")
 
     if location:
-        if isinstance(location, list):
-            loc_placeholders = [f":loc_{i}" for i in range(len(location))]
-            for i, l in enumerate(location):
-                params[f"loc_{i}"] = l
-            conditions.append(f"t.merchant_location IN ({', '.join(loc_placeholders)})")
-        else:
-            conditions.append("t.merchant_location = :location")
-            params["location"] = location
+        loc_list = [location] if isinstance(location, str) else list(location)
+        loc_set = set(loc_list)
+        # 若同時包含國內與國外，或為全選，則視為不限制地點
+        if not (('國內' in loc_set and '國外' in loc_set) or 'all' in loc_set or len(loc_set) == 0):
+            if '國內' in loc_set:
+                conditions.append("(t.merchant_location IN ('TW', 'TWN', '台灣', '臺灣', '國內') OR t.merchant_location IS NULL OR t.merchant_location = '')")
+            elif '國外' in loc_set:
+                conditions.append("(t.merchant_location NOT IN ('TW', 'TWN', '台灣', '臺灣', '國內') AND t.merchant_location IS NOT NULL AND t.merchant_location <> '')")
+            else:
+                loc_placeholders = [f":loc_{i}" for i in range(len(loc_list))]
+                for i, l in enumerate(loc_list):
+                    params[f"loc_{i}"] = l
+                conditions.append(f"t.merchant_location IN ({', '.join(loc_placeholders)})")
 
     sql = f"SELECT {', '.join(query_parts)} FROM rfm_transactions t"
     if conditions:
