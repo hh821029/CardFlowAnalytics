@@ -153,18 +153,172 @@ class DBColMapper:
         return self._apply_mapping(df, self.merchant_fact_mapping)
 
 # ==========================================
-# 3. Load 階段核心執行進入點 (load_data)
+# 3. 匯率載入器與台幣本位幣轉換器 (FX Normalizer)
+# ==========================================
+def _standardize_fx_df(df: pd.DataFrame) -> pd.DataFrame:
+    """標準化匯率表欄位名稱與型態"""
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df_clean = df.copy()
+    
+    # 匯率欄位相容 exchange_rate / fx_rate
+    if 'exchange_rate' in df_clean.columns:
+        if 'fx_rate' not in df_clean.columns:
+            df_clean['fx_rate'] = df_clean['exchange_rate']
+        else:
+            df_clean['fx_rate'] = df_clean['fx_rate'].combine_first(df_clean['exchange_rate'])
+        
+    # 日期與幣別處理
+    if 'conversion_date' in df_clean.columns:
+        df_clean['conversion_date'] = df_clean['conversion_date'].astype(str).str.strip().str.split(' ').str[0]
+    if 'currency_type' in df_clean.columns:
+        df_clean['currency_type'] = df_clean['currency_type'].astype(str).str.strip().str.upper()
+    if 'fx_rate' in df_clean.columns:
+        df_clean['fx_rate'] = pd.to_numeric(df_clean['fx_rate'], errors='coerce')
+        
+    return df_clean.dropna(subset=['conversion_date', 'currency_type', 'fx_rate'])
+
+
+def load_fx_table(config_dir: Optional[str] = None) -> pd.DataFrame:
+    """
+    雙軌載入匯率對照表：
+    1. 優先從資料庫 (dim_fx_table) 讀取
+    2. 備援從 profiles/.../configs/dim_fx_table.csv 讀取
+    """
+    # 1. 嘗試從 DB 讀取
+    try:
+        from database.loaders.db_reader import DBReader
+        db_df = DBReader.read_sql("SELECT * FROM dim_fx_table")
+        if db_df is not None and not db_df.empty:
+            logger.debug("✅ 成功從資料庫 (dim_fx_table) 載入匯率資料")
+            return _standardize_fx_df(db_df)
+    except Exception as e:
+        logger.debug(f"ℹ️ 從資料庫讀取 dim_fx_table 略過: {e}")
+
+    # 2. 備援從 ConfigLoader 讀取 CSV
+    try:
+        from profiles.loaders.config_loader import ConfigLoader
+        target_dir = config_dir or const.CONFIG_DIR
+        csv_df = ConfigLoader.load_config(target_dir, "dim_fx_table", strategy='replace')
+        if csv_df is not None and not csv_df.empty:
+            logger.debug("✅ 成功從 ConfigLoader 載入 dim_fx_table.csv")
+            return _standardize_fx_df(csv_df)
+    except Exception as e:
+        logger.warning(f"⚠️ 從 CSV 載入 dim_fx_table 失敗: {e}")
+
+    return pd.DataFrame()
+
+
+def normalize_to_twd(
+    df: pd.DataFrame, 
+    fx_df: Optional[pd.DataFrame] = None, 
+    output_dir: Optional[str] = None
+) -> pd.DataFrame:
+    """
+    將非 TWD 的雙幣交易依結匯日 (conversion_date) 匯率折算為台幣 (TWD)，供 RFM 與 Rewards 分析使用。
+    嚴格業務規則：僅在 conversion_date 存在且 payment_currency != 'TWD' 時觸發折算。
+    """
+    if df is None or df.empty:
+        return pd.DataFrame() if df is None else df.copy()
+
+    df_result = df.copy()
+
+    # 確保必要欄位存在
+    if 'payment_currency' not in df_result.columns or 'payment_amount' not in df_result.columns:
+        return df_result
+
+    # 1. 判斷需要折算的條件：conversion_date 存在 且 payment_currency 非 TWD / 空值
+    has_conv_date = (
+        df_result['conversion_date'].notna() & 
+        (df_result['conversion_date'].astype(str).str.strip() != '') & 
+        (df_result['conversion_date'].astype(str).str.lower() != 'nan') &
+        (df_result['conversion_date'].astype(str).str.lower() != 'none')
+    )
+    is_foreign_curr = (
+        df_result['payment_currency'].notna() & 
+        (df_result['payment_currency'].astype(str).str.strip().str.upper() != 'TWD') & 
+        (df_result['payment_currency'].astype(str).str.strip() != '') &
+        (df_result['payment_currency'].astype(str).str.lower() != 'nan')
+    )
+    
+    mask_to_convert = has_conv_date & is_foreign_curr
+
+    if not mask_to_convert.any():
+        return df_result
+
+    count_to_convert = mask_to_convert.sum()
+    logger.info(f"💱 偵測到 {count_to_convert} 筆雙幣外幣交易 (具備 conversion_date 且非 TWD)，準備進行台幣折算...")
+
+    if fx_df is None or fx_df.empty:
+        fx_df = load_fx_table()
+
+    # 建立匯率查找映射字典: (conversion_date, currency_type) -> fx_rate
+    fx_map = {}
+    if fx_df is not None and not fx_df.empty and 'conversion_date' in fx_df.columns and 'currency_type' in fx_df.columns and 'fx_rate' in fx_df.columns:
+        for _, row in fx_df.iterrows():
+            c_date = str(row['conversion_date']).strip().split(' ')[0]
+            curr = str(row['currency_type']).strip().upper()
+            try:
+                rate = float(row['fx_rate'])
+                fx_map[(c_date, curr)] = rate
+            except (ValueError, TypeError):
+                continue
+
+    missing_fx_rows = []
+    
+    for idx in df_result[mask_to_convert].index:
+        conv_date = str(df_result.at[idx, 'conversion_date']).strip().split(' ')[0]
+        pay_curr = str(df_result.at[idx, 'payment_currency']).strip().upper()
+        raw_amt = df_result.at[idx, 'payment_amount']
+
+        key = (conv_date, pay_curr)
+        # 如果 payment_currency 找不到，也可嘗試 currency_type (若有)
+        if key not in fx_map and 'currency_type' in df_result.columns:
+            curr_type = str(df_result.at[idx, 'currency_type']).strip().upper()
+            key = (conv_date, curr_type)
+
+        if key in fx_map:
+            fx_rate = fx_map[key]
+            try:
+                amt_val = float(raw_amt)
+                converted_amt = round(amt_val * fx_rate)  # 四捨五入至整數台幣
+                df_result.at[idx, 'payment_amount'] = converted_amt
+                df_result.at[idx, 'payment_currency'] = 'TWD'
+                logger.debug(f"💱 [折算成功] 結匯日: {conv_date}, {raw_amt} {pay_curr} * {fx_rate} -> {converted_amt} TWD")
+            except (ValueError, TypeError) as conv_err:
+                logger.warning(f"⚠️ 金額轉換數值失敗 (row {idx}): {conv_err}")
+        else:
+            logger.warning(f"⚠️ 查無匯率對照: 結匯日 [{conv_date}], 幣別 [{pay_curr}], 交易: {df_result.at[idx, 'transaction_id'] if 'transaction_id' in df_result.columns else idx}")
+            missing_fx_rows.append(df_result.loc[idx])
+
+    if missing_fx_rows:
+        df_missing = pd.DataFrame(missing_fx_rows)
+        logger.error(f"❌ 共有 {len(missing_fx_rows)} 筆外幣交易查無匯率，請補錄 dim_fx_table！")
+        target_out = output_dir or const.OUTPUT_DIR
+        if target_out:
+            os.makedirs(target_out, exist_ok=True)
+            missing_path = os.path.join(target_out, 'missing_fx_rate_anomalies.csv')
+            df_missing.to_csv(missing_path, index=False, encoding='utf-8-sig')
+            logger.info(f"🔍 查無匯率之異常明細已存至: {missing_path}")
+
+    return df_result
+
+
+# ==========================================
+# 4. 主載入進入點 (Main Loader Pipeline)
 # ==========================================
 def load_data(
     final_df: pd.DataFrame, 
-    force: bool = True, 
+    force: bool = False, 
     db_backend: Optional[str] = None,
     output_dir: Optional[str] = None
 ) -> bool:
     """
-    執行 Load 階段完整流程：
-    1. STEP 3: 標準 16 欄位收斂、SchemaEnforcer 型態執法、日期排序、輸出 result_final.csv
-    2. STEP 4: Transaction ID 生成、去重、DBColMapper 欄位轉換、入庫 (PostgreSQL/SQLite)、視圖建立
+    執行 ETL 最終寫入 (STEP 3 & STEP 4)：
+    1. Schema 強制型態與排序
+    2. 生成 transaction_id 與重複排除
+    3. 寫入 all_transactions (原始事實表)
+    4. 進行雙幣交易匯率折算 (normalize_to_twd) 並寫入 rfm_transactions 與 rewards_transactions
     """
     if final_df is None or final_df.empty:
         logger.warning("⚠️ 無有效資料可執行 Load 階段。")
@@ -209,11 +363,19 @@ def load_data(
             else:
                 raise ImportError("無法取得任何有效的 DB Loader")
 
-            # 3. 映射資料庫欄位後寫入資料庫
+            # 3. 映射資料庫欄位
             col_mapper = DBColMapper()
+
+            # (1) 原始帳單事實表 (保持原始 JPY/USD 與金額 SSOT)
             db_df = col_mapper.map_all_transactions(df_with_id)
-            rfm_df = col_mapper.map_rfm_transactions(df_with_id)
-            reward_df = col_mapper.map_rewards_transactions(df_with_id) 
+
+            # (2) 進行本位幣 (TWD) 匯率折算 (僅針對 conversion_date 存在且 payment_currency != 'TWD' 的雙幣外幣交易)
+            fx_df = load_fx_table()
+            df_twd = normalize_to_twd(df_with_id, fx_df=fx_df, output_dir=target_output_dir)
+
+            # (3) RFM 與 Rewards 表採用折算後台幣金額
+            rfm_df = col_mapper.map_rfm_transactions(df_twd)
+            reward_df = col_mapper.map_rewards_transactions(df_twd) 
 
             db_mode = 'replace' if force else 'append'
             common_indices = ['transaction_date', 'merchant_name', 'card_no', 'transaction_id']
@@ -236,8 +398,6 @@ def load_data(
                     save_anomaly_report(target_df, f"failed_load_{tbl_name}.csv", f"{tbl_name} 入庫失敗")
                     raise tbl_err
 
-
-
         else:
             logger.warning("⚠️ 載入器缺失，略過資料庫寫入。")
 
@@ -247,3 +407,4 @@ def load_data(
         logger.error(f"🚨 Load 階段發生錯誤: {e}")
         save_anomaly_report(final_df, 'crash_dump_load.csv', "Load 階段崩潰，已備份資料")
         return False
+

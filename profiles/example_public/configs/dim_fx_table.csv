@@ -1,0 +1,4 @@
+conversion_date,bank_name,currency_type,fx_rate,remark
+2024-10-15,玉山銀行,JPY,0.2185,範例日圓匯率
+2024-11-20,玉山銀行,USD,32.4500,範例美元匯率
+2024-12-05,國泰世華,JPY,0.2150,範例日圓匯率
