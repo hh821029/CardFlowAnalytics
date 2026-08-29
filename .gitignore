@@ -17,8 +17,6 @@ profiles/common/
 # 保留範例檔與載入器程式碼
 !data/example_*.csv
 
-generate_mock_data.py
-
 # 忽略暫存檔
 ~$*.xlsx
 ~$*.doc
