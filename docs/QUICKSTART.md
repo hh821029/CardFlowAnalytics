@@ -8,7 +8,7 @@
 
 - **Python**：3.10 或更高版本
 - **.NET SDK**（選填，欲執行 C# 回饋引擎時需要）：.NET 8.0 SDK
-- **資料庫**：內建支援 SQLite（零配置，開箱即用）或 PostgreSQL 17
+- **資料庫**：預設使用 Docker Compose 啟動 PostgreSQL、Python API、C# 引擎與 Web 控制台
 
 ---
 
@@ -34,7 +34,7 @@ pip install -r requirements.txt
 
 ### 步驟 2-2：啟用範例環境設定檔
 ```bash
-# 複製環境變數範本 (預設使用 example_public 公開範例 Profile 與 SQLite)
+# 複製環境變數範本 (預設使用 example_public 公開範例 Profile，透過 Docker Compose 啟動 PostgreSQL)
 cp .env.example .env
 ```
 

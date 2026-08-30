@@ -2,9 +2,14 @@
 import pandas as pd
 import os
 import yaml
+from enum import Enum
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any, NamedTuple, Literal
+from dotenv import load_dotenv
+
+
 # 自動載入本機 .env 設定檔 (若無 .env 則自動降級載入 .env.example)
 try:
-    from dotenv import load_dotenv
     _env_file = os.path.join(os.path.dirname(__file__), '.env')
     _example_file = os.path.join(os.path.dirname(__file__), '.env.example')
     
@@ -25,12 +30,8 @@ except ImportError:
                         if _k not in os.environ:
                             os.environ[_k] = _v
 
-from enum import Enum
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any, NamedTuple, Literal
 
 pd.set_option('future.no_silent_downcasting', True)
-
 
 DType = Literal['date', 'str', 'float', 'int', 'bool']
 
@@ -39,7 +40,6 @@ class ColumnSpec(NamedTuple):
     dtype: DType
     max_length: Optional[int]
     sql_name: Optional[str]
-
 
 
 # ==========================================
@@ -780,10 +780,10 @@ if _raw_pg_host:
 else:
     PG_HOST = 'db' if IS_IN_DOCKER else '127.0.0.1'
 
-PG_PORT = int(os.getenv('POSTGRES_PORT') or os.getenv('PG_PORT', '5432'))
-PG_USER = os.getenv('POSTGRES_USER') or os.getenv('PG_USER', 'postgres')
-PG_PASSWORD = os.getenv('POSTGRES_PASSWORD') or os.getenv('PG_PASSWORD', 'postgres')
-PG_DATABASE = os.getenv('POSTGRES_DB') or os.getenv('PG_DATABASE', 'credit_card_db')
+PG_PORT     = int(os.getenv('POSTGRES_PORT', '5432'))
+PG_USER     = os.getenv('POSTGRES_USER',     'postgres')
+PG_PASSWORD = os.getenv('POSTGRES_PASSWORD', 'postgres')
+PG_DATABASE = os.getenv('POSTGRES_DB',       'credit_card_db')
 
 # 確保輸出目錄與 Profile 目錄存在
 os.makedirs(OUTPUT_DIR, exist_ok=True)
