@@ -22,9 +22,13 @@
 ---
 
 ## 🚀 快速上手 (Quick Start)
-
-修正中....
-
+想要快速體驗「帳單 ETL 解析 ➔ 規則維度同步 ➔ RFM 分析 ➔ C# 瀑布式回饋試算」的完整流程，請參閱詳細的步驟說明：
+👉 **[⚡ 快速上手指南 (Quick Start Guide)](docs/QUICKSTART.md)**
+內含：
+- 🛠️ 環境需求與相依套件安裝
+- 🎭 一鍵生成四大銀行脫敏範例帳單 (`generate_mock_data.py`)
+- 🌐 Web 視覺化控制台與 CLI 互動模式執行步驟
+- 🔒 如何切換為個人私有 Profile 分析真實帳單
 ---
 
 ### 系統架構與資料流程 (System Architecture)
