@@ -84,7 +84,7 @@ services:
     container_name: web_frontend
     restart: always
     ports:
-      - "8080:80" # 本機打開 http://localhost:8080
+      - "127.0.0.1:8080:80" # 本機打開 http://localhost:8080
     depends_on:
       - python-api
 

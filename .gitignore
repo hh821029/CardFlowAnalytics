@@ -11,6 +11,7 @@ excel_files/
 profiles/user_*/
 profiles/common/
 !profiles/example_public
+!profiles/example_public/data/*
 .env
 
 
@@ -25,7 +26,10 @@ profiles/common/
 
 # 忽略資料檔 (保護隱私！)
 *.xlsx
-
+*.csv
+*.pdf
+*.sql
+*.bak
 *.db
 *.json
 Himitsu.py
