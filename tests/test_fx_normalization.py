@@ -2,6 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from etl.loading import normalize_to_twd, _standardize_fx_df
+import const
 
 def test_standardize_fx_df():
     # 測試 exchange_rate 欄位相容
