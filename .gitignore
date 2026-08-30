@@ -93,3 +93,4 @@ docs/*
 !docs/database_architecture_and_expansion.md
 !docs/file_structure.md
 !docs/PROJECT_MAP.md
+!docs/QUICKSTART.md
