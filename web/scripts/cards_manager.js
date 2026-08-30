@@ -213,7 +213,7 @@ function renderCards() {
                                 <button class="btn-icon btn-icon-danger" title="刪除履歷" onclick="deleteHistory(${cIdx}, ${hIdx})">✕</button>
                             </div>
                         </div>
-                        ${hist.start_date ? `<div class="history-date">📅 發卡日: ${hist.start_date}</div>` : ''}
+                        ${(hist.card_start_date || hist.start_date) ? `<div class="history-date">📅 發卡日: ${hist.card_start_date || hist.start_date}</div>` : ''}
                         ${hist.note ? `<div class="history-note">📝 ${hist.note}</div>` : ''}
 
                         <!-- VPC 綁定支付區塊 -->
@@ -382,7 +382,7 @@ function openEditHistoryModal(cIdx, hIdx) {
     document.getElementById('inputCardNetwork').value = hist.card_network || 'VISA';
     document.getElementById('inputSmartCardType').value = hist.smart_card_type || 'NONE';
     document.getElementById('inputStatus').value = hist.status || 'active';
-    document.getElementById('inputStartDate').value = hist.start_date || '';
+    document.getElementById('inputStartDate').value = hist.card_start_date || hist.start_date || '';
     document.getElementById('inputNote').value = hist.note || '';
     document.getElementById('historyModal').style.display = 'flex';
 }
@@ -397,13 +397,15 @@ function submitHistoryForm() {
         return;
     }
 
+    const sDate = document.getElementById('inputStartDate').value;
     const histObj = {
         card_no: card_no,
         card_network: document.getElementById('inputCardNetwork').value,
         smart_card_type: document.getElementById('inputSmartCardType').value,
         is_co_branded: false,
         is_dual_currency: false,
-        start_date: document.getElementById('inputStartDate').value,
+        card_start_date: sDate,
+        start_date: sDate,
         status: document.getElementById('inputStatus').value,
         note: document.getElementById('inputNote').value.trim(),
         vpc_pay: (hIdx >= 0 && cardsData[cIdx].card_history[hIdx].vpc_pay) ? cardsData[cIdx].card_history[hIdx].vpc_pay : [

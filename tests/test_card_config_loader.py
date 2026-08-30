@@ -56,9 +56,9 @@ class TestCardDataLoading:
 
     def test_bridge_user_cards_structure_and_fk(self):
         """測試 3: 驗證 bridge_user_cards (個人持卡對照表) 的外鍵 (card_id) 參照完整性"""
-        assert not self.df_user_cards.empty, "❌ bridge_user_cards.csv 不應為空檔"
+        assert not self.df_user_cards.empty, "❌ bridge_user_cards 不應為空檔"
         
-        required_cols = ['user_card_id', 'card_id', 'card_no', 'card_network']
+        required_cols = ['card_id', 'card_no', 'card_network']
         for col in required_cols:
             assert col in self.df_user_cards.columns, f"❌ bridge_user_cards 缺少必要欄位: {col}"
 
@@ -97,15 +97,17 @@ class TestCardDataLoading:
         valid_fx_types = {item.code for item in const.Currency}
         
         # 2. bridge_user_cards 先跟 df_credit_card_products 進行 INNER JOIN 合併後取得 is_dual_currency = True 的資料表
+        user_cards_subset = self.df_user_cards.drop(columns=['is_dual_currency'], errors='ignore')
         merged_df = pd.merge(
-            self.df_user_cards, 
+            user_cards_subset, 
             self.df_credit_card_products[['card_id', 'is_dual_currency']], 
             on='card_id', 
             how='inner'
         )
 
-        # 3.修正：只針對雙幣卡 (is_dual_currency == True) 的列進行幣別驗證
+        # 3. 修正：只針對雙幣卡 (is_dual_currency == True) 的列進行幣別驗證
         dual_cards = merged_df[merged_df['is_dual_currency'].astype(str).str.upper() == 'TRUE']
+        assert not dual_cards.empty, "❌ 應存在雙幣卡設定"
         for fx_type in dual_cards['fx_type'].dropna():
             assert fx_type in valid_fx_types, f"❌ 幣別格式異常: '{fx_type}'"
 
@@ -122,39 +124,45 @@ class TestCardDataLoading:
         """測試 9: 驗證卡片使用狀態 (is_active) 與開停卡日期 (card_start_date, card_end_date) 的邏輯一致性"""
         for idx, row in self.df_user_cards.iterrows():
             card_id = row.get('card_id')
-            user_card_id = row.get('user_card_id')
-            is_active = bool(row.get('is_active'))
+            raw_active = row.get('is_active')
+            if isinstance(raw_active, bool):
+                is_active = raw_active
+            elif pd.notna(raw_active):
+                is_active = str(raw_active).strip().upper() in ('TRUE', '1')
+            else:
+                is_active = False
+
             start_date_str = str(row.get('card_start_date')).strip() if pd.notna(row.get('card_start_date')) else None
             end_date_str = str(row.get('card_end_date')).strip() if pd.notna(row.get('card_end_date')) else None
             
             # 1. 驗證 card_start_date 必須存在且格式正確 (YYYY-MM-DD)
-            assert start_date_str is not None, f"❌ [user_card_id={user_card_id}] card_start_date 不可為空"
+            assert start_date_str is not None, f"❌ [card_id={card_id}] card_start_date 不可為空"
             try:
                 start_date = pd.to_datetime(start_date_str)
             except Exception:
-                pytest.fail(f"❌ [user_card_id={user_card_id}] card_start_date 日期格式異常: {start_date_str}")
+                pytest.fail(f"❌ [card_id={card_id}] card_start_date 日期格式異常: {start_date_str}")
                 
             # 2. 當 card_end_date 有值時 (已停卡)
             if end_date_str:
                 try:
                     end_date = pd.to_datetime(end_date_str)
                 except Exception:
-                    pytest.fail(f"❌ [user_card_id={user_card_id}] card_end_date 日期格式異常: {end_date_str}")
+                    pytest.fail(f"❌ [card_id={card_id}] card_end_date 日期格式異常: {end_date_str}")
                 
                 # 驗證 2a: 停卡日必須大於等於開卡日
                 assert end_date >= start_date, (
-                    f"❌ [user_card_id={user_card_id}] 停卡日 ({end_date_str}) 不能早於開卡日 ({start_date_str})"
+                    f"❌ [card_id={card_id}] 停卡日 ({end_date_str}) 不能早於開卡日 ({start_date_str})"
                 )
                 
                 # 驗證 2b: 已填停卡日者，is_active 應為 False
                 assert is_active is False, (
-                    f"❌ [user_card_id={user_card_id}] 已有停卡日 ({end_date_str})，但 is_active 為 True"
+                    f"❌ [card_id={card_id}] 已有停卡日 ({end_date_str})，但 is_active 為 True"
                 )
             
             # 3. 當 card_end_date 為空值時 (使用中)
             else:
                 # 驗證 3a: 無停卡日者，is_active 應為 True
                 assert is_active is True, (
-                    f"❌ [user_card_id={user_card_id}] 無停卡日，但 is_active 被標記為 False"
+                    f"❌ [card_id={card_id}] 無停卡日，但 is_active 被標記為 False"
                 )
 

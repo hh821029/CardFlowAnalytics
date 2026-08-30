@@ -29,7 +29,7 @@ class TestUserCardsLoader:
         expected_cols = [
             'card_id', 'bank_no', 'card_type', 'card_no', 'card_network',
             'smart_card_type', 'is_co_branded', 'is_dual_currency',
-            'start_date', 'status', 'note', 'vpc_no', 'vpc_type'
+            'card_start_date', 'status', 'note', 'vpc_no', 'vpc_type'
         ]
         for col in expected_cols:
             assert col in df_flat.columns

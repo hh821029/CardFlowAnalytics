@@ -80,7 +80,7 @@ class TestETLDispatchAndSchema:
         enforced_df = SchemaEnforcer.enforce(raw_data)
         assert not enforced_df.empty
         assert len(enforced_df.columns) == 16
-        assert enforced_df['card_no'].iloc[0] == '3833'
+        assert enforced_df['card_no'].iloc[0] == '5413'
 
     def test_extract_and_transform_decoupled_pipeline(self):
         """測試 5: 驗證解耦後的 etl_extraction 與 etl_transformation 銜接與執行"""

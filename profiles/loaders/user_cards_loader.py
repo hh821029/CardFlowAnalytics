@@ -54,6 +54,12 @@ class UserCardRelationalBuilder:
                 hist_counter += 1
 
                 c_no = str(hist.get('card_no', '')).strip()
+                s_date = hist.get('card_start_date') or hist.get('start_date', None)
+                e_date = hist.get('card_end_date') or hist.get('end_date', None)
+                is_act = hist.get('is_active')
+                if is_act is None:
+                    is_act = (hist.get('status') == 'active') if not e_date else False
+
                 hist_rows.append({
                     'history_id': h_id,
                     'card_id': c_id,
@@ -63,7 +69,11 @@ class UserCardRelationalBuilder:
                     'smart_card_type': hist.get('smart_card_type', 'NONE'),
                     'is_co_branded': bool(hist.get('is_co_branded', False)),
                     'is_dual_currency': bool(hist.get('is_dual_currency', False)),
-                    'start_date': hist.get('start_date', None),
+                    'fx_type': hist.get('fx_type', None),
+                    'card_start_date': s_date,
+                    'card_end_date': e_date,
+                    'is_active': is_act,
+                    'is_enable_reward_calc': hist.get('is_enable_reward_calc', True),
                     'status': hist.get('status', 'active'),
                     'note': hist.get('note', '')
                 })
@@ -82,7 +92,7 @@ class UserCardRelationalBuilder:
                     })
 
         df_prods = pd.DataFrame(prod_rows).drop_duplicates() if prod_rows else pd.DataFrame(columns=['card_id', 'bank_no', 'card_type'])
-        df_hists = pd.DataFrame(hist_rows) if hist_rows else pd.DataFrame(columns=['history_id', 'card_id', 'bank_no', 'card_no', 'card_network', 'smart_card_type', 'is_co_branded', 'is_dual_currency', 'start_date', 'status', 'note'])
+        df_hists = pd.DataFrame(hist_rows) if hist_rows else pd.DataFrame(columns=['history_id', 'card_id', 'bank_no', 'card_no', 'card_network', 'smart_card_type', 'is_co_branded', 'is_dual_currency', 'fx_type', 'card_start_date', 'card_end_date', 'is_active', 'is_enable_reward_calc', 'status', 'note'])
         df_vpcs = pd.DataFrame(vpc_rows) if vpc_rows else pd.DataFrame(columns=['vpc_id', 'history_id', 'card_no', 'vpc_no', 'vpc_type'])
 
         return {
@@ -262,8 +272,9 @@ class UserCardsLoader:
         if not raw_data:
             return pd.DataFrame(columns=[
                 'card_id', 'bank_no', 'card_type', 'card_no', 'card_network',
-                'smart_card_type', 'is_co_branded', 'is_dual_currency',
-                'start_date', 'status', 'note', 'vpc_no', 'vpc_type'
+                'smart_card_type', 'is_co_branded', 'is_dual_currency', 'fx_type',
+                'card_start_date', 'card_end_date', 'is_active', 'is_enable_reward_calc',
+                'status', 'note', 'vpc_no', 'vpc_type'
             ])
 
         rows = []
@@ -283,7 +294,11 @@ class UserCardsLoader:
                     'smart_card_type': None,
                     'is_co_branded': False,
                     'is_dual_currency': False,
-                    'start_date': None,
+                    'fx_type': None,
+                    'card_start_date': None,
+                    'card_end_date': None,
+                    'is_active': True,
+                    'is_enable_reward_calc': True,
                     'status': 'active',
                     'note': None,
                     'vpc_no': None,
@@ -296,7 +311,13 @@ class UserCardsLoader:
                     s_type = hist.get('smart_card_type', 'NONE')
                     co_brand = bool(hist.get('is_co_branded', False))
                     dual_curr = bool(hist.get('is_dual_currency', False))
-                    s_date = hist.get('start_date', None)
+                    fx_t = hist.get('fx_type', None)
+                    s_date = hist.get('card_start_date') or hist.get('start_date', None)
+                    e_date = hist.get('card_end_date') or hist.get('end_date', None)
+                    is_act = hist.get('is_active')
+                    if is_act is None:
+                        is_act = (hist.get('status') == 'active') if not e_date else False
+                    enable_rew = hist.get('is_enable_reward_calc', True)
                     status = hist.get('status', 'active')
                     note = hist.get('note', '')
                     vpcs = hist.get('vpc_pay', [])
@@ -311,7 +332,11 @@ class UserCardsLoader:
                             'smart_card_type': s_type,
                             'is_co_branded': co_brand,
                             'is_dual_currency': dual_curr,
-                            'start_date': s_date,
+                            'fx_type': fx_t,
+                            'card_start_date': s_date,
+                            'card_end_date': e_date,
+                            'is_active': is_act,
+                            'is_enable_reward_calc': enable_rew,
                             'status': status,
                             'note': note,
                             'vpc_no': c_no,
@@ -330,7 +355,11 @@ class UserCardsLoader:
                                 'smart_card_type': s_type,
                                 'is_co_branded': co_brand,
                                 'is_dual_currency': dual_curr,
-                                'start_date': s_date,
+                                'fx_type': fx_t,
+                                'card_start_date': s_date,
+                                'card_end_date': e_date,
+                                'is_active': is_act,
+                                'is_enable_reward_calc': enable_rew,
                                 'status': status,
                                 'note': note,
                                 'vpc_no': v_no,

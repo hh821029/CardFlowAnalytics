@@ -93,6 +93,18 @@ class ConfigLoader:
         # 淨化 base_name (如傳入帶有 _private 則自動剝離，以維護標準檔名一致性)
         clean_base = base_name.rsplit('_private', 1)[0] if base_name.endswith('_private') else base_name
 
+        # 特殊處理：bridge_user_cards 優先從 bridge_user_cards.json 讀取並展平
+        if clean_base == 'bridge_user_cards':
+            try:
+                from profiles.loaders.user_cards_loader import UserCardsLoader
+                u_loader = UserCardsLoader(profile_name=profile_name)
+                df_json = u_loader.to_flat_dataframe()
+                if not df_json.empty:
+                    logger.info(f"✅ 透過 UserCardsLoader 成功從 JSON 載入 bridge_user_cards，共 {len(df_json)} 筆")
+                    return SchemaEnforcer.enforce(df_json)
+            except Exception as e:
+                logger.warning(f"⚠️ 嘗試從 JSON 載入 bridge_user_cards 失敗，降級嘗試 CSV: {e}")
+
         # 1. 尋找 Public 基礎檔 (按優先順序: profiles/common/configs -> root configs)
         public_file_candidates = [
             os.path.join(public_dir, f"{clean_base}.csv"),
