@@ -7,7 +7,7 @@
 ## 🛠️ 1. 環境需求與準備
 
 - **Python**：3.10 或更高版本
-- **.NET SDK**（選填，欲執行 C# 回饋引擎時需要）：.NET 8.0 SDK
+- **.NET SDK**（選填，欲執行 C# 回饋引擎時需要）：.NET 10.0 SDK
 - **資料庫**：預設使用 Docker Compose 啟動 PostgreSQL、Python API、C# 引擎與 Web 控制台
 
 ---

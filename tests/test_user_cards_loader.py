@@ -12,17 +12,18 @@ from profiles.loaders.user_cards_loader import (
 )
 
 class TestUserCardsLoader:
-    """測試 UserCardsLoader (bridge_user_cards.json 展開與 3NF / Flat 轉換)"""
+    """測試 UserCardsLoader (bridge_user_cards.json / bridge_user_cards_mock.json 展開與 3NF / Flat 轉換)"""
 
     def test_load_json(self):
-        """測試載入 bridge_user_cards.json"""
-        loader = UserCardsLoader(profile_name='user_main')
+        """測試載入 bridge_user_cards_mock.json"""
+        loader = UserCardsLoader(profile_name='example_public')
         data = loader.load_json()
         assert isinstance(data, list)
+        assert len(data) > 0
 
     def test_to_flat_dataframe(self):
         """測試將 JSON 展平為 1D 扁平 DataFrame"""
-        loader = UserCardsLoader(profile_name='user_main')
+        loader = UserCardsLoader(profile_name='example_public')
         df_flat = loader.to_flat_dataframe()
         assert isinstance(df_flat, pd.DataFrame)
         
@@ -40,7 +41,7 @@ class TestUserCardsLoader:
 
     def test_to_relational_tables(self):
         """測試將 JSON 拆解為相容 3NF 的三張 DataFrames"""
-        loader = UserCardsLoader(profile_name='user_main')
+        loader = UserCardsLoader(profile_name='example_public')
         tables = loader.to_relational_tables()
         
         assert 'user_card_products' in tables
@@ -72,7 +73,7 @@ class TestUserCardVLookupEngine:
 
     def test_existing_vpc_type_rule(self):
         """測試 1: current_vpc_type 已有非空值時，直接保持原值不重新查找"""
-        engine = UserCardVLookupEngine(profile_name='user_private_test')
+        engine = UserCardVLookupEngine(profile_name='example_public')
         res = engine.lookup_vpc(vpc_no='1000', current_vpc_type='LinePay')
         assert res['matched'] is True
         assert res['vpc_type'] == 'LinePay'
@@ -80,7 +81,7 @@ class TestUserCardVLookupEngine:
 
     def test_valid_4digit_vpc_no_lookup(self):
         """測試 2: vpc_no 為 4 位數字 (如 '1000')，觸發 1-to-1 精準 VLOOKUP 比對"""
-        engine = UserCardVLookupEngine(profile_name='user_private_test')
+        engine = UserCardVLookupEngine(profile_name='example_public')
         res = engine.lookup_vpc(vpc_no='1000', current_vpc_type=None)
         assert res['matched'] is True
         assert res['vpc_type'] == 'SamsungPay'
@@ -89,7 +90,7 @@ class TestUserCardVLookupEngine:
 
     def test_invalid_or_non_4digit_vpc_no(self):
         """測試 3: vpc_no 非 4 位數字或為空 (如 'ABC' 或 None)，不觸發 vpc_no 查找且不傳入 card_no"""
-        engine = UserCardVLookupEngine(profile_name='user_private_test')
+        engine = UserCardVLookupEngine(profile_name='example_public')
         res1 = engine.lookup_vpc(vpc_no='ABC', card_no='8888', current_vpc_type=None)
         assert res1['matched'] is False
         assert res1['vpc_type'] is None
@@ -100,7 +101,7 @@ class TestUserCardVLookupEngine:
 
     def test_enrich_dataframe_zero_inflation(self):
         """測試 4: 擴充交易 DataFrame，確保總筆數 100% 維持不變 (零膨脹)"""
-        engine = UserCardVLookupEngine(profile_name='user_private_test')
+        engine = UserCardVLookupEngine(profile_name='example_public')
         df_test_txns = pd.DataFrame([
             {'txn_id': 1, 'vpc_no': '1000', 'vpc_type': None},
             {'txn_id': 2, 'vpc_no': '8888', 'vpc_type': None},

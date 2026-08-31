@@ -145,8 +145,8 @@ class CardClassifier:
                                 break
 
         # 移除 vpc_no 欄位 (確保下游不用關心 vpc_no)
-        #if const.COL_VPC_NO in df.columns:
-        #    df = df.drop(columns=[const.COL_VPC_NO], errors='ignore')
+        if const.COL_VPC_NO in df.columns:
+            df = df.drop(columns=[const.COL_VPC_NO], errors='ignore')
 
         return df
 

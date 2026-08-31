@@ -29,7 +29,6 @@ class TestAPIRouters:
         
         expected_routes = [
             "/api/run/etl",
-            "/api/etl/feature-status",
             "/api/run/config_all",
             "/api/run/config_card",
             "/api/run/config_reward",

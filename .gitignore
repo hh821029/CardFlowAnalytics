@@ -32,6 +32,12 @@ profiles/common/
 *.bak
 *.db
 *.json
+
+# 允許公開範例與通用設定之 JSON
+!profiles/example_public/**/*.json
+!profiles/example_public/configs/*.json
+!profiles/common/**/*.json
+!pyrightconfig.json
 Himitsu.py
 output/result_*.csv
 processors/*_set.py

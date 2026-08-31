@@ -21,8 +21,8 @@ class TestWebAPIErrors:
         assert "總控制台" in response.text
 
     def test_etl_html_decoupled(self):
-        """測試存取 /etl.html (ETL 帳單處理) 回傳 200"""
-        response = client.get("/etl.html")
+        """測試存取 /etl_manager.html (ETL 帳單處理) 回傳 200"""
+        response = client.get("/etl_manager.html")
         assert response.status_code == 200
         assert "ETL" in response.text or "帳單" in response.text
 

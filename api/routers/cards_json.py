@@ -65,7 +65,7 @@ async def api_get_user_cards_json():
 
 @router.post("/json")
 async def api_save_user_cards_json(
-    cards: List[Dict[str, Any]] = Body(...),
+    cards: Any = Body(...),
     sync_db: bool = Query(True, description="是否自動同步更新至資料庫")
 ):
     """

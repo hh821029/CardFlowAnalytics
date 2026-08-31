@@ -243,9 +243,15 @@ class UserCardsLoader:
         self.json_path = self._resolve_json_path()
 
     def _resolve_json_path(self) -> str:
-        """取得目標 Profile 之下 bridge_user_cards.json 絕對路徑"""
+        """取得目標 Profile 之下 bridge_user_cards.json 絕對路徑 (支援 bridge_user_cards.json 與 bridge_user_cards_mock.json)"""
         config_dir = os.path.join(const.PROFILES_DIR, self.profile_name, 'configs')
-        return os.path.join(config_dir, 'bridge_user_cards.json')
+        p_std = os.path.join(config_dir, 'bridge_user_cards.json')
+        if os.path.exists(p_std):
+            return p_std
+        p_mock = os.path.join(config_dir, 'bridge_user_cards_mock.json')
+        if os.path.exists(p_mock):
+            return p_mock
+        return p_std
 
     def load_json(self) -> List[Dict[str, Any]]:
         """讀取 bridge_user_cards.json 原始串列"""

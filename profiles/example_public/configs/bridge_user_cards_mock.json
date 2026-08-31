@@ -1,0 +1,138 @@
+[
+    {
+        "card_id": "cathay_cube",
+        "bank_no": "013",
+        "card_type": "Cube卡",
+        "card_history": [
+            {
+                "card_no": "8888",
+                "card_network": "VISA",
+                "smart_card_type": "EasyCard",
+                "is_co_branded": false,
+                "is_dual_currency": false,
+                "fx_type": null,
+                "card_start_date": "2024-09-07",
+                "card_end_date": null,
+                "is_active": true,
+                "is_enable_reward_calc": true,
+                "status": "active",
+                "note": "Mock Cube卡設定",
+                "vpc_pay": [
+                    {
+                        "vpc_no": "8888",
+                        "vpc_type": "CARD"
+                    },
+                    {
+                        "vpc_no": "1000",
+                        "vpc_type": "SamsungPay"
+                    },
+                    {
+                        "vpc_no": "1500",
+                        "vpc_type": "SamsungPay"
+                    },
+                    {
+                        "vpc_no": "0100",
+                        "vpc_type": "HamiPay"
+                    },
+                    {
+                        "vpc_no": "0010",
+                        "vpc_type": "GooglePay"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "card_id": "ctbc_uniopen",
+        "bank_no": "822",
+        "card_type": "Uniopen聯名卡",
+        "card_history": [
+            {
+                "card_no": "0711",
+                "card_network": "MASTERCARD",
+                "smart_card_type": "iCash",
+                "is_co_branded": true,
+                "is_dual_currency": false,
+                "fx_type": null,
+                "card_start_date": "2025-08-24",
+                "card_end_date": null,
+                "is_active": true,
+                "is_enable_reward_calc": true,
+                "status": "active",
+                "note": "Mock Uniopen聯名卡",
+                "vpc_pay": [
+                    {
+                        "vpc_no": "0711",
+                        "vpc_type": "CARD"
+                    },
+                    {
+                        "vpc_no": "1111",
+                        "vpc_type": "SamsungPay"
+                    },
+                    {
+                        "vpc_no": "1711",
+                        "vpc_type": "台灣行動支付感應"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "card_id": "esun_unicard",
+        "bank_no": "808",
+        "card_type": "Unicard",
+        "card_history": [
+            {
+                "card_no": "5413",
+                "card_network": "VISA",
+                "smart_card_type": "EasyCard",
+                "is_co_branded": false,
+                "is_dual_currency": false,
+                "fx_type": null,
+                "card_start_date": "2024-12-31",
+                "card_end_date": null,
+                "is_active": true,
+                "is_enable_reward_calc": true,
+                "status": "active",
+                "note": "Mock Unicard",
+                "vpc_pay": [
+                    {
+                        "vpc_no": "5413",
+                        "vpc_type": "CARD"
+                    },
+                    {
+                        "vpc_no": "5213",
+                        "vpc_type": "SamsungPay"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "card_id": "esun_kumamoto_dual",
+        "bank_no": "808",
+        "card_type": "熊本熊雙幣卡(很友好)",
+        "card_history": [
+            {
+                "card_no": "1313",
+                "card_network": "JCB",
+                "smart_card_type": "EasyCard",
+                "is_co_branded": false,
+                "is_dual_currency": true,
+                "fx_type": "JPY",
+                "card_start_date": "2025-03-09",
+                "card_end_date": null,
+                "is_active": true,
+                "is_enable_reward_calc": true,
+                "status": "active",
+                "note": "Mock 熊本熊雙幣卡",
+                "vpc_pay": [
+                    {
+                        "vpc_no": "1313",
+                        "vpc_type": "CARD"
+                    }
+                ]
+            }
+        ]
+    }
+]

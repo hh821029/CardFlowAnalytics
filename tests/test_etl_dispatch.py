@@ -43,17 +43,17 @@ class TestETLDispatchAndSchema:
         parser_sinopac = get_parser("永豐銀行信用卡帳單.pdf")
         assert parser_sinopac is not None, "❌ 應正確分派 永豐 Parser"
 
-    def test_16_column_standard_schema(self):
-        """測試 3: 驗證 STANDARD_COLUMNS 包含預期的 16 個正規化欄位"""
-        assert len(STANDARD_COLUMNS) == 16, f"❌ STANDARD_COLUMNS 應精簡為 16 個欄位，當前為 {len(STANDARD_COLUMNS)}"
+    def test_standard_columns_schema(self):
+        """測試 3: 驗證 STANDARD_COLUMNS 包含預期的 18 個正規化事實表欄位"""
+        assert len(STANDARD_COLUMNS) == 18, f"❌ STANDARD_COLUMNS 應精簡為 18 個欄位，當前為 {len(STANDARD_COLUMNS)}"
         
-        required_16 = [
+        required_18 = [
             'transaction_id', 'transaction_date', 'posting_date', 'conversion_date',
-            'statement_month', 'bank_name', 'card_no', 'vpc_type', 'merchant',
-            'merchant_location', 'consumption_place', 'currency_type', 'currency_amount',
-            'payment_currency', 'payment_amount', 'transaction_type'
+            'statement_month', 'bank_name', 'card_type', 'card_no', 'merchant',
+            'merchant_location', 'transaction_type', 'payment_process', 'ec_platform',
+            'vpc_type', 'currency_type', 'currency_amount', 'payment_currency', 'payment_amount'
         ]
-        for col in required_16:
+        for col in required_18:
             assert col in STANDARD_COLUMNS, f"❌ STANDARD_COLUMNS 缺少欄位: {col}"
 
     def test_schema_enforcer_on_16_columns(self):
