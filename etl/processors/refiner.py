@@ -45,18 +45,20 @@ class DataRefiner:
             processed_mask = pd.Series(False, index=df.index)
 
         # 5 階層式補位 (Stack Fallback & Cascade)
-        # 5.1 特店名稱補位：未被 dim_merchants 匹配時，若有電商平台則以電商平台名稱為準
-        if const.COL_NORMALIZED_MERCHANT in df.columns:
-            has_ec = (df[const.COL_EC_PLATFORM].fillna('') != '')
-            ec_fallback_mask = (~processed_mask) & has_ec
-            if ec_fallback_mask.any():
-                df.loc[ec_fallback_mask, const.COL_NORMALIZED_MERCHANT] = df.loc[ec_fallback_mask, const.COL_EC_PLATFORM]
-                logger.info(f"💡 已為 {ec_fallback_mask.sum()} 筆未匹配商家套用電商平台 Fallback 清洗")
+        if const.COL_NORMALIZED_MERCHANT not in df.columns:
+            df[const.COL_NORMALIZED_MERCHANT] = None
 
-            # 5.2 若既無商家正規化也無電商平台，補為原始 merchant (銀行原始名稱)
-            raw_fallback_mask = df[const.COL_NORMALIZED_MERCHANT].isna() | (df[const.COL_NORMALIZED_MERCHANT].astype(str).str.strip() == '')
-            if raw_fallback_mask.any():
-                df.loc[raw_fallback_mask, const.COL_NORMALIZED_MERCHANT] = df.loc[raw_fallback_mask, const.COL_MERCHANT]
+        # 5.1 特店名稱補位：未被 dim_merchants 匹配時，若有電商平台則以電商平台名稱為準
+        has_ec = (df[const.COL_EC_PLATFORM].fillna('') != '') if const.COL_EC_PLATFORM in df.columns else pd.Series(False, index=df.index)
+        ec_fallback_mask = (~processed_mask) & has_ec
+        if ec_fallback_mask.any():
+            df.loc[ec_fallback_mask, const.COL_NORMALIZED_MERCHANT] = df.loc[ec_fallback_mask, const.COL_EC_PLATFORM]
+            logger.info(f"💡 已為 {ec_fallback_mask.sum()} 筆未匹配商家套用電商平台 Fallback 清洗")
+
+        # 5.2 若既無商家正規化也無電商平台，補為原始 merchant (銀行原始名稱)
+        raw_fallback_mask = df[const.COL_NORMALIZED_MERCHANT].isna() | (df[const.COL_NORMALIZED_MERCHANT].astype(str).str.strip() == '')
+        if raw_fallback_mask.any() and const.COL_MERCHANT in df.columns:
+            df.loc[raw_fallback_mask, const.COL_NORMALIZED_MERCHANT] = df.loc[raw_fallback_mask, const.COL_MERCHANT]
 
         # 5.3 分類階層補位：若 category 為空且有 ec_category，則以 ec_category 補位
         if const.COL_EC_CATEGORY in df.columns and const.COL_CATEGORY in df.columns:

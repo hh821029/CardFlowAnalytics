@@ -25,7 +25,7 @@ class MerchantNormalizer:
             self.rules = self.rules.sort_values('priority', ascending=True)
 
     def process(self, df: pd.DataFrame, return_mask: bool = False) -> Union[pd.DataFrame, Tuple[pd.DataFrame, pd.Series]]:
-        if self.rules.empty or df.empty: 
+        if df.empty: 
             return (df, pd.Series(False, index=df.index)) if return_mask else df
 
         # 初始化必要欄位
@@ -35,6 +35,9 @@ class MerchantNormalizer:
             df[const.COL_SUB_CATEGORY] = None
         if const.COL_NORMALIZED_MERCHANT not in df.columns:
             df[const.COL_NORMALIZED_MERCHANT] = None
+
+        if self.rules.empty:
+            return (df, pd.Series(False, index=df.index)) if return_mask else df
 
         processed_mask = pd.Series(False, index=df.index)
         merchants = df[const.COL_MERCHANT].astype(str).str.strip()
