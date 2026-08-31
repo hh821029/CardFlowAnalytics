@@ -25,7 +25,20 @@ class TestAPIRouters:
 
     def test_route_registration(self):
         """測試所有 APIRouter 路由是否成功掛載至 FastAPI app"""
-        routes = [route.path for route in app.routes if hasattr(route, "path")]
+        registered_paths = set()
+        
+        # 1. 從 app.routes 與子路由中遞迴收集
+        for route in app.routes:
+            if hasattr(route, "path"):
+                registered_paths.add(route.path)
+            if hasattr(route, "routes"):
+                for sub_r in route.routes:
+                    if hasattr(sub_r, "path"):
+                        registered_paths.add(sub_r.path)
+                        
+        # 2. 結合 OpenAPI 定義之端點路徑 (SSOT)
+        openapi_paths = set(app.openapi().get("paths", {}).keys())
+        all_routes = registered_paths.union(openapi_paths)
         
         expected_routes = [
             "/api/run/etl",
@@ -39,4 +52,4 @@ class TestAPIRouters:
         ]
         
         for route in expected_routes:
-            assert route in routes, f"❌ 路由 [{route}] 未能成功註冊於 FastAPI"
+            assert route in all_routes, f"❌ 路由 [{route}] 未能成功註冊於 FastAPI"
