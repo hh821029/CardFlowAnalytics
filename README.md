@@ -1,5 +1,7 @@
 # 💳 Credit Card Transaction ETL Pipeline
 
+[![CI](https://github.com/<帳號>/<專案>/actions/workflows/ci.yml/badge.svg)](https://github.com/<帳號>/<專案>/actions/workflows/ci.yml)
+
 ## 📖 專案背景 (Project Context)
 1. 為了理解"我是如何使用信用卡"，像是我會在什麼樣的消費情境下會使用信用卡，以及我對於回饋的偏好來改進我的信用卡使用配置和消費策略。
 
@@ -57,11 +59,11 @@ graph TB
             RFM_Logic --> E_RFM["多視角RFM報表<br/>(商家、電子支付、信用卡)"]
             end		
 
-        subgraph Reward_Calculation ["回饋計算(實作中)"]
+        subgraph Reward_Calculation ["回饋計算"]
             E_DB -->Reward_Engine["引入一般消費定義<br/>活動回饋條件設定<br/>"]
-            Reward_Engine --> E_Reward["回饋計算結果(調整中)"]
-            E_RFM --> E_Reward_Analysis["回饋計算分析(調整中)"]
-            E_Reward --> E_Reward_Analysis
+            Reward_Engine --> E_Reward["回饋計算結果"]
+            E_RFM --> E_Reward_Analysis["回饋計算分析"]
+            E_Reward --> E_Reward_Analysis  
             end
             
         E_dim_merchant_source -.->|"提供名詞對照與正規化"| ETL_Logic
@@ -196,6 +198,7 @@ My-Credit-Card-ETL/
 ### 專案成效
 * 透過該專案以整併不同銀行的信用卡消費明細，以及整理出消費軌跡。
 * 我在實際檢視持卡狀況後開始整併信用卡，有效減少信用卡張數之餘，並把回饋效益和使用狀況做到最大化。
+    * (目前已減少2張卡，視狀況可能還要再減少一張卡片，整體消費回饋率從2%~3%提升到3.5%~5%)
 * 可以透過模擬帳單跟模擬持卡狀況，來評估與選擇最適合的信用卡組合。
 
 ### 支援銀行擴充
