@@ -11,32 +11,32 @@ import const
 client = TestClient(app)
 
 class TestAuthAndCardsJsonAPI:
-    """測試 Auth 登入與卡片 JSON 圖形化 CRUD 端點"""
+    """測試卡片 JSON 圖形化 CRUD 端點 (登入功能暫未啟用)"""
 
-    def test_auth_login_example_public(self):
-        """測試以 'example_public' 登入切換至 example_public"""
-        response = client.post("/api/auth/login", json={"username": "example_public"})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ok"
-        assert data["profile_id"] == "example_public"
-        assert const.ACTIVE_PROFILE_NAME == "example_public"
+    # def test_auth_login_example_public(self):
+    #     """測試以 'example_public' 登入切換至 example_public"""
+    #     response = client.post("/api/auth/login", json={"username": "example_public"})
+    #     assert response.status_code == 200
+    #     data = response.json()
+    #     assert data["status"] == "ok"
+    #     assert data["profile_id"] == "example_public"
+    #     assert const.ACTIVE_PROFILE_NAME == "example_public"
 
-    def test_auth_login_main(self):
-        """測試以 'main' 登入切換至 user_main"""
-        response = client.post("/api/auth/login", json={"username": "main"})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ok"
-        assert data["profile_id"] == "user_main"
-        assert const.ACTIVE_PROFILE_NAME == "user_main"
+    # def test_auth_login_main(self):
+    #     """測試以 'main' 登入切換至 user_main"""
+    #     response = client.post("/api/auth/login", json={"username": "main"})
+    #     assert response.status_code == 200
+    #     data = response.json()
+    #     assert data["status"] == "ok"
+    #     assert data["profile_id"] == "user_main"
+    #     assert const.ACTIVE_PROFILE_NAME == "user_main"
 
-    def test_auth_status(self):
-        """測試 /api/auth/status 端點"""
-        response = client.get("/api/auth/status")
-        assert response.status_code == 200
-        data = response.json()
-        assert "active_profile" in data
+    # def test_auth_status(self):
+    #     """測試 /api/auth/status 端點"""
+    #     response = client.get("/api/auth/status")
+    #     assert response.status_code == 200
+    #     data = response.json()
+    #     assert "active_profile" in data
 
     def test_get_cards_json(self):
         """測試 GET /api/cards/json 讀取卡片設定"""
