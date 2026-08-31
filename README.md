@@ -1,6 +1,6 @@
 # 💳 Credit Card Transaction ETL Pipeline
 
-[![CI](https://github.com/<帳號>/<專案>/actions/workflows/ci.yml/badge.svg)](https://github.com/<帳號>/<專案>/actions/workflows/ci.yml)
+[![CI](https://github.com/hh821029/CardFlowAnalytics/actions/workflows/ci.yml/badge.svg)](https://github.com/hh821029/CardFlowAnalytics/actions/workflows/ci.yml)
 
 ## 📖 專案背景 (Project Context)
 1. 為了理解"我是如何使用信用卡"，像是我會在什麼樣的消費情境下會使用信用卡，以及我對於回饋的偏好來改進我的信用卡使用配置和消費策略。
