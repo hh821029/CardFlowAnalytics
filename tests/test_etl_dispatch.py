@@ -56,30 +56,32 @@ class TestETLDispatchAndSchema:
         for col in required_18:
             assert col in STANDARD_COLUMNS, f"❌ STANDARD_COLUMNS 缺少欄位: {col}"
 
-    def test_schema_enforcer_on_16_columns(self):
-        """測試 4: 驗證 SchemaEnforcer 針對 16 欄位資料的轉型與執法"""
+    def test_schema_enforcer_on_18_columns(self):
+        """測試 4: 驗證 SchemaEnforcer 針對 18 欄位資料的轉型與執法"""
         raw_data = pd.DataFrame([{
             'transaction_id': 'abc123md5hash',
             'transaction_date': '2024-10-01',
             'posting_date': '2024-10-03',
             'conversion_date': None,
             'statement_month': '2024-10',
-            'bank_name': '玉山商業銀行',
+            'bank_name': '玉山銀行',
+            'card_type': 'Unicard',
             'card_no': '5413',
-            'vpc_type': 'ApplePay',
             'merchant': 'PChome線上購物',
             'merchant_location': 'TW',
-            'consumption_place': '台北市',
+            'transaction_type': '一般消費',
+            'payment_process': 'LINE Pay',
+            'ec_platform': 'PChome',
+            'vpc_type': 'ApplePay',
             'currency_type': 'TWD',
             'currency_amount': 1500.0,
             'payment_currency': 'TWD',
-            'payment_amount': 1500.0,
-            'transaction_type': '一般消費'
+            'payment_amount': 1500.0
         }])
 
         enforced_df = SchemaEnforcer.enforce(raw_data)
         assert not enforced_df.empty
-        assert len(enforced_df.columns) == 16
+        assert len(enforced_df.columns) == 18
         assert enforced_df['card_no'].iloc[0] == '5413'
 
     def test_extract_and_transform_decoupled_pipeline(self):
@@ -87,10 +89,19 @@ class TestETLDispatchAndSchema:
         mock_raw = pd.DataFrame([{
             'transaction_date': '2024-10-01',
             'posting_date': '2024-10-03',
-            'bank_name': '玉山商業銀行',
+            'bank_name': '玉山銀行',
+            'card_type': 'Unicard',
+            'card_no': '5413',
             'merchant': 'LINEPay-PChome線上購物',
-            'payment_amount': 1000.0,
-            'currency_type': 'TWD'
+            'merchant_location': 'TW',
+            'transaction_type': '一般消費',
+            'payment_process': 'LINE Pay',
+            'ec_platform': 'PChome',
+            'vpc_type': 'ApplePay',
+            'currency_type': 'TWD',
+            'currency_amount': 1000.0,
+            'payment_currency': 'TWD',
+            'payment_amount': 1000.0
         }])
 
         transformed = transform_data(mock_raw)
