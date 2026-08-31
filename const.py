@@ -378,7 +378,7 @@ class VPCType(Enum):
     APPLE_PAY = ('ApplePay','Apple Pay')
     GOOGLE_PAY = ('GooglePay','Google Pay')
     SAMSUNG_PAY = ('SamsungPay','Samsung Pay')
-    HAMI_PAY = ('HamiPay虛擬卡','HamiPay虛擬卡')
+    HAMI_PAY = ('HamiPay','HamiPay虛擬卡')
     TQ_PAY = ('台灣行動支付感應','台灣行動支付感應')
     
     @property

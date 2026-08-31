@@ -66,6 +66,13 @@ class TestAuthAndCardsJsonAPI:
 
     def test_post_cards_json_validation(self):
         """測試 POST /api/cards/json 寫入與 Atomic Save"""
+        from api.routers.cards_json import get_cards_json_path
+        target_path = get_cards_json_path()
+        backup_content = None
+        if os.path.exists(target_path):
+            with open(target_path, "r", encoding="utf-8") as f:
+                backup_content = f.read()
+
         valid_card = [
             {
                 "card_id": "test_card_id",
@@ -77,6 +84,8 @@ class TestAuthAndCardsJsonAPI:
                         "card_network": "VISA",
                         "smart_card_type": "NONE",
                         "status": "active",
+                        "card_start_date": "2024-01-01",
+                        "is_active": True,
                         "vpc_pay": [{"vpc_no": "9999", "vpc_type": "CARD"}]
                     }
                 ]
@@ -91,19 +100,28 @@ class TestAuthAndCardsJsonAPI:
             }
         ]
 
-        # 1. 測試非 list 傳入會報 400 錯
-        response_err = client.post("/api/cards/json", json={"invalid": "dict"})
-        assert response_err.status_code == 400
+        try:
+            # 1. 測試非 list 傳入會報 400 錯
+            response_err = client.post("/api/cards/json", json={"invalid": "dict"})
+            assert response_err.status_code == 400
 
-        # 2. 測試不符合 dim_banks.yaml 之 bank_no (如 'test') 傳入會報 400 錯
-        response_bank_err = client.post("/api/cards/json", json=invalid_bank_card)
-        assert response_bank_err.status_code == 400
-        assert "不合法的銀行代碼" in response_bank_err.json()["detail"]
+            # 2. 測試不符合 dim_banks.yaml 之 bank_no (如 'test') 傳入會報 400 錯
+            response_bank_err = client.post("/api/cards/json", json=invalid_bank_card)
+            assert response_bank_err.status_code == 400
+            assert "不合法的銀行代碼" in response_bank_err.json()["detail"]
 
-        # 3. 測試正常寫入 (開啟 sync_db=False 避免測試環境 DB 連線波動)
-        response = client.post("/api/cards/json?sync_db=false", json=valid_card)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ok"
-        assert data["count"] == 1
+            # 3. 測試正常寫入 (開啟 sync_db=False 避免測試環境 DB 連線波動)
+            response = client.post("/api/cards/json?sync_db=false", json=valid_card)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "ok"
+            assert data["count"] == 1
+        finally:
+            # 測試後恢復原始檔案內容
+            if backup_content is not None:
+                with open(target_path, "w", encoding="utf-8") as f:
+                    f.write(backup_content)
+            elif os.path.exists(target_path):
+                os.remove(target_path)
+            const.ACTIVE_PROFILE_NAME = "example_public"
 

@@ -15,19 +15,20 @@ class TestCardDataLoading:
 
     @pytest.fixture(autouse=True)
     def setup_data(self):
-        """測試前的共用資料載入 Fixture"""
+        """測試前的共用資料載入 Fixture (固定使用 example_public 測試資料集)"""
+        profile = 'example_public'
         # 1. 載入銀行主檔 dim_banks (優先讀取 dim_banks.yaml)
-        bank_yaml = ConfigLoader.load_yaml(base_name='dim_banks')
+        bank_yaml = ConfigLoader.load_yaml(base_name='dim_banks', profile_name=profile)
         if bank_yaml and isinstance(bank_yaml, dict) and 'banks' in bank_yaml:
             self.df_banks = pd.DataFrame(bank_yaml['banks'])
         else:
-            self.df_banks = ConfigLoader.load_config(base_name='dim_banks')
+            self.df_banks = ConfigLoader.load_config(base_name='dim_banks', profile_name=profile)
         
         # 2. 載入卡片產品主檔 dim_cards
-        self.df_credit_card_products = ConfigLoader.load_config(base_name='dim_credit_card_products')
+        self.df_credit_card_products = ConfigLoader.load_config(base_name='dim_credit_card_products', profile_name=profile)
         
         # 3. 載入個人持卡橋接檔 bridge_user_cards
-        self.df_user_cards = ConfigLoader.load_config(base_name='bridge_user_cards')
+        self.df_user_cards = ConfigLoader.load_config(base_name='bridge_user_cards', profile_name=profile)
 
     def test_dim_banks_structure(self):
         """測試 1: 驗證 dim_banks (銀行主檔) 的欄位與資料格式"""
