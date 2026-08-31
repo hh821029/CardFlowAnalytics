@@ -6,12 +6,30 @@ namespace RewardEngine.Tests;
 
 public class RewardPoolLoaderTests
 {
+    private static string ResolveConfigPath(string fileName)
+    {
+        var baseDir = AppContext.BaseDirectory;
+        var projectRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", ".."));
+        
+        string[] searchProfiles = ["example_public", "common", "user_main"];
+        foreach (var profile in searchProfiles)
+        {
+            var path = Path.Combine(projectRoot, "profiles", profile, "configs", fileName);
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+        
+        // 保底返回 example_public 路徑
+        return Path.Combine(projectRoot, "profiles", "example_public", "configs", fileName);
+    }
+
     [Fact]
     public void LoadRewardPools_ShouldDeserializeAllPoolsSuccessfully()
     {
-        // Arrange: 定位 bridge_reward_pools.json 路徑
-        var baseDir = AppContext.BaseDirectory;
-        var jsonPath = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "profiles", "common", "configs", "bridge_reward_pools.json"));
+        // Arrange: 定位 bridge_reward_pools.json 路徑 (優先 example_public -> common -> user_main)
+        var jsonPath = ResolveConfigPath("bridge_reward_pools.json");
 
         // Act
         var pools = JsonRuleLoader.LoadRewardPools(jsonPath);
@@ -41,9 +59,8 @@ public class RewardPoolLoaderTests
     [Fact]
     public void LoadRewardLinkedLists_ShouldLoadAll103LinksSuccessfully()
     {
-        // Arrange: 定位 bridge_reward_linked_lists.csv 路徑
-        var baseDir = AppContext.BaseDirectory;
-        var csvPath = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", "profiles", "common", "configs", "bridge_reward_linked_lists.csv"));
+        // Arrange: 定位 bridge_reward_linked_lists.csv 路徑 (優先 example_public -> common -> user_main)
+        var csvPath = ResolveConfigPath("bridge_reward_linked_lists.csv");
 
         // Act
         var links = JsonRuleLoader.LoadRewardLinkedListsFromCsv(csvPath);
