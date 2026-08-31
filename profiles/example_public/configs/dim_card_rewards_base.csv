@@ -1,0 +1,8 @@
+base_reward_id,bank_no,bank_name,card_id,card_type,base_reward_program,base_reward_rate,reward_cycle,min_single_transaction,cap_amount,start_date,end_date,max_posting_date,reward_type,calc_method,round_strategy,priority,reward_cal_break
+esun_unicard_base_2024,808,玉山銀行,esun_unicard,Unicard,Unicard一般消費,0.3,TRANSACTION_DATE,0,,2024-08-12,2025-09-30,,esun_points,PER_ITEM,ROUND,988,TRUE
+esun_unicard_base_2025q4,808,玉山銀行,esun_unicard,Unicard,Unicard一般消費,1,TRANSACTION_DATE,0,,2025-10-01,2026-12-31,,esun_points,PER_ITEM,ROUND,988,TRUE
+ctbc_uniopen_base2025h2,822,中國信託,ctbc_uniopen,Uniopen聯名卡,Uniopen聯名卡一般消費,1,TRANSACTION_DATE,0,,2025-08-24,2026-12-31,,openpoint,PER_ITEM,ROUND,987,TRUE
+cathay_cube_base_common,013,國泰世華,cathay_cube,Cube卡,CUBE卡一般消費,0.3,TRANSACTION_DATE,0,,2024-01-01,2026-12-31,,tree_points,PER_ITEM,ROUND,986,TRUE
+cathay_cube_base_feature,013,國泰世華,cathay_cube,Cube卡,集精選,2,TRANSACTION_DATE,0,,2024-01-01,2026-12-31,,tree_points,PER_ITEM,ROUND,409,TRUE
+all_general_reward_exclusion,ALL,ALL,,,共通非一般消費,0,ALL,0,0,2024-01-01,9999-12-31,9999-12-31,,,,499,TRUE
+

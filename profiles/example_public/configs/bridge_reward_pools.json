@@ -1,0 +1,274 @@
+[
+  {
+    "merchant_reward_pools_id": "POOL_GENERAL_EXCLUSION",
+    "pool_name": "共通非一般消費",
+    "pass_rules": [
+      {
+        "normalized_merchant": "統一超商",
+        "card_id": "ctbc_uniopen",
+        "card_type": "Uniopen聯名卡",
+        "bank_no": "822",
+        "bank_name": "中國信託",
+        "start_date": "2025-08-24",
+        "end_date": "9999-12-31",
+        "note": "Uniopen聯名卡回饋計畫約定統一超商為一般消費"
+      },
+      {
+        "normalized_merchant": [
+          "統一超商",
+          "全家便利商店"
+        ],
+        "payment_process": "橘子支付",
+        "ec_platform": "NONE",
+        "vpc_type": "NONE",
+        "card_id": "esun_ubear",
+        "card_type": "U Bear卡",
+        "bank_no": "808",
+        "bank_name": "玉山銀行",
+        "start_date": "2024-03-01",
+        "end_date": "2025-02-28",
+        "note": "U Bear卡實際消費結果，低調"
+      },
+      {
+        "normalized_merchant": "統一超商_隨時取",
+        "payment_process": "OPEN錢包",
+        "card_id": "esun_ubear",
+        "card_type": "U Bear卡",
+        "bank_no": "808",
+        "bank_name": "玉山銀行",
+        "start_date": "2024-04-01",
+        "end_date": "2024-08-31",
+        "note": "U Bear卡實際消費結果，2025年9月已確認無回饋"
+      },
+      {
+        "normalized_merchant": "統一超商",
+        "payment_process": "Line Pay",
+        "ec_platform": "專聯科技",
+        "vpc_type": "NONE",
+        "card_id": "ALL",
+        "card_type": "ALL",
+        "bank_no": "808",
+        "bank_name": "玉山銀行",
+        "start_date": "2024-04-01",
+        "end_date": "2026-12-31",
+        "note": "商家請款為專聯科技，故為一般消費"
+      }
+    ],
+    "rules": [
+      {
+        "normalized_merchant": [
+          "統一超商",
+          "全家便利商店",
+          "萊爾富",
+          "來來超商"
+        ],
+        "card_id": "ALL",
+        "card_type": "ALL",
+        "bank_no": "ALL",
+        "bank_name": "ALL",
+        "merchant_rate": 0.0,
+        "start_date": "1990-01-01",
+        "end_date": "9999-12-31",
+        "note": "一般情況下超商零回饋"
+      },
+      {
+        "normalized_merchant": [
+          "全聯",
+          "大全聯"
+        ],
+        "card_id": "ALL",
+        "card_type": "ALL",
+        "bank_no": "ALL",
+        "bank_name": "ALL",
+        "merchant_rate": 0.0,
+        "start_date": "1990-01-01",
+        "end_date": "9999-12-31",
+        "note": "一般情況下零回饋，另外注意大潤發改名到大全聯之後，直到銀行公告大全聯為一般消費的排除項目時有消費回饋"
+      },
+      {
+        "normalized_merchant": [
+          "悠遊卡自動加值",
+          "愛金卡自動加值",
+          "一卡通自動加值"
+        ],
+        "card_id": "ALL",
+        "card_type": "ALL",
+        "bank_no": "ALL",
+        "bank_name": "ALL",
+        "merchant_rate": 0.0,
+        "start_date": "1990-01-01",
+        "end_date": "9999-12-31",
+        "note": "一般情況下零回饋"
+      },
+      {
+        "normalized_merchant": "電信費－中華電信",
+        "card_id": "ALL",
+        "card_type": "ALL",
+        "bank_no": "ALL",
+        "bank_name": "ALL",
+        "merchant_rate": 0.0,
+        "start_date": "1990-01-01",
+        "end_date": "9999-12-31",
+        "note": "一般情況下零回饋"
+      },
+      {
+        "normalized_merchant": "general_reward_exclusion",
+        "payment_process": "NONE",
+        "ec_platform": "NONE",
+        "card_id": "ALL",
+        "card_type": "ALL",
+        "bank_no": "ALL",
+        "bank_name": "ALL",
+        "merchant_rate": 0.0,
+        "start_date": "1990-01-01",
+        "end_date": "9999-12-31",
+        "note": "一般情況下零回饋"
+      },
+      {
+        "normalized_merchant": [
+          "統一超商_隨時取",
+          "統一超商_訂閱制",
+          "統一超商_雲端開心卡",
+          "統一超商股份有限公司"
+        ],
+        "card_id": "ALL",
+        "card_type": "ALL",
+        "bank_no": "008",
+        "bank_name": "華南銀行",
+        "merchant_rate": 0.0,
+        "start_date": "1990-01-01",
+        "end_date": "9999-12-31",
+        "note": "華南一般消費排除項目的額外約定"
+      }
+    ]
+  },
+  {
+    "merchant_reward_pools_id": "POOL_ESUN_GENERAL",
+    "pool_name": "玉山一般消費",
+    "pass_rules": [],
+    "rules": [
+      {
+        "card_id": "ALL",
+        "card_type": "ALL",
+        "bank_no": "808",
+        "bank_name": "玉山銀行",
+        "start_date": "2024-04-01",
+        "end_date": "9999-12-31"
+      }
+    ]
+  },
+  {
+    "merchant_reward_pools_id": "POOL_UNIOPEN_GENERAL",
+    "pool_name": "Uniopen聯名卡一般消費",
+    "pass_rules": [],
+    "rules": [
+      {
+        "card_id": "ctbc_uniopen",
+        "card_type": "Uniopen聯名卡",
+        "bank_no": "822",
+        "bank_name": "中國信託",
+        "start_date": "2025-08-22",
+        "end_date": "9999-12-31"
+      }
+    ]
+  },
+  {
+    "merchant_reward_pools_id": "POOL_CUBE_GENERAL",
+    "pool_name": "CUBE卡一般消費",
+    "pass_rules": [],
+    "rules": [
+      {
+        "card_id": "cathay_cube",
+        "card_type": "Cube卡",
+        "bank_no": "013",
+        "bank_name": "國泰世華",
+        "start_date": "2024-07-01",
+        "end_date": "9999-12-31"
+      }
+    ]
+  },
+  {
+    "merchant_reward_pools_id": "POOL_CUBE_FEATURE",
+    "pool_name": "集精選",
+    "pass_rules": [],
+    "rules": [
+      {
+        "normalized_merchant": [
+          "統一超商",
+          "全家便利商店",
+          "全聯"
+        ],
+        "payment_process": "NONE",
+        "ec_platform": "NONE",
+        "card_id": "cathay_cube",
+        "card_type": "Cube卡",
+        "bank_no": "013",
+        "bank_name": "國泰世華",
+        "start_date": "2024-07-01",
+        "end_date": "2026-12-31"
+      },
+      {
+        "normalized_merchant": "家樂福",
+        "payment_process": "NONE",
+        "ec_platform": "NONE",
+        "card_id": "cathay_cube",
+        "card_type": "Cube卡",
+        "bank_no": "013",
+        "bank_name": "國泰世華",
+        "start_date": "2024-07-01",
+        "end_date": "2026-06-30",
+        "note": "家樂福品牌授權在2026-06-30截止"
+      },
+      {
+        "normalized_merchant": [
+          "萬家福",
+          "樂家康"
+        ],
+        "payment_process": "NONE",
+        "ec_platform": "NONE",
+        "card_id": "cathay_cube",
+        "card_type": "Cube卡",
+        "bank_no": "013",
+        "bank_name": "國泰世華",
+        "start_date": "2026-07-01",
+        "end_date": "2026-12-31"
+      },
+      {
+        "normalized_merchant": [
+          "統一超商",
+          "統一超商_隨時取"
+        ],
+        "payment_process": "OPEN錢包",
+        "ec_platform": "NONE",
+        "card_id": "cathay_cube",
+        "card_type": "Cube卡",
+        "bank_no": "013",
+        "bank_name": "國泰世華",
+        "start_date": "2024-07-01",
+        "end_date": "2026-12-31"
+      },
+      {
+        "normalized_merchant": "全家便利商店",
+        "payment_process": "FamiPay",
+        "ec_platform": "NONE",
+        "card_id": "cathay_cube",
+        "card_type": "Cube卡",
+        "bank_no": "013",
+        "bank_name": "國泰世華",
+        "start_date": "2024-07-01",
+        "end_date": "2026-12-31"
+      },
+      {
+        "normalized_merchant": "全聯",
+        "payment_process": "PXPay",
+        "ec_platform": "NONE",
+        "card_id": "cathay_cube",
+        "card_type": "Cube卡",
+        "bank_no": "013",
+        "bank_name": "國泰世華",
+        "start_date": "2024-07-01",
+        "end_date": "2026-12-31"
+      }
+    ]
+  }
+]

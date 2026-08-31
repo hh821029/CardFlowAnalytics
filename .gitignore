@@ -33,10 +33,10 @@ profiles/common/
 *.db
 *.json
 
-# 允許公開範例與通用設定之 JSON
-!profiles/example_public/**/*.json
-!profiles/example_public/configs/*.json
-!profiles/common/**/*.json
+# 允許公開範例與通用設定之檔案 (CSV / JSON / YAML / XLS)
+!profiles/example_public/**
+!profiles/example_public/configs/*
+!profiles/example_public/data/*
 !pyrightconfig.json
 Himitsu.py
 output/result_*.csv

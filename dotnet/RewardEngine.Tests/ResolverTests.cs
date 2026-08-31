@@ -412,42 +412,42 @@ public class ResolverTests
     [Fact]
     public void R16_VpcType為CARD時_在池規則vpc_type為NONE的限制下仍應匹配成功()
     {
-        // 驗證行動支付（OPEN錢包）綁定實體卡（vpc_type="CARD"）時，
+        // 驗證行動支付（全支付）綁定實體卡（vpc_type="CARD"）時，
         // 在池規則要求 vpc_type: "NONE"（無虛擬卡Token）的情況下能夠正常匹配。
         var campProg = ScenarioBuilder.CampaignProgram(
-            program: "2024新戶行動支付3%加碼",
-            rate: 3m,
-            priority: 663,
+            program: "Unicard指定特約商店加碼",
+            rate: 2.5m,
+            priority: 400,
             rewardCalBreak: false,
-            rewardId: "esun_ubear_beginner",
+            rewardId: "unicard_pickup",
             bankNo: "808",
             bankName: "玉山銀行",
-            cardType: "U Bear卡");
+            cardType: "Unicard");
 
-        var pool = ScenarioBuilder.Pool("POOL_UBEAR_BEGINNER", "UBEAR2024新戶行動支付加碼", rules:
+        var pool = ScenarioBuilder.Pool("POOL_ESUN_UNICARD_MERCHANT_POOL", "Unicard指定特約商店", rules:
         [
             new MerchantRewardRule
             {
-                PaymentProcess = ["OPEN錢包", "icash Pay", "Line Pay", "悠遊付"],
+                PaymentProcess = ["Line Pay", "悠遊付", "全支付", "全盈+PAY"],
                 EcPlatform = ["NONE"],
                 VpcType = ["NONE"],
-                CardType = ["U Bear卡"],
+                CardType = ["Unicard"],
                 BankNo = ["808"],
                 BankName = ["玉山銀行"]
             }
         ]);
-        var link = ScenarioBuilder.Link("esun_ubear_beginner", "POOL_UBEAR_BEGINNER");
+        var link = ScenarioBuilder.Link("unicard_pickup", "POOL_ESUN_UNICARD_MERCHANT_POOL");
 
         var resolver = new RewardResolver([campProg], pools: [pool], linkedLists: [link]);
 
-        // 交易特徵：OPEN錢包、實體卡 (vpc_type = "CARD")
-        var txn = ScenarioBuilder.Transaction("T16", new DateOnly(2024, 5, 10), 252m,
-            bankName: "玉山銀行", cardType: "U Bear卡", mobilePayment: "OPEN錢包", vpcType: "CARD");
+        // 交易特徵：全支付、實體卡 (vpc_type = "CARD")
+        var txn = ScenarioBuilder.Transaction("T16", new DateOnly(2025, 5, 10), 1000m,
+            bankName: "玉山銀行", cardType: "Unicard", mobilePayment: "全支付", vpcType: "CARD");
 
         var res = resolver.Resolve(txn);
-        Assert.Equal(8m, res.TotalRewardAmount);  // 252 * 3% = 7.56 -> 四捨五入為 8
+        Assert.Equal(25m, res.TotalRewardAmount);  // 1000 * 2.5% = 25
         Assert.Single(res.AppliedPrograms);
-        Assert.Equal("2024新戶行動支付3%加碼", res.AppliedPrograms[0].Program.RewardProgram);
+        Assert.Equal("Unicard指定特約商店加碼", res.AppliedPrograms[0].Program.RewardProgram);
     }
 }
 

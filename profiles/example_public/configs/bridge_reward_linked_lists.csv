@@ -1,0 +1,7 @@
+reward_id,merchant_reward_pools_id
+all_general_reward_exclusion,POOL_GENERAL_EXCLUSION
+cathay_cube_base_common,POOL_CUBE_GENERAL
+ctbc_uniopen_base2025h2,POOL_UNIOPEN_GENERAL
+esun_unicard_base_2024,POOL_ESUN_GENERAL
+esun_unicard_base_2025q4,POOL_ESUN_GENERAL
+cathay_cube_base_feature,POOL_CUBE_FEATURE
