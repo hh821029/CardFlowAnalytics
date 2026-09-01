@@ -62,24 +62,79 @@
             <div id="trendChart" style="width: 100%; height: 420px;"></div>
         </div>
 
-        <!-- 金流桑基圖 -->
-        <div class="chart-box">
+        <!-- 金流桑基圖 (DEMO 展示模式) -->
+        <div class="chart-box" style="margin-bottom: 24px;">
             <div class="chart-header">
-                <div class="chart-title">🌊 多層級金流桑基圖 (發卡行 ➔ 信用卡別 ➔ 支付管道 ➔ 消費大類)</div>
-                <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadSankeyFlow()">🔄
-                    重新整理</button>
+                <div class="chart-title">
+                    <span>🌊 多層級金流桑基圖 (DEMO 展示模式)</span>
+                    <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: normal;">DEMO 脫敏展示</span>
+                </div>
+                <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadSankeyDemoFlow()">🔄 重新整理</button>
             </div>
-            <div id="sankeyChart" style="width: 100%; height: 500px;"></div>
+            <p style="font-size: 12px; color: var(--text-secondary, #94a3b8); margin: 0 0 14px 0; line-height: 1.5;">
+                🔍 <b>流向維度</b>：發卡行 (脫敏) ➔ 核心展示卡 (CUBE / Uniopen / Unicard) ➔ 標準支付管道 ➔ 消費大類。<br/>
+                💡 <b>說明</b>：自動套用白名單脫敏與聚類規則，適合公開展示或簡報，非核心卡片與管道自動收斂為「其他」。
+            </p>
+            <div id="sankeyDemoChart" style="width: 100%; height: 500px;"></div>
+        </div>
+
+        <!-- 金流桑基圖 (個人實際財務參考 - 非 DEMO) -->
+        <div class="chart-box" style="margin-bottom: 24px; border: 1px solid rgba(52, 211, 153, 0.25);">
+            <div class="chart-header">
+                <div class="chart-title">
+                    <span>📊 個人實際金流全貌桑基圖 (真實財務全景 / 非 DEMO)</span>
+                    <span style="font-size: 11px; background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.35); padding: 3px 8px; border-radius: 6px; font-weight: normal;">真實個人財務參考</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label style="font-size: 12px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="toggleMerchantsReal" onchange="loadSankeyRealFlow()" style="cursor: pointer;">
+                        穿透至前 10 大商家 (Layer 3)
+                    </label>
+                    <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadSankeyRealFlow()">🔄 重新整理</button>
+                </div>
+            </div>
+            <p style="font-size: 12px; color: var(--text-secondary, #94a3b8); margin: 0 0 14px 0; line-height: 1.5;">
+                🎯 <b>流向維度</b>：實際發卡行 ➔ 實際所有信用卡 ➔ 實際所有支付管道 ➔ 消費大類 ➔ 核心商家 (可選)。<br/>
+                💡 <b>說明</b>：無任何脫敏或白名單限制，100% 呈現真實個人財務數據與資金路徑，作為個人財務決策與記帳檢視的最佳參考。
+            </p>
+            
+            <!-- 真實財務專屬快速 KPI 列 -->
+            <div class="kpi-row" style="margin-bottom: 16px;">
+                <div class="kpi-card">
+                    <div class="kpi-lbl">真實總消費</div>
+                    <div id="realKpiAmount" class="kpi-val" style="color: #34d399;">NT$ -</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-lbl">真實發卡行數</div>
+                    <div id="realKpiBanks" class="kpi-val" style="color: #38bdf8;">-</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-lbl">真實信用卡數</div>
+                    <div id="realKpiCards" class="kpi-val" style="color: #a78bfa;">-</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-lbl">真實支付管道數</div>
+                    <div id="realKpiPayments" class="kpi-val" style="color: #fbbf24;">-</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-lbl">消費領域數</div>
+                    <div id="realKpiCategories" class="kpi-val" style="color: #f472b6;">-</div>
+                </div>
+            </div>
+
+            <div id="sankeyRealChart" style="width: 100%; height: 580px;"></div>
         </div>
     </div>
 
     <script>
         let trendChartInst = null;
-        let sankeyChartInst = null;
+        let sankeyDemoChartInst = null;
+        let sankeyRealChartInst = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             loadMonthlyTrend();
-            loadSankeyFlow();
+            loadSankeyDemoFlow();
+            loadSankeyRealFlow();
         });
 
         // 1. 載入月度趨勢
@@ -119,34 +174,93 @@
             }
         }
 
-        // 2. 載入金流桑基圖
-        async function loadSankeyFlow() {
+        // 2. 載入 DEMO 脫敏桑基圖
+        async function loadSankeyDemoFlow() {
             try {
-                const res = await fetch('/api/analytics/sankey');
+                const dom = document.getElementById('sankeyDemoChart');
+                if (!sankeyDemoChartInst) sankeyDemoChartInst = echarts.init(dom, 'dark');
+                sankeyDemoChartInst.showLoading({ color: '#38bdf8', maskColor: 'rgba(15, 23, 42, 0.6)' });
+
+                const res = await fetch('/api/analytics/sankey?demo_mode=true');
                 const result = await res.json();
+                sankeyDemoChartInst.hideLoading();
                 if (!result.success || !result.data) return;
 
-                const dom = document.getElementById('sankeyChart');
-                if (!sankeyChartInst) sankeyChartInst = echarts.init(dom, 'dark');
-
-                const option = {
-                    backgroundColor: 'transparent',
-                    tooltip: { trigger: 'item', triggerOn: 'mousemove' },
-                    series: [{
-                        type: 'sankey',
-                        data: result.data.nodes,
-                        links: result.data.links,
-                        emphasis: { focus: 'adjacency' },
-                        lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.35 },
-                        label: { color: '#f8fafc', fontSize: 11 }
-                    }]
-                };
-
-                sankeyChartInst.setOption(option);
-                window.addEventListener('resize', () => sankeyChartInst.resize());
+                renderSankey(sankeyDemoChartInst, result.data);
+                window.addEventListener('resize', () => sankeyDemoChartInst.resize());
             } catch (e) {
-                console.error("載入桑基圖失敗:", e);
+                console.error("載入 DEMO 桑基圖失敗:", e);
             }
+        }
+
+        // 3. 載入個人真實財務桑基圖 (非 DEMO 模式)
+        async function loadSankeyRealFlow() {
+            try {
+                const dom = document.getElementById('sankeyRealChart');
+                if (!sankeyRealChartInst) sankeyRealChartInst = echarts.init(dom, 'dark');
+                sankeyRealChartInst.showLoading({ color: '#34d399', maskColor: 'rgba(15, 23, 42, 0.6)' });
+
+                const incMerchants = document.getElementById('toggleMerchantsReal')?.checked ? 'true' : 'false';
+                const res = await fetch(`/api/analytics/sankey?demo_mode=false&include_merchants=${incMerchants}`);
+                const result = await res.json();
+                sankeyRealChartInst.hideLoading();
+                if (!result.success || !result.data) return;
+
+                // 更新真實財務專屬 KPI
+                const sum = result.data.summary;
+                if (sum) {
+                    const elAmt = document.getElementById('realKpiAmount');
+                    const elBanks = document.getElementById('realKpiBanks');
+                    const elCards = document.getElementById('realKpiCards');
+                    const elPayments = document.getElementById('realKpiPayments');
+                    const elCategories = document.getElementById('realKpiCategories');
+                    if (elAmt) elAmt.textContent = `NT$ ${Number(sum.total_amount || 0).toLocaleString()}`;
+                    if (elBanks) elBanks.textContent = sum.bank_count || 0;
+                    if (elCards) elCards.textContent = sum.card_count || 0;
+                    if (elPayments) elPayments.textContent = sum.payment_count || 0;
+                    if (elCategories) elCategories.textContent = sum.category_count || 0;
+                }
+
+                renderSankey(sankeyRealChartInst, result.data);
+                window.addEventListener('resize', () => sankeyRealChartInst.resize());
+            } catch (e) {
+                console.error("載入真實財務桑基圖失敗:", e);
+            }
+        }
+
+        // 桑基圖共用渲染函式
+        function renderSankey(chartInst, data) {
+            if (!chartInst || !data || !data.nodes || data.nodes.length === 0) {
+                chartInst.clear();
+                return;
+            }
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    triggerOn: 'mousemove',
+                    formatter: (params) => {
+                        if (params.dataType === 'edge') {
+                            return `🌊 <b>${params.data.source}</b> ➔ <b>${params.data.target}</b><br/>💰 金額: NT$ ${Number(params.data.value || 0).toLocaleString()}`;
+                        }
+                        return `📌 節點: <b>${params.name}</b>`;
+                    }
+                },
+                series: [{
+                    type: 'sankey',
+                    layout: 'none',
+                    data: data.nodes,
+                    links: data.links,
+                    emphasis: { focus: 'adjacency' },
+                    lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.45 },
+                    label: { color: '#f8fafc', fontSize: 12, fontWeight: 500 },
+                    nodeGap: 14,
+                    nodeWidth: 20
+                }]
+            };
+
+            chartInst.setOption(option, true);
         }
     </script>
 </body>

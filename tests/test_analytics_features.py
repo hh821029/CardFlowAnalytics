@@ -116,7 +116,8 @@ def test_pivot_table_operations(sample_tx_df):
 
 
 def test_sankey_flow(sample_tx_df):
-    flow = build_sankey_flow(sample_tx_df, include_merchants=True)
+    # 1. 測試常規模式 (含 Bank -> Card -> Payment -> Category 四層級)
+    flow = build_sankey_flow(sample_tx_df, include_merchants=False, demo_mode=False)
     assert "nodes" in flow
     assert "links" in flow
     assert "summary" in flow
@@ -124,11 +125,23 @@ def test_sankey_flow(sample_tx_df):
     assert len(flow["links"]) > 0
     assert flow["summary"]["total_amount"] == 2800.0
 
+    layers = {l['layer'] for l in flow['links']}
+    assert 'bank_to_card' in layers
+    assert 'card_to_payment' in layers
+    assert 'payment_to_category' in layers
+
+    # 2. 測試 DEMO 脫敏模式 (CUBE卡保留，J卡收斂為其他卡片；LINE Pay/街口保留)
+    demo_flow = build_sankey_flow(sample_tx_df, demo_mode=True)
+    card_targets = [l['target'] for l in demo_flow['links'] if l['layer'] == 'bank_to_card']
+    assert 'CUBE卡' in card_targets
+    assert '其他卡片' in card_targets
+
     df_links = build_sankey_dataframe(sample_tx_df)
     assert not df_links.empty
     assert "source" in df_links.columns
     assert "target" in df_links.columns
     assert "value" in df_links.columns
+
 
 
 def test_data_mart_save(sample_tx_df, tmp_path):

@@ -83,14 +83,14 @@
                 </div>
             </div>
 
-            <!-- RFM 價值氣泡矩陣圖 -->
+            <!-- RFM 價值與消費波動氣泡圖 -->
             <div class="chart-box" style="margin-bottom: 20px;">
                 <div class="chart-header">
-                    <div class="chart-title">🎈 商家價值氣泡圖 (X: 消費間隔天數, Y: 交易次數, 氣泡大小: 累積金額)</div>
+                    <div class="chart-title">🎈 商家價值與消費波動氣泡圖 (X: 平均客單價, Y: 單筆標準差, 氣泡大小: 累積總額)</div>
                     <span id="bubbleFilterLabel"
                         style="font-size: 12px; color: var(--accent-blue); font-weight: 500;">當前類別：全部類別</span>
                 </div>
-                <div id="rfmBubbleChart" style="width: 100%; height: 440px;"></div>
+                <div id="rfmBubbleChart" style="width: 100%; height: 460px;"></div>
             </div>
 
             <!-- 各生活消費領域 Top 3 核心商家排行表 -->
@@ -123,7 +123,7 @@
             <!-- 卡片價值與使用狀態表 -->
             <div class="chart-box">
                 <div class="chart-header">
-                    <div class="chart-title">💳 信用卡資產價值分群</div>
+                    <div class="chart-title">💳 信用卡資產價值分群 (示範卡片置頂)</div>
                 </div>
                 <div class="table-container">
                     <table class="dashboard-table" id="cardRfmTable">
@@ -150,65 +150,48 @@
 
         <!-- Tab 2: 回饋效益與回饋池監控 -->
         <div id="tabContent-rewards" class="tab-content">
-            <!-- [暫撤] 月度消費與回饋金收益趨勢對比 圖表 - 等 rewards-summary API 穩定後恢復
             <div class="chart-box" style="margin-bottom: 20px;">
                 <div class="chart-header">
-                    <div class="chart-title">💰 月度消費與回饋金收益趨勢對比</div>
+                    <div class="chart-title">📊 各卡每月實質回饋率與回饋金彙總表</div>
                     <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;"
                         onclick="loadRewardsData()">🔄 重新整理</button>
                 </div>
-                <div id="rewardsChart" style="width: 100%; height: 350px;"></div>
-            </div>
-            -->
-
-            <!-- 回饋資料重新整理按鈕 -->
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-                <button class="btn-secondary" style="font-size: 12px; padding: 6px 14px;" onclick="loadRewardsData()">🔄
-                    重新整理回饋資料</button>
-            </div>
-
-            <!-- 回饋金明細匯總表 -->
-            <div class="chart-box" style="margin-bottom: 20px;">
-                <div class="chart-header">
-                    <div class="chart-title">📋 月度卡片實質回饋率明細 (Data Mart: rewards_monthly_summary)</div>
-                </div>
                 <div class="table-container">
-                    <table class="dashboard-table">
+                    <table class="dashboard-table" id="rewardsMonthlyTable">
                         <thead>
                             <tr>
-                                <th>月份</th>
+                                <th>帳單月份</th>
                                 <th>發卡行</th>
-                                <th>卡片名稱</th>
-                                <th>消費總額</th>
-                                <th>回饋總額</th>
+                                <th>信用卡名稱</th>
+                                <th>當月總消費</th>
+                                <th>實質回饋金</th>
                                 <th>實質回饋率</th>
                             </tr>
                         </thead>
                         <tbody id="rewardsMonthlyTbody">
                             <tr>
-                                <td colspan="6" style="text-align: center; color: #64748b;">暫無回饋彙總數據</td>
+                                <td colspan="6" style="text-align: center; color: #64748b;">暫無月度回饋數據</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- 回饋池上限使用率監控 -->
             <div class="chart-box">
                 <div class="chart-header">
-                    <div class="chart-title">🔒 回饋池上限使用狀況 (Data Mart: rewards_pool_utilization)</div>
+                    <div class="chart-title">🔒 各卡回饋池使用狀況與上限監控</div>
                 </div>
                 <div class="table-container">
-                    <table class="dashboard-table">
+                    <table class="dashboard-table" id="poolUtilTable">
                         <thead>
                             <tr>
-                                <th>月份</th>
+                                <th>帳單月份</th>
                                 <th>發卡行</th>
-                                <th>卡片名稱</th>
+                                <th>信用卡名稱</th>
                                 <th>回饋池名稱</th>
                                 <th>已獲回饋</th>
-                                <th>回饋池上限</th>
-                                <th>是否達上限</th>
+                                <th>回饋上限</th>
+                                <th>上限狀態</th>
                             </tr>
                         </thead>
                         <tbody id="poolUtilTbody">
@@ -224,28 +207,22 @@
 
     <script>
         let rfmChartInst = null;
-        let rewardsChartInst = null;
 
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            const targetBtn = document.getElementById(`tabBtn-${tabId}`);
-            const targetContent = document.getElementById(`tabContent-${tabId}`);
-            if (targetBtn && targetContent) {
-                targetBtn.classList.add('active');
-                targetContent.classList.add('active');
+            const btn = document.getElementById(`tabBtn-${tabId}`);
+            const content = document.getElementById(`tabContent-${tabId}`);
+            if (btn) btn.classList.add('active');
+            if (content) content.classList.add('active');
+
+            if (tabId === 'rfm') {
+                loadRfmData();
+                if (rfmChartInst) setTimeout(() => rfmChartInst.resize(), 100);
+            } else if (tabId === 'rewards') {
+                loadRewardsData();
             }
-
-            setTimeout(() => {
-                if (tabId === 'rfm') {
-                    if (rfmChartInst) rfmChartInst.resize();
-                    loadRfmData();
-                } else if (tabId === 'rewards') {
-                    if (rewardsChartInst) rewardsChartInst.resize();
-                    loadRewardsData();
-                }
-            }, 100);
         }
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -258,8 +235,6 @@
             }
         });
 
-        let cachedCategories = [];
-
         function onCategoryChange() {
             const select = document.getElementById('rfmCategorySelect');
             const category = select ? select.value : 'all';
@@ -270,7 +245,7 @@
             loadRfmData(category);
         }
 
-        // 1. 載入 RFM 圖表與排行
+        // 1. 載入 RFM 與消費波動氣泡圖
         async function loadRfmData(selectedCategory = null) {
             try {
                 const categorySelect = document.getElementById('rfmCategorySelect');
@@ -280,9 +255,9 @@
                 const result = await res.json();
                 if (!result.success || !result.data) return;
 
-                const { merchants, segment_counts, categories, top_by_category, cards } = result.data;
+                const { merchants, segment_counts, categories, top_by_category, cards, median_avg_ticket, median_std_ticket } = result.data;
 
-                // 填充類別下拉選單 (若尚未填充)
+                // 填充類別下拉選單
                 if (categories && categories.length > 0 && categorySelect) {
                     const currentVal = categorySelect.value;
                     const catOptions = ['<option value="all">🌐 全部類別 (All Categories)</option>'];
@@ -290,9 +265,6 @@
                         catOptions.push(`<option value="${c}" ${c === currentVal ? 'selected' : ''}>🏷️ ${c}</option>`);
                     });
                     categorySelect.innerHTML = catOptions.join('');
-                    if (currentVal && currentVal !== 'all') {
-                        categorySelect.value = currentVal;
-                    }
                 }
 
                 // 九宮格計數
@@ -302,15 +274,17 @@
                 document.getElementById('segChurned').textContent = segment_counts['流失高價值 (Churned)'] || 0;
                 document.getElementById('segDormant').textContent = segment_counts['沉睡 (Dormant)'] || 0;
 
-                // 氣泡圖
+                // 氣泡圖資料結構: [avg_ticket(μ), std_ticket(σ), monetary(M), name, vol_segment, category, sub_category, frequency, cv]
                 const bubbleData = merchants.map(m => [
-                    m.recency,
-                    m.frequency,
-                    m.monetary,
-                    m.name,
-                    m.segment,
-                    m.category,
-                    m.sub_category
+                    m.avg_ticket || 0,
+                    m.std_ticket || 0,
+                    m.monetary || 0,
+                    m.name || '',
+                    m.volatility_segment || m.segment || '',
+                    m.category || '未分類',
+                    m.sub_category || '',
+                    m.frequency || 0,
+                    m.cv || 0
                 ]);
 
                 const dom = document.getElementById('rfmBubbleChart');
@@ -322,25 +296,27 @@
                         formatter: function (param) {
                             const val = param.value;
                             return `
-                                <div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${val[3]}</div>
+                                <div style="font-weight:bold; font-size:14px; margin-bottom:4px; color:#38bdf8;">${val[3]}</div>
                                 <div>🏷️ 分類: ${val[5]} ${val[6] ? '(' + val[6] + ')' : ''}</div>
-                                <div>👑 分群: ${val[4]}</div>
-                                <div>⏱️ 最近消費: ${val[0]} 天前</div>
-                                <div>🔄 交易次數: ${val[1]} 次</div>
-                                <div>💰 累積消費: NT$ ${Number(val[2]).toLocaleString()}</div>
+                                <div>👑 波動分群: <span style="color:#fbbf24; font-weight:600;">${val[4]}</span></div>
+                                <div>💵 平均客單價 (μ): <b>NT$ ${Number(val[0]).toLocaleString()}</b></div>
+                                <div>📊 單筆標準差 (σ): <b>NT$ ${Number(val[1]).toLocaleString()}</b></div>
+                                <div>📈 變異係數 (CV): <b>${val[8] !== undefined ? val[8] : 0}</b></div>
+                                <div>🔄 交易次數 (F): <b>${val[7]} 次</b></div>
+                                <div>💰 累積消費 (M): <b>NT$ ${Number(val[2]).toLocaleString()}</b></div>
                             `;
                         }
                     },
-                    grid: { top: 40, right: 40, bottom: 50, left: 60 },
+                    grid: { top: 40, right: 50, bottom: 50, left: 70 },
                     xAxis: {
-                        name: '消費間隔 (天)',
+                        name: '平均客單價 (NT$)',
                         nameLocation: 'middle',
                         nameGap: 30,
                         type: 'value',
                         splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
                     },
                     yAxis: {
-                        name: '交易次數 (次)',
+                        name: '單筆標準差 (NT$)',
                         type: 'value',
                         splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
                     },
@@ -348,15 +324,23 @@
                         type: 'scatter',
                         data: bubbleData,
                         symbolSize: function (val) {
-                            return Math.min(Math.max(Math.sqrt(val[2]) * 0.8, 12), 65);
+                            return Math.min(Math.max(Math.sqrt(val[2]) * 0.75, 12), 65);
+                        },
+                        markLine: {
+                            silent: true,
+                            lineStyle: { type: 'dashed', color: 'rgba(255, 255, 255, 0.25)', width: 1 },
+                            data: [
+                                { xAxis: median_avg_ticket || 500, label: { formatter: '客單中位: {c}', position: 'end', color: '#94a3b8', fontSize: 10 } },
+                                { yAxis: median_std_ticket || 200, label: { formatter: '標準差中位: {c}', position: 'end', color: '#94a3b8', fontSize: 10 } }
+                            ]
                         },
                         itemStyle: {
                             color: function (params) {
-                                const seg = params.value[4];
-                                if (seg.includes('Core') || seg.includes('核心')) return '#38bdf8';
-                                if (seg.includes('Rising') || seg.includes('潛力')) return '#c084fc';
-                                if (seg.includes('Active') || seg.includes('活躍')) return '#34d399';
-                                if (seg.includes('Churned') || seg.includes('流失')) return '#f87171';
+                                const seg = params.value[4] || '';
+                                if (seg.includes('固定大額') || seg.includes('Fixed')) return '#38bdf8';
+                                if (seg.includes('大額偶發') || seg.includes('Spike')) return '#f87171';
+                                if (seg.includes('微額日常') || seg.includes('Micro')) return '#34d399';
+                                if (seg.includes('長尾混合') || seg.includes('Elastic')) return '#c084fc';
                                 return '#64748b';
                             },
                             opacity: 0.85
@@ -367,48 +351,40 @@
                 rfmChartInst.setOption(option);
                 window.addEventListener('resize', () => rfmChartInst.resize());
 
-                // 渲染各領域 Top 3 商家排行表
+                // 渲染 Top 排行表
                 const topTbody = document.getElementById('topCategoryTbody');
-                if (topTbody) {
-                    if (top_by_category && top_by_category.length > 0) {
-                        const rankMedals = { 1: '🥇 1', 2: '🥈 2', 3: '🥉 3' };
-                        topTbody.innerHTML = top_by_category.map(item => `
-                            <tr>
-                                <td><span class="quick-badge" style="font-size:11px; padding:3px 8px;">🏷️ ${item.category}</span></td>
-                                <td style="text-align: center; font-weight: 700; font-size: 14px;">
-                                    ${rankMedals[item.rank] || item.rank}
-                                </td>
-                                <td><strong>${item.name}</strong></td>
-                                <td style="color: #94a3b8; font-size: 12px;">${item.sub_category || '-'}</td>
-                                <td style="color: #38bdf8; font-weight: 600;">NT$ ${Number(item.monetary || 0).toLocaleString()}</td>
-                                <td>${item.frequency || 0} 次</td>
-                                <td>
-                                    <span class="quick-badge" style="background: rgba(255,255,255,0.05); color: #e2e8f0; font-size: 11px;">
-                                        ${item.segment}
-                                    </span>
-                                </td>
-                            </tr>
-                        `).join('');
-                    } else {
-                        topTbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b;">暫無類別排行數據</td></tr>';
-                    }
+                if (topTbody && top_by_category) {
+                    topTbody.innerHTML = top_by_category.map(item => `
+                        <tr>
+                            <td><span class="quick-badge" style="font-size:11px; padding:3px 8px;">🏷️ ${item.category}</span></td>
+                            <td style="text-align: center; font-weight: 700; font-size: 14px;">${item.rank}</td>
+                            <td><strong>${item.name}</strong></td>
+                            <td style="color: #94a3b8; font-size: 12px;">${item.sub_category || '-'}</td>
+                            <td style="color: #38bdf8; font-weight: 600;">NT$ ${Number(item.monetary || 0).toLocaleString()}</td>
+                            <td>${item.frequency || 0} 次</td>
+                            <td><span class="quick-badge" style="background: rgba(255,255,255,0.05); color: #e2e8f0; font-size: 11px;">${item.segment}</span></td>
+                        </tr>
+                    `).join('');
                 }
 
                 // 卡片表格
                 const cardTbody = document.getElementById('cardRfmTbody');
                 if (cards && cards.length > 0) {
-                    cardTbody.innerHTML = cards.map(c => `
-                        <tr>
+                    cardTbody.innerHTML = cards.map(c => {
+                        const pinnedBadge = c.is_demo_pinned ? '<span class="quick-badge" style="background: rgba(251,191,36,0.2); color: #fbbf24; margin-right: 6px; font-weight: 600;">⭐ 示範卡</span>' : '';
+                        return `
+                        <tr style="${c.is_demo_pinned ? 'background: rgba(56,189,248,0.06);' : ''}">
                             <td>${c.bank_name || ''}</td>
                             <td><strong>${c.card_type || ''}</strong></td>
                             <td><span class="quick-badge" style="background: ${c.status === 'active' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)'}; color: ${c.status === 'active' ? '#34d399' : '#f87171'};">${c.status}</span></td>
                             <td>${c.segment || ''}</td>
                             <td>${c.frequency || 0}</td>
                             <td>NT$ ${Number(c.monetary || 0).toLocaleString()}</td>
-                            <td>NT$ ${Number(c.avg_ticket || 0).toLocaleString()}</td>
                         </tr>
-                    `).join('');
+                        `;
+                    }).join('');
                 }
+
             } catch (e) {
                 console.error("載入 RFM 數據失敗:", e);
             }

@@ -349,9 +349,10 @@ async def get_sankey_flow_data(
     location: Optional[str] = None,
     categories: Optional[str] = None,
     sub_categories: Optional[str] = None,
-    include_merchants: bool = False
+    include_merchants: bool = False,
+    demo_mode: Optional[str] = "true"
 ):
-    """查詢金流桑基圖 (Sankey Flow) nodes 與 links 結構"""
+    """查詢金流桑基圖 (Sankey Flow) nodes 與 links 結構 (支援四層級與 DEMO 脫敏白名單模式)"""
     try:
         df = _extract_dataset_from_query(
             banks=banks, cards=cards, payments=payments,
@@ -360,7 +361,8 @@ async def get_sankey_flow_data(
             end_date=end_date, location=location,
             categories=categories, sub_categories=sub_categories
         )
-        flow_data = build_sankey_flow(df, include_merchants=include_merchants)
+        is_demo = str(demo_mode).strip().lower() in ('true', '1', 'yes') if demo_mode is not None else False
+        flow_data = build_sankey_flow(df, include_merchants=include_merchants, demo_mode=is_demo)
         return JSONResponse(content={"success": True, "data": flow_data})
     except Exception as e:
         logger.error(f"❌ 查詢桑基圖數據失敗: {e}")
@@ -373,7 +375,7 @@ async def get_rfm_chart_data(
     category: Optional[str] = None,
     limit: int = 200
 ):
-    """查詢 RFM 視覺化圖表資料 (氣泡圖、客群分佈統計、卡片價值)"""
+    """查詢 RFM 視覺化圖表資料 (客單價 vs 標準差氣泡圖、客群分佈統計、信用卡置頂排序)"""
     try:
         prefix = f"{window}_" if window and window != "life" else "life_"
         db_path = const.ANALYSIS_DB_PATH
@@ -411,7 +413,9 @@ async def get_rfm_chart_data(
                     "segment_counts": {},
                     "categories": [],
                     "top_by_category": [],
-                    "cards": []
+                    "cards": [],
+                    "median_avg_ticket": 0.0,
+                    "median_std_ticket": 0.0
                 }
             })
 
@@ -422,7 +426,40 @@ async def get_rfm_chart_data(
         f_col = f"{prefix}frequency" if f"{prefix}frequency" in df_merchants.columns else "life_frequency"
         r_col = f"{prefix}recency_days" if f"{prefix}recency_days" in df_merchants.columns else "life_recency_days"
 
-        # 2. 計算各生活消費領域 Top 3 商家排行 (依 M 累積金額降冪)
+        # 2. 計算各商家的單筆交易明細統計 (平均客單價 μ, 樣本標準差 σ, 變異係數 CV)
+        merchant_stats: Dict[str, Dict[str, float]] = {}
+        try:
+            df_tx = _extract_dataset_from_query(time_window=window)
+            if not df_tx.empty and 'payment_amount' in df_tx.columns:
+                m_field = 'normalized_merchant' if 'normalized_merchant' in df_tx.columns else 'merchant_display'
+                if m_field in df_tx.columns:
+                    df_tx_clean = cast(pd.DataFrame, df_tx[df_tx[m_field].notna() & (df_tx[m_field] != '')].copy())
+                    amount_series = pd.to_numeric(df_tx_clean['payment_amount'], errors='coerce')
+                    if isinstance(amount_series, pd.Series):
+                        df_tx_clean['payment_amount'] = amount_series.fillna(0.0)
+                    else:
+                        df_tx_clean['payment_amount'] = pd.Series(amount_series).fillna(0.0)
+
+                    for m_name, group in df_tx_clean.groupby(m_field):
+                        group_df = cast(pd.DataFrame, group)
+                        pmt_val = pd.to_numeric(group_df['payment_amount'], errors='coerce')
+                        pmt_series = pmt_val.dropna() if isinstance(pmt_val, pd.Series) else pd.Series(pmt_val).dropna()
+                        cnt = len(pmt_series)
+                        mean_amt = float(cast(Any, pmt_series.mean())) if cnt > 0 else 0.0
+                        std_amt = float(cast(Any, pmt_series.std(ddof=1))) if cnt >= 2 else 0.0
+                        if pd.isna(std_amt):
+                            std_amt = 0.0
+                        cv_amt = round(std_amt / mean_amt, 3) if mean_amt > 0 else 0.0
+                        merchant_stats[str(m_name).strip()] = {
+                            'avg_ticket': round(mean_amt, 2),
+                            'std_ticket': round(std_amt, 2),
+                            'cv': cv_amt,
+                            'count': float(cnt)
+                        }
+        except Exception as stat_err:
+            logger.warning(f"⚠️ 計算單筆標準差統計失敗: {stat_err}")
+
+        # 3. 計算各生活消費領域 Top 3 商家排行 (依 M 累積金額降冪)
         top_by_category = []
         if 'category' in df_merchants.columns and m_col in df_merchants.columns:
             df_calc = df_merchants.copy()
@@ -455,7 +492,7 @@ async def get_rfm_chart_data(
                         "segment": str(row.get('segment', '一般活躍 (Active)'))
                     })
 
-        # 3. 類別篩選 (若有傳入特定 category，供氣泡圖與九宮格)
+        # 4. 類別篩選 (若有傳入特定 category，供氣泡圖與九宮格)
         df_filtered = df_merchants.copy()
         if category and category != 'all' and 'category' in df_filtered.columns:
             df_filtered = cast(pd.DataFrame, df_filtered[df_filtered['category'] == category])
@@ -466,29 +503,68 @@ async def get_rfm_chart_data(
 
         merchants_list = []
         for _, row in df_filtered.head(limit).iterrows():
+            name_str = str(row.get('normalized_merchant', '')).strip()
             m_val = float(pd.to_numeric(row.get(m_col, 0), errors='coerce') or 0.0)
             f_val = int(pd.to_numeric(row.get(f_col, 0), errors='coerce') or 0)
             r_val = int(pd.to_numeric(row.get(r_col, 9999), errors='coerce') or 9999)
+
+            stats = merchant_stats.get(name_str)
+            if stats:
+                avg_ticket = stats['avg_ticket']
+                std_ticket = stats['std_ticket']
+                cv_val = stats['cv']
+            else:
+                avg_ticket = round(m_val / f_val, 2) if f_val > 0 else 0.0
+                std_ticket = 0.0
+                cv_val = 0.0
+
             merchants_list.append({
-                "name": str(row.get('normalized_merchant', '')),
+                "name": name_str,
                 "recency": r_val,
                 "frequency": f_val,
                 "monetary": m_val,
+                "avg_ticket": avg_ticket,
+                "std_ticket": std_ticket,
+                "cv": cv_val,
                 "segment": str(row.get('segment', '一般活躍 (Active)')),
                 "category": str(row.get('category', '未分類')),
                 "sub_category": str(row.get('sub_category', '') if pd.notna(row.get('sub_category')) and str(row.get('sub_category')) != 'nan' else '')
             })
 
+        # 計算客單價與標準差中位數，並打上四象限分群標籤
+        all_avg = [float(m['avg_ticket']) for m in merchants_list if float(m.get('avg_ticket', 0)) > 0]
+        all_std = [float(m['std_ticket']) for m in merchants_list if float(m.get('std_ticket', 0)) > 0]
+        median_avg_ticket = float(pd.Series(all_avg).median()) if all_avg else 500.0
+        median_std_ticket = float(pd.Series(all_std).median()) if all_std else 200.0
+        if pd.isna(median_avg_ticket):
+            median_avg_ticket = 500.0
+        if pd.isna(median_std_ticket):
+            median_std_ticket = 200.0
+
+        for m in merchants_list:
+            mu = m['avg_ticket']
+            sigma = m['std_ticket']
+            if mu >= median_avg_ticket and sigma < median_std_ticket:
+                vol_seg = "固定大額型 (Fixed High-Value)"
+            elif mu >= median_avg_ticket and sigma >= median_std_ticket:
+                vol_seg = "大額偶發型 (Spike Big-Ticket)"
+            elif mu < median_avg_ticket and sigma < median_std_ticket:
+                vol_seg = "微額日常型 (Micro-Routine)"
+            else:
+                vol_seg = "長尾混合型 (Elastic Long-Tail)"
+            m['volatility_segment'] = vol_seg
+
         # 客群分佈統計 (基於篩選後的商家資料)
         segment_counts = df_filtered['segment'].value_counts().to_dict() if 'segment' in df_filtered.columns else {}
 
-        # 卡片資料
+        # 5. 卡片資料與 DEMO 模式釘選排序 (Cube, Uniopen, Unicard 置頂)
         cards_list = []
         if not df_cards.empty:
             for _, row in df_cards.iterrows():
+                card_name = str(row.get('card_type', ''))
                 cards_list.append({
                     "bank_name": str(row.get('bank_name', '')),
-                    "card_type": str(row.get('card_type', '')),
+                    "card_type": card_name,
                     "status": str(row.get('status', 'active')),
                     "segment": str(row.get('segment', '')),
                     "recency": int(pd.to_numeric(row.get(r_col, row.get('life_recency_days', 9999)), errors='coerce') or 9999),
@@ -497,6 +573,23 @@ async def get_rfm_chart_data(
                     "avg_ticket": float(pd.to_numeric(row.get('avg_ticket', 0), errors='coerce') or 0.0)
                 })
 
+            def _card_sort_priority(item: Dict[str, Any]):
+                cn = str(item.get('card_type', '')).lower()
+                if 'cube' in cn:
+                    prio = 1
+                elif 'uniopen' in cn:
+                    prio = 2
+                elif 'unicard' in cn:
+                    prio = 3
+                else:
+                    prio = 99
+                return (prio, -float(item.get('monetary', 0.0)))
+
+            cards_list.sort(key=_card_sort_priority)
+            for item in cards_list:
+                cn = str(item.get('card_type', '')).lower()
+                item['is_demo_pinned'] = any(kw in cn for kw in ['cube', 'uniopen', 'unicard'])
+
         return JSONResponse(content={
             "success": True,
             "data": {
@@ -504,12 +597,15 @@ async def get_rfm_chart_data(
                 "segment_counts": segment_counts,
                 "categories": all_categories,
                 "top_by_category": top_by_category,
-                "cards": cards_list
+                "cards": cards_list,
+                "median_avg_ticket": round(median_avg_ticket, 2),
+                "median_std_ticket": round(median_std_ticket, 2)
             }
         })
     except Exception as e:
         logger.error(f"❌ 查詢 RFM 圖表數據失敗: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
 
 
 def _safe_json_response(payload: Any) -> Response:

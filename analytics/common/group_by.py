@@ -4,18 +4,36 @@
 支援月度、卡別、支付管道、消費類別之統計匯總
 """
 import pandas as pd
-from typing import List, Optional
+from typing import List, Optional, cast, Union
 
 
 def ensure_month_column(df: pd.DataFrame) -> pd.DataFrame:
-    """確保 DataFrame 具備 YYYY-MM 格式之 month 欄位"""
+    """
+    確保 DataFrame 具備 YYYY-MM 格式之 month 欄位。
+    強制優先採用實際刷卡交易日 (transaction_date) 作為 SSOT，若無則依序退守至 billing_date / post_date。
+    """
     df_out = df.copy()
-    if 'month' not in df_out.columns:
-        if 'transaction_date' in df_out.columns:
-            # 兼容 str、Timestamp 或 Datetime 物件，統一轉為字串並擷取 YYYY-MM
-            df_out['month'] = df_out['transaction_date'].astype(str).str.slice(0, 7)
-        else:
-            df_out['month'] = 'UNKNOWN'
+    if 'transaction_date' in df_out.columns and df_out['transaction_date'].notna().any():
+        dates = pd.to_datetime(df_out['transaction_date'], errors='coerce')
+        # 若有少數缺失值，嘗試以 billing_date / post_date 備援補齊
+        fallback_col = None
+        for col in ['billing_date', 'post_date', 'entry_date']:
+            if col in df_out.columns:
+                fallback_col = col
+                break
+        if fallback_col:
+            fallback_dates = pd.to_datetime(df_out[fallback_col], errors='coerce')
+            if isinstance(dates, pd.Series):
+                dates = dates.fillna(fallback_dates)
+            else:
+                dates = pd.Series(dates).fillna(fallback_dates)
+        
+        # 轉換為標準 YYYY-MM 字串，完全相容靜態型別檢查
+        month_series = pd.Series(dates).astype(str).str.slice(0, 7)
+        month_series = month_series.replace({'NaT': 'UNKNOWN', 'nan': 'UNKNOWN', 'None': 'UNKNOWN', '': 'UNKNOWN'})
+        df_out['month'] = month_series.fillna('UNKNOWN')
+    elif 'month' not in df_out.columns:
+        df_out['month'] = 'UNKNOWN'
     return df_out
 
 
