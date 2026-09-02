@@ -44,52 +44,103 @@
 
         <!-- Tab 1: RFM 價值氣泡與客群分群 -->
         <div id="tabContent-rfm" class="tab-content active">
-            <!-- 客群分佈統計九宮格 -->
+            <!-- RFM 客群價值與消費波動操作面板 -->
             <div class="chart-box" style="margin-bottom: 20px;">
-                <div class="chart-header">
-                    <div class="chart-title">👑 RFM 商家客群價值分佈 <span style="font-size: 12px; font-weight: normal; color: #94a3b8; margin-left: 8px;">(依最近六個月內消費活躍度劃分)</span></div>
+                <div class="chart-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                        <div class="chart-title">👑 RFM 客群與消費波動互動探索面板</div>
+                        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
+                            依近半年活躍度與金額劃分；點擊按鈕可交叉切換氣泡圖展示（預設全部選中、全部顯示）
+                        </div>
+                    </div>
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <label style="font-size: 13px; color: var(--text-secondary);">🏷️ 消費類別篩選：</label>
+                        <label style="font-size: 13px; color: var(--text-secondary);">🏷️ 消費類別：</label>
                         <select id="rfmCategorySelect" onchange="onCategoryChange()"
                             style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;">
                             <option value="all">🌐 全部類別 (All Categories)</option>
                         </select>
                         <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px;"
-                            onclick="loadRfmData()">🔄
-                            讀取數據</button>
+                            onclick="loadRfmData()">🔄 讀取</button>
+                        <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;"
+                            onclick="resetRfmFilters()">✨ 全部重設/全選</button>
                     </div>
                 </div>
-                <div class="kpi-row">
-                    <div class="kpi-card">
-                        <div class="kpi-lbl">核心商家 (Core)</div>
-                        <div id="segCore" class="kpi-val" style="color: #38bdf8;">-</div>
+
+                <!-- 操作面板第一列：RFM 商家客群價值（5 個可點擊卡片） -->
+                <div style="margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">👑 第一維度：RFM 商家客群價值（點擊卡片切換顯示）</span>
+                        <span id="rfmFilterActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 5/5 個客群</span>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-lbl">潛力商家 (Rising)</div>
-                        <div id="segRising" class="kpi-val" style="color: #c084fc;">-</div>
+                    <div class="kpi-row">
+                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmCore" data-seg="核心商家 (Core)" onclick="toggleRfmSegment('核心商家 (Core)')">
+                            <div class="kpi-lbl">核心商家 (Core)</div>
+                            <div id="segCore" class="kpi-val" style="color: #38bdf8;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmRising" data-seg="潛力商家 (Rising)" onclick="toggleRfmSegment('潛力商家 (Rising)')">
+                            <div class="kpi-lbl">潛力商家 (Rising)</div>
+                            <div id="segRising" class="kpi-val" style="color: #c084fc;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmActive" data-seg="一般活躍 (Active)" onclick="toggleRfmSegment('一般活躍 (Active)')">
+                            <div class="kpi-lbl">一般活躍 (Active)</div>
+                            <div id="segActive" class="kpi-val" style="color: #34d399;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmChurned" data-seg="流失高價值 (Churned)" onclick="toggleRfmSegment('流失高價值 (Churned)')">
+                            <div class="kpi-lbl">流失高價值 (Churned)</div>
+                            <div id="segChurned" class="kpi-val" style="color: #f87171;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmDormant" data-seg="沉睡 (Dormant)" onclick="toggleRfmSegment('沉睡 (Dormant)')">
+                            <div class="kpi-lbl">沉睡 (Dormant)</div>
+                            <div id="segDormant" class="kpi-val" style="color: #94a3b8;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-lbl">一般活躍 (Active)</div>
-                        <div id="segActive" class="kpi-val" style="color: #34d399;">-</div>
+                </div>
+
+                <!-- 操作面板第二列：消費波動型態象限（4 個可點擊按鈕，從原本氣泡圖下方挪移上來） -->
+                <div style="padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📊 第二維度：消費波動型態象限（點擊圖示切換顯示）</span>
+                        <span id="volFilterActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 4/4 種型態</span>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-lbl">流失高價值 (Churned)</div>
-                        <div id="segChurned" class="kpi-val" style="color: #f87171;">-</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-lbl">沉睡 (Dormant)</div>
-                        <div id="segDormant" class="kpi-val" style="color: #94a3b8;">-</div>
+                    <div class="vol-row">
+                        <button class="vol-toggle-btn active" id="btnVolFixed" data-vol="固定大額" onclick="toggleVolSegment('固定大額')" style="--badge-color: #38bdf8;">
+                            <span class="vol-dot" style="background-color: #38bdf8;"></span>
+                            <strong>固定大額型 (藍)</strong>
+                            <span id="volCountFixed" class="vol-count">(-)</span>
+                        </button>
+                        <button class="vol-toggle-btn active" id="btnVolSpike" data-vol="大額偶發" onclick="toggleVolSegment('大額偶發')" style="--badge-color: #f87171;">
+                            <span class="vol-dot" style="background-color: #f87171;"></span>
+                            <strong>大額偶發型 (紅)</strong>
+                            <span id="volCountSpike" class="vol-count">(-)</span>
+                        </button>
+                        <button class="vol-toggle-btn active" id="btnVolMicro" data-vol="微額日常" onclick="toggleVolSegment('微額日常')" style="--badge-color: #34d399;">
+                            <span class="vol-dot" style="background-color: #34d399;"></span>
+                            <strong>微額日常型 (綠)</strong>
+                            <span id="volCountMicro" class="vol-count">(-)</span>
+                        </button>
+                        <button class="vol-toggle-btn active" id="btnVolElastic" data-vol="長尾混合" onclick="toggleVolSegment('長尾混合')" style="--badge-color: #c084fc;">
+                            <span class="vol-dot" style="background-color: #c084fc;"></span>
+                            <strong>長尾混合型 (紫)</strong>
+                            <span id="volCountElastic" class="vol-count">(-)</span>
+                        </button>
                     </div>
                 </div>
             </div>
 
             <!-- RFM 價值與消費波動氣泡圖 -->
             <div class="chart-box" style="margin-bottom: 20px;">
-                <!-- 第一行：標題靠左，當前類別靠右 -->
+                <!-- 第一行：標題靠左，當前類別與顯示筆數靠右 -->
                 <div class="chart-header" style="margin-bottom: 4px;">
                     <div class="chart-title">🎈 商家價值與消費波動氣泡圖</div>
-                    <span id="bubbleFilterLabel"
-                        style="font-size: 12px; color: var(--accent-blue); font-weight: 500;">當前類別：全部類別</span>
+                    <div style="font-size: 12px; color: var(--accent-blue); font-weight: 500;">
+                        <span id="bubbleFilterLabel">當前類別：全部類別</span> ｜ 
+                        <span id="bubbleDisplayedCount" style="color: #38bdf8; font-weight: 600;">顯示 - 商家</span>
+                    </div>
                 </div>
                 <!-- 第二行：X/Y 指標、當前類別中位數與全部類別中位數說明 -->
                 <div id="bubbleMetricsInfo"
@@ -98,27 +149,7 @@
                      Y: 單筆標準差，當前標準差中位數: <b id="lblCurStdMed" style="color: #38bdf8;">NT$ -</b> [全類別: <span id="lblGlobalStdMed" style="color: #cbd5e1;">NT$ -</span>] ；
                      氣泡大小: 累積總額)
                 </div>
-                <!-- 第三行：RFM 波動度分組圖例 (單行置中) -->
-                <div class="bubble-legend-row"
-                    style="display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; padding: 6px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; margin-bottom: 12px; font-size: 12px;">
-                    <span style="color: #38bdf8; display: inline-flex; align-items: center; gap: 6px;">
-                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #38bdf8;"></span>
-                        <strong>固定大額型 (藍色組分群)</strong>
-                    </span>
-                    <span style="color: #f87171; display: inline-flex; align-items: center; gap: 6px;">
-                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f87171;"></span>
-                        <strong>大額偶發型 (紅色組分群)</strong>
-                    </span>
-                    <span style="color: #34d399; display: inline-flex; align-items: center; gap: 6px;">
-                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #34d399;"></span>
-                        <strong>微額日常型 (綠色組分群)</strong>
-                    </span>
-                    <span style="color: #c084fc; display: inline-flex; align-items: center; gap: 6px;">
-                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #c084fc;"></span>
-                        <strong>長尾混合型 (紫色組分群)</strong>
-                    </span>
-                </div>
-                <div id="rfmBubbleChart" style="width: 100%; height: 460px;"></div>
+                <div id="rfmBubbleChart" style="width: 100%; height: 480px;"></div>
             </div>
 
             <!-- 各生活消費領域 Top 3 核心商家排行表 -->
@@ -235,6 +266,138 @@
 
     <script>
         let rfmChartInst = null;
+        let allMerchantsCache = [];
+        let curMedianAvgCached = 0;
+        let curMedianStdCached = 0;
+
+        // 篩選狀態：預設全部選中、全部顯示
+        let activeRfmSegments = new Set([
+            '核心商家 (Core)',
+            '潛力商家 (Rising)',
+            '一般活躍 (Active)',
+            '流失高價值 (Churned)',
+            '沉睡 (Dormant)'
+        ]);
+
+        let activeVolSegments = new Set([
+            '固定大額',
+            '大額偶發',
+            '微額日常',
+            '長尾混合'
+        ]);
+
+        function toggleRfmSegment(segmentName) {
+            if (activeRfmSegments.has(segmentName)) {
+                activeRfmSegments.delete(segmentName);
+            } else {
+                activeRfmSegments.add(segmentName);
+            }
+            updateFilterButtonStyles();
+            renderFilteredBubbleChart();
+        }
+
+        function toggleVolSegment(volKey) {
+            if (activeVolSegments.has(volKey)) {
+                activeVolSegments.delete(volKey);
+            } else {
+                activeVolSegments.add(volKey);
+            }
+            updateFilterButtonStyles();
+            renderFilteredBubbleChart();
+        }
+
+        function resetRfmFilters() {
+            activeRfmSegments = new Set([
+                '核心商家 (Core)',
+                '潛力商家 (Rising)',
+                '一般活躍 (Active)',
+                '流失高價值 (Churned)',
+                '沉睡 (Dormant)'
+            ]);
+            activeVolSegments = new Set([
+                '固定大額',
+                '大額偶發',
+                '微額日常',
+                '長尾混合'
+            ]);
+            updateFilterButtonStyles();
+            renderFilteredBubbleChart();
+        }
+
+        function updateFilterButtonStyles() {
+            // RFM 卡片樣式更新
+            document.querySelectorAll('.rfm-toggle-btn').forEach(btn => {
+                const seg = btn.getAttribute('data-seg');
+                const badge = btn.querySelector('.kpi-status-badge');
+                if (activeRfmSegments.has(seg)) {
+                    btn.classList.add('active');
+                    if (badge) badge.textContent = '● 顯示中';
+                } else {
+                    btn.classList.remove('active');
+                    if (badge) badge.textContent = '○ 已隱藏';
+                }
+            });
+
+            // 波動型態按鈕樣式更新
+            document.querySelectorAll('.vol-toggle-btn').forEach(btn => {
+                const vol = btn.getAttribute('data-vol');
+                if (activeVolSegments.has(vol)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            const rfmActiveCountEl = document.getElementById('rfmFilterActiveCount');
+            if (rfmActiveCountEl) {
+                rfmActiveCountEl.textContent = `已選 ${activeRfmSegments.size}/5 個客群`;
+            }
+            const volActiveCountEl = document.getElementById('volFilterActiveCount');
+            if (volActiveCountEl) {
+                volActiveCountEl.textContent = `已選 ${activeVolSegments.size}/4 種型態`;
+            }
+        }
+
+        function renderFilteredBubbleChart() {
+            if (!rfmChartInst || !allMerchantsCache) return;
+
+            const filtered = allMerchantsCache.filter(m => {
+                const seg = m.segment || '一般活躍 (Active)';
+                const vol = m.volatility_segment || '';
+
+                const rfmMatch = activeRfmSegments.has(seg) ||
+                    (seg.includes('潛力') && activeRfmSegments.has('潛力商家 (Rising)')) ||
+                    (seg.includes('流失') && activeRfmSegments.has('流失高價值 (Churned)'));
+
+                const volMatch = Array.from(activeVolSegments).some(k => vol.includes(k));
+
+                return rfmMatch && volMatch;
+            });
+
+            const countEl = document.getElementById('bubbleDisplayedCount');
+            if (countEl) {
+                countEl.textContent = `顯示 ${filtered.length} / ${allMerchantsCache.length} 商家`;
+            }
+
+            const bubbleData = filtered.map(m => [
+                m.avg_ticket || 0,
+                m.std_ticket || 0,
+                m.monetary || 0,
+                m.name || '',
+                m.volatility_segment || m.segment || '',
+                m.category || '未分類',
+                m.sub_category || '',
+                m.frequency || 0,
+                m.cv || 0,
+                m.segment || '一般活躍 (Active)'
+            ]);
+
+            rfmChartInst.setOption({
+                series: [{
+                    data: bubbleData
+                }]
+            });
+        }
 
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -310,26 +473,38 @@
                 const elGlobalStd = document.getElementById('lblGlobalStdMed');
                 if (elGlobalStd) elGlobalStd.textContent = `NT$ ${Math.round(globalStd).toLocaleString()}`;
 
-                // 九宮格計數 (依最近六個月內消費活躍度劃分)
+                // 更新 RFM 九宮格計數
                 document.getElementById('segCore').textContent = segment_counts['核心商家 (Core)'] || 0;
                 document.getElementById('segRising').textContent = segment_counts['潛力商家 (Rising)'] || segment_counts['潛力新星 (Rising)'] || 0;
                 document.getElementById('segActive').textContent = segment_counts['一般活躍 (Active)'] || 0;
                 document.getElementById('segChurned').textContent = segment_counts['流失高價值 (Churned)'] || segment_counts['流失商家 (Churned)'] || 0;
                 document.getElementById('segDormant').textContent = segment_counts['沉睡 (Dormant)'] || 0;
 
-                // 氣泡圖資料結構: [avg_ticket(μ), std_ticket(σ), monetary(M), name, vol_segment, category, sub_category, frequency, cv, segment]
-                const bubbleData = merchants.map(m => [
-                    m.avg_ticket || 0,
-                    m.std_ticket || 0,
-                    m.monetary || 0,
-                    m.name || '',
-                    m.volatility_segment || m.segment || '',
-                    m.category || '未分類',
-                    m.sub_category || '',
-                    m.frequency || 0,
-                    m.cv || 0,
-                    m.segment || '一般活躍 (Active)'
-                ]);
+                // 快取當前類別全量商家
+                allMerchantsCache = merchants || [];
+                curMedianAvgCached = curAvg;
+                curMedianStdCached = curStd;
+
+                // 統計各波動型態商家數並更新按鈕徽章
+                let fixedCount = 0, spikeCount = 0, microCount = 0, elasticCount = 0;
+                allMerchantsCache.forEach(m => {
+                    const v = m.volatility_segment || '';
+                    if (v.includes('固定大額') || v.includes('Fixed')) fixedCount++;
+                    else if (v.includes('大額偶發') || v.includes('Spike')) spikeCount++;
+                    else if (v.includes('微額日常') || v.includes('Micro')) microCount++;
+                    else if (v.includes('長尾混合') || v.includes('Elastic')) elasticCount++;
+                });
+
+                const elFixed = document.getElementById('volCountFixed');
+                if (elFixed) elFixed.textContent = `(${fixedCount})`;
+                const elSpike = document.getElementById('volCountSpike');
+                if (elSpike) elSpike.textContent = `(${spikeCount})`;
+                const elMicro = document.getElementById('volCountMicro');
+                if (elMicro) elMicro.textContent = `(${microCount})`;
+                const elElastic = document.getElementById('volCountElastic');
+                if (elElastic) elElastic.textContent = `(${elasticCount})`;
+
+                updateFilterButtonStyles();
 
                 const dom = document.getElementById('rfmBubbleChart');
                 if (!rfmChartInst) rfmChartInst = echarts.init(dom, 'dark');
@@ -367,7 +542,7 @@
                     },
                     series: [{
                         type: 'scatter',
-                        data: bubbleData,
+                        data: [],
                         symbolSize: function (val) {
                             return Math.min(Math.max(Math.sqrt(val[2]) * 0.75, 12), 65);
                         },
@@ -393,9 +568,11 @@
                     }]
                 };
 
-
                 rfmChartInst.setOption(option);
                 window.addEventListener('resize', () => rfmChartInst.resize());
+
+                // 根據當前篩選渲染氣泡資料
+                renderFilteredBubbleChart();
 
                 // 渲染 Top 排行表
                 const topTbody = document.getElementById('topCategoryTbody');
