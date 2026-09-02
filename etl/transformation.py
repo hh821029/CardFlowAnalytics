@@ -39,7 +39,7 @@ def transform_data(merged_df: pd.DataFrame) -> pd.DataFrame:
             if ConfigLoader:
                 configs = {
                     'merchants': ConfigLoader.load_config(CONFIG_DIR, 'dim_merchants', strategy='append'),
-                    'cards': ConfigLoader.load_config(CONFIG_DIR, 'dim_cards', strategy='replace'),
+                    'cards': ConfigLoader.load_config(CONFIG_DIR, 'bridge_user_cards', strategy='replace'),
                     'gateways': ConfigLoader.load_config(CONFIG_DIR, 'dim_payment_process', strategy='append'),
                     'ec_platforms': ConfigLoader.load_config(CONFIG_DIR, 'dim_ec_platform', strategy='append'),
                     'txn_types': ConfigLoader.load_yaml('transaction_types.yaml', config_dir=CONFIG_DIR)

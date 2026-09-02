@@ -85,32 +85,42 @@ class CardClassifier:
         # 逐列比對卡片與 vpc 類型
         for idx, card_val in df[const.COL_CARD_NO].items():
             card_str = str(card_val).replace(' ', '')
+            card_str_zfill = card_str.zfill(4) if card_str.isdigit() and len(card_str) <= 4 else card_str
+            valid_card_nos = [card_str, card_str_zfill] if card_str != card_str_zfill else [card_str]
+
             vpc_val = input_vpc.get(idx, '').strip()
             if vpc_val.lower() in ['nan', 'none']:
                 vpc_val = ''
+            vpc_val_zfill = vpc_val.zfill(4) if vpc_val.isdigit() and len(vpc_val) <= 4 else vpc_val
+            valid_vpc_nos = [vpc_val, vpc_val_zfill] if vpc_val != vpc_val_zfill else [vpc_val]
 
             match_rule = None
 
             if not self.rules.empty:
                 # 1. 雙條件比對 (card_no + vpc_no)
                 if vpc_val and 'vpc_no' in self.rules.columns:
-                    cond_vpc = (self.rules['card_no'] == card_str) & (self.rules['vpc_no'] == vpc_val)
+                    cond_vpc = (self.rules['card_no'].isin(valid_card_nos)) & (self.rules['vpc_no'].isin(valid_vpc_nos))
                     matches = self.rules[cond_vpc]
                     if not matches.empty:
                         match_rule = matches.iloc[0]
 
-                # 2. 實體卡 fallback 比對
+                # 2. 實體卡 fallback 比對 (支援 vpc_type == CARD, vpc_no 與 card_no 相同, 或 vpc_no 標記為 CARD/空值)
                 if match_rule is None and 'card_no' in self.rules.columns:
-                    cond_card = (self.rules['card_no'] == card_str) & (
+                    is_card_vpc = (
+                        (self.rules['vpc_type'].astype(str).str.upper() == 'CARD') if 'vpc_type' in self.rules.columns else False
+                    ) | (
+                        (self.rules['vpc_no'].astype(str) == self.rules['card_no'].astype(str)) if 'vpc_no' in self.rules.columns else False
+                    ) | (
                         self.rules['vpc_no'].fillna('').isin(['CARD', '', 'nan', 'None']) if 'vpc_no' in self.rules.columns else True
                     )
+                    cond_card = (self.rules['card_no'].isin(valid_card_nos)) & is_card_vpc
                     matches = self.rules[cond_card]
                     if not matches.empty:
                         match_rule = matches.iloc[0]
 
                 # 3. 代換前卡號舊相容比對
                 if match_rule is None and '代換前卡號' in self.rules.columns:
-                    cond_legacy = self.rules['代換前卡號'] == card_str
+                    cond_legacy = self.rules['代換前卡號'].isin(valid_card_nos)
                     matches = self.rules[cond_legacy]
                     if not matches.empty:
                         match_rule = matches.iloc[0]
