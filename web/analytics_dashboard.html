@@ -47,7 +47,7 @@
             <!-- 客群分佈統計九宮格 -->
             <div class="chart-box" style="margin-bottom: 20px;">
                 <div class="chart-header">
-                    <div class="chart-title">👑 RFM 商家客群價值分佈</div>
+                    <div class="chart-title">👑 RFM 商家客群價值分佈 <span style="font-size: 12px; font-weight: normal; color: #94a3b8; margin-left: 8px;">(依最近六個月內消費活躍度劃分)</span></div>
                     <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <label style="font-size: 13px; color: var(--text-secondary);">🏷️ 消費類別篩選：</label>
                         <select id="rfmCategorySelect" onchange="onCategoryChange()"
@@ -65,7 +65,7 @@
                         <div id="segCore" class="kpi-val" style="color: #38bdf8;">-</div>
                     </div>
                     <div class="kpi-card">
-                        <div class="kpi-lbl">潛力新星 (Rising)</div>
+                        <div class="kpi-lbl">潛力商家 (Rising)</div>
                         <div id="segRising" class="kpi-val" style="color: #c084fc;">-</div>
                     </div>
                     <div class="kpi-card">
@@ -310,14 +310,14 @@
                 const elGlobalStd = document.getElementById('lblGlobalStdMed');
                 if (elGlobalStd) elGlobalStd.textContent = `NT$ ${Math.round(globalStd).toLocaleString()}`;
 
-                // 九宮格計數
+                // 九宮格計數 (依最近六個月內消費活躍度劃分)
                 document.getElementById('segCore').textContent = segment_counts['核心商家 (Core)'] || 0;
-                document.getElementById('segRising').textContent = segment_counts['潛力新星 (Rising)'] || 0;
+                document.getElementById('segRising').textContent = segment_counts['潛力商家 (Rising)'] || segment_counts['潛力新星 (Rising)'] || 0;
                 document.getElementById('segActive').textContent = segment_counts['一般活躍 (Active)'] || 0;
-                document.getElementById('segChurned').textContent = segment_counts['流失高價值 (Churned)'] || 0;
+                document.getElementById('segChurned').textContent = segment_counts['流失高價值 (Churned)'] || segment_counts['流失商家 (Churned)'] || 0;
                 document.getElementById('segDormant').textContent = segment_counts['沉睡 (Dormant)'] || 0;
 
-                // 氣泡圖資料結構: [avg_ticket(μ), std_ticket(σ), monetary(M), name, vol_segment, category, sub_category, frequency, cv]
+                // 氣泡圖資料結構: [avg_ticket(μ), std_ticket(σ), monetary(M), name, vol_segment, category, sub_category, frequency, cv, segment]
                 const bubbleData = merchants.map(m => [
                     m.avg_ticket || 0,
                     m.std_ticket || 0,
@@ -327,7 +327,8 @@
                     m.category || '未分類',
                     m.sub_category || '',
                     m.frequency || 0,
-                    m.cv || 0
+                    m.cv || 0,
+                    m.segment || '一般活躍 (Active)'
                 ]);
 
                 const dom = document.getElementById('rfmBubbleChart');
@@ -347,6 +348,7 @@
                                 <div>📈 變異係數 (CV): <b>${val[8] !== undefined ? val[8] : 0}</b></div>
                                 <div>🔄 交易次數 (F): <b>${val[7]} 次</b></div>
                                 <div>💰 累積消費 (M): <b>NT$ ${Number(val[2]).toLocaleString()}</b></div>
+                                <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.15);">🏆 RFM 客群: <span style="color:#38bdf8; font-weight:600;">${val[9]}</span></div>
                             `;
                         }
                     },

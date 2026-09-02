@@ -185,7 +185,11 @@ def calculate_merchant_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, 
     final_df['category'] = cats
     final_df['sub_category'] = sub_cats
 
-    short_prefix = windows_config[-1]['prefix']
+    # 優先選取 180 天 (最近六個月) 作為活躍度與近期消費判定基準
+    short_window = next((w for w in windows_config if w.get('days') == 180), None)
+    if not short_window:
+        short_window = next((w for w in windows_config if w.get('days') is not None), windows_config[0])
+    short_prefix = short_window['prefix']
     
     def _label_segment(row):
         if 'life_m_rank' not in row or f'{short_prefix}frequency' not in row:
@@ -198,7 +202,7 @@ def calculate_merchant_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, 
         elif is_high_value and not is_active:
             return "流失高價值 (Churned)"
         elif not is_high_value and is_active and row.get(f'{short_prefix}m_rank', 0) >= 0.8:
-            return "潛力新星 (Rising)"
+            return "潛力商家 (Rising)"
         elif is_active:
             return "一般活躍 (Active)"
         else:
@@ -232,7 +236,10 @@ def calculate_category_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, 
         if drop_c in final_df.columns:
             final_df = final_df.drop(columns=[drop_c])
         
-    short_prefix = windows_config[-1]['prefix']
+    short_window = next((w for w in windows_config if w.get('days') == 180), None)
+    if not short_window:
+        short_window = next((w for w in windows_config if w.get('days') is not None), windows_config[0])
+    short_prefix = short_window['prefix']
     
     def _label_segment(row):
         if 'life_m_rank' not in row or f'{short_prefix}frequency' not in row:

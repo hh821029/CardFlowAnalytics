@@ -422,6 +422,29 @@ async def get_rfm_chart_data(
         # 1. 提取所有有效分類清單 (在篩選前提取)
         all_categories = sorted([str(c) for c in df_merchants['category'].unique() if pd.notna(c) and str(c).strip() != '' and str(c).strip() != 'nan']) if 'category' in df_merchants.columns else []
 
+        # 保障 segment 欄位依「最近六個月 (180d)」與最新命名即時對齊
+        if '180d_frequency' in df_merchants.columns and 'life_m_rank' in df_merchants.columns:
+            def _calc_live_segment(row):
+                is_high_val = float(pd.to_numeric(row.get('life_m_rank', 0), errors='coerce') or 0.0) >= 0.8
+                is_act = float(pd.to_numeric(row.get('180d_frequency', 0), errors='coerce') or 0.0) > 0
+                rank_180d = float(pd.to_numeric(row.get('180d_m_rank', 0), errors='coerce') or 0.0)
+                if is_high_val and is_act:
+                    return "核心商家 (Core)"
+                elif is_high_val and not is_act:
+                    return "流失高價值 (Churned)"
+                elif not is_high_val and is_act and rank_180d >= 0.8:
+                    return "潛力商家 (Rising)"
+                elif is_act:
+                    return "一般活躍 (Active)"
+                else:
+                    return "沉睡 (Dormant)"
+            df_merchants['segment'] = df_merchants.apply(_calc_live_segment, axis=1)
+        elif 'segment' in df_merchants.columns:
+            df_merchants['segment'] = df_merchants['segment'].replace({
+                '潛力新星 (Rising)': '潛力商家 (Rising)',
+                '流失商家 (Churned)': '流失高價值 (Churned)',
+            })
+
         m_col = f"{prefix}monetary" if f"{prefix}monetary" in df_merchants.columns else "life_monetary"
         f_col = f"{prefix}frequency" if f"{prefix}frequency" in df_merchants.columns else "life_frequency"
         r_col = f"{prefix}recency_days" if f"{prefix}recency_days" in df_merchants.columns else "life_recency_days"
