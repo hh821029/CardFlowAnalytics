@@ -492,17 +492,14 @@ async def get_rfm_chart_data(
                         "segment": str(row.get('segment', '一般活躍 (Active)'))
                     })
 
-        # 4. 類別篩選 (若有傳入特定 category，供氣泡圖與九宮格)
-        df_filtered = df_merchants.copy()
-        if category and category != 'all' and 'category' in df_filtered.columns:
-            df_filtered = cast(pd.DataFrame, df_filtered[df_filtered['category'] == category])
+        # 4. 構建全量有效商家清單，以計算不隨分類篩選變動之「全類別中位數 (Global Medians)」
+        if m_col in df_merchants.columns:
+            df_merchants_sorted = cast(pd.DataFrame, df_merchants.sort_values(by=m_col, ascending=False))
+        else:
+            df_merchants_sorted = df_merchants.copy()
 
-        # 依 Monetary 排序並限制筆數 (供氣泡圖)
-        if m_col in df_filtered.columns:
-            df_filtered = cast(pd.DataFrame, df_filtered.sort_values(by=m_col, ascending=False))
-
-        merchants_list = []
-        for _, row in df_filtered.head(limit).iterrows():
+        all_merchants_processed = []
+        for _, row in df_merchants_sorted.iterrows():
             name_str = str(row.get('normalized_merchant', '')).strip()
             m_val = float(pd.to_numeric(row.get(m_col, 0), errors='coerce') or 0.0)
             f_val = int(pd.to_numeric(row.get(f_col, 0), errors='coerce') or 0)
@@ -518,7 +515,7 @@ async def get_rfm_chart_data(
                 std_ticket = 0.0
                 cv_val = 0.0
 
-            merchants_list.append({
+            all_merchants_processed.append({
                 "name": name_str,
                 "recency": r_val,
                 "frequency": f_val,
@@ -531,24 +528,40 @@ async def get_rfm_chart_data(
                 "sub_category": str(row.get('sub_category', '') if pd.notna(row.get('sub_category')) and str(row.get('sub_category')) != 'nan' else '')
             })
 
-        # 計算客單價與標準差中位數，並打上四象限分群標籤
-        all_avg = [float(m['avg_ticket']) for m in merchants_list if float(m.get('avg_ticket', 0)) > 0]
-        all_std = [float(m['std_ticket']) for m in merchants_list if float(m.get('std_ticket', 0)) > 0]
-        median_avg_ticket = float(pd.Series(all_avg).median()) if all_avg else 500.0
-        median_std_ticket = float(pd.Series(all_std).median()) if all_std else 200.0
-        if pd.isna(median_avg_ticket):
-            median_avg_ticket = 500.0
-        if pd.isna(median_std_ticket):
-            median_std_ticket = 200.0
+        # 計算全類別（Global）固定的客單價與標準差中位數
+        global_avg_list = [m['avg_ticket'] for m in all_merchants_processed if m['avg_ticket'] > 0]
+        global_std_list = [m['std_ticket'] for m in all_merchants_processed if m['std_ticket'] > 0]
+        global_median_avg = float(pd.Series(global_avg_list).median()) if global_avg_list else 183.0
+        global_median_std = float(pd.Series(global_std_list).median()) if global_std_list else 73.0
+        if pd.isna(global_median_avg): global_median_avg = 183.0
+        if pd.isna(global_median_std): global_median_std = 73.0
 
+        # 5. 類別篩選 (若有傳入特定 category，則篩選子集；若為 all 則取全量)
+        if category and category != 'all':
+            merchants_filtered = [m for m in all_merchants_processed if m['category'] == category]
+            cur_avg_list = [m['avg_ticket'] for m in merchants_filtered if m['avg_ticket'] > 0]
+            cur_std_list = [m['std_ticket'] for m in merchants_filtered if m['std_ticket'] > 0]
+            cur_median_avg = float(pd.Series(cur_avg_list).median()) if cur_avg_list else global_median_avg
+            cur_median_std = float(pd.Series(cur_std_list).median()) if cur_std_list else global_median_std
+            if pd.isna(cur_median_avg): cur_median_avg = global_median_avg
+            if pd.isna(cur_median_std): cur_median_std = global_median_std
+            merchants_list = merchants_filtered[:limit]
+            df_filtered = cast(pd.DataFrame, df_merchants[df_merchants['category'] == category]) if 'category' in df_merchants.columns else df_merchants
+        else:
+            cur_median_avg = global_median_avg
+            cur_median_std = global_median_std
+            merchants_list = all_merchants_processed[:limit]
+            df_filtered = df_merchants
+
+        # 標註波動度象限分群（依當前類別之中位數基準分割）
         for m in merchants_list:
             mu = m['avg_ticket']
             sigma = m['std_ticket']
-            if mu >= median_avg_ticket and sigma < median_std_ticket:
+            if mu >= cur_median_avg and sigma < cur_median_std:
                 vol_seg = "固定大額型 (Fixed High-Value)"
-            elif mu >= median_avg_ticket and sigma >= median_std_ticket:
+            elif mu >= cur_median_avg and sigma >= cur_median_std:
                 vol_seg = "大額偶發型 (Spike Big-Ticket)"
-            elif mu < median_avg_ticket and sigma < median_std_ticket:
+            elif mu < cur_median_avg and sigma < cur_median_std:
                 vol_seg = "微額日常型 (Micro-Routine)"
             else:
                 vol_seg = "長尾混合型 (Elastic Long-Tail)"
@@ -556,6 +569,7 @@ async def get_rfm_chart_data(
 
         # 客群分佈統計 (基於篩選後的商家資料)
         segment_counts = df_filtered['segment'].value_counts().to_dict() if 'segment' in df_filtered.columns else {}
+
 
         # 5. 卡片資料與 DEMO 模式釘選排序 (Cube, Uniopen, Unicard 置頂)
         cards_list = []
@@ -598,10 +612,15 @@ async def get_rfm_chart_data(
                 "categories": all_categories,
                 "top_by_category": top_by_category,
                 "cards": cards_list,
-                "median_avg_ticket": round(median_avg_ticket, 2),
-                "median_std_ticket": round(median_std_ticket, 2)
+                "median_avg_ticket": round(cur_median_avg, 2),
+                "median_std_ticket": round(cur_median_std, 2),
+                "current_median_avg_ticket": round(cur_median_avg, 2),
+                "current_median_std_ticket": round(cur_median_std, 2),
+                "global_median_avg_ticket": round(global_median_avg, 2),
+                "global_median_std_ticket": round(global_median_std, 2)
             }
         })
+
     except Exception as e:
         logger.error(f"❌ 查詢 RFM 圖表數據失敗: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})

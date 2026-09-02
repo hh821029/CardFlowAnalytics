@@ -85,10 +85,38 @@
 
             <!-- RFM 價值與消費波動氣泡圖 -->
             <div class="chart-box" style="margin-bottom: 20px;">
-                <div class="chart-header">
-                    <div class="chart-title">🎈 商家價值與消費波動氣泡圖 (X: 平均客單價, Y: 單筆標準差, 氣泡大小: 累積總額)</div>
+                <!-- 第一行：標題靠左，當前類別靠右 -->
+                <div class="chart-header" style="margin-bottom: 4px;">
+                    <div class="chart-title">🎈 商家價值與消費波動氣泡圖</div>
                     <span id="bubbleFilterLabel"
                         style="font-size: 12px; color: var(--accent-blue); font-weight: 500;">當前類別：全部類別</span>
+                </div>
+                <!-- 第二行：X/Y 指標、當前類別中位數與全部類別中位數說明 -->
+                <div id="bubbleMetricsInfo"
+                    style="font-size: 12px; color: #94a3b8; line-height: 1.6; margin-bottom: 8px;">
+                    (X: 平均客單價，當前客單中位數: <b id="lblCurAvgMed" style="color: #38bdf8;">NT$ -</b> [全類別: <span id="lblGlobalAvgMed" style="color: #cbd5e1;">NT$ -</span>] ；
+                     Y: 單筆標準差，當前標準差中位數: <b id="lblCurStdMed" style="color: #38bdf8;">NT$ -</b> [全類別: <span id="lblGlobalStdMed" style="color: #cbd5e1;">NT$ -</span>] ；
+                     氣泡大小: 累積總額)
+                </div>
+                <!-- 第三行：RFM 波動度分組圖例 (單行置中) -->
+                <div class="bubble-legend-row"
+                    style="display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; padding: 6px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; margin-bottom: 12px; font-size: 12px;">
+                    <span style="color: #38bdf8; display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #38bdf8;"></span>
+                        <strong>固定大額型 (藍色組分群)</strong>
+                    </span>
+                    <span style="color: #f87171; display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f87171;"></span>
+                        <strong>大額偶發型 (紅色組分群)</strong>
+                    </span>
+                    <span style="color: #34d399; display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #34d399;"></span>
+                        <strong>微額日常型 (綠色組分群)</strong>
+                    </span>
+                    <span style="color: #c084fc; display: inline-flex; align-items: center; gap: 6px;">
+                        <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #c084fc;"></span>
+                        <strong>長尾混合型 (紫色組分群)</strong>
+                    </span>
                 </div>
                 <div id="rfmBubbleChart" style="width: 100%; height: 460px;"></div>
             </div>
@@ -267,6 +295,21 @@
                     categorySelect.innerHTML = catOptions.join('');
                 }
 
+                // 更新第二行當前類別與全類別中位數標籤
+                const curAvg = Number(result.data.current_median_avg_ticket !== undefined ? result.data.current_median_avg_ticket : (result.data.median_avg_ticket || 0));
+                const globalAvg = Number(result.data.global_median_avg_ticket !== undefined ? result.data.global_median_avg_ticket : (result.data.median_avg_ticket || 0));
+                const curStd = Number(result.data.current_median_std_ticket !== undefined ? result.data.current_median_std_ticket : (result.data.median_std_ticket || 0));
+                const globalStd = Number(result.data.global_median_std_ticket !== undefined ? result.data.global_median_std_ticket : (result.data.median_std_ticket || 0));
+
+                const elCurAvg = document.getElementById('lblCurAvgMed');
+                if (elCurAvg) elCurAvg.textContent = `NT$ ${Math.round(curAvg).toLocaleString()}`;
+                const elGlobalAvg = document.getElementById('lblGlobalAvgMed');
+                if (elGlobalAvg) elGlobalAvg.textContent = `NT$ ${Math.round(globalAvg).toLocaleString()}`;
+                const elCurStd = document.getElementById('lblCurStdMed');
+                if (elCurStd) elCurStd.textContent = `NT$ ${Math.round(curStd).toLocaleString()}`;
+                const elGlobalStd = document.getElementById('lblGlobalStdMed');
+                if (elGlobalStd) elGlobalStd.textContent = `NT$ ${Math.round(globalStd).toLocaleString()}`;
+
                 // 九宮格計數
                 document.getElementById('segCore').textContent = segment_counts['核心商家 (Core)'] || 0;
                 document.getElementById('segRising').textContent = segment_counts['潛力新星 (Rising)'] || 0;
@@ -307,7 +350,7 @@
                             `;
                         }
                     },
-                    grid: { top: 40, right: 50, bottom: 50, left: 70 },
+                    grid: { top: 40, right: 60, bottom: 50, left: 70 },
                     xAxis: {
                         name: '平均客單價 (NT$)',
                         nameLocation: 'middle',
@@ -330,8 +373,8 @@
                             silent: true,
                             lineStyle: { type: 'dashed', color: 'rgba(255, 255, 255, 0.25)', width: 1 },
                             data: [
-                                { xAxis: median_avg_ticket || 500, label: { formatter: '客單中位: {c}', position: 'end', color: '#94a3b8', fontSize: 10 } },
-                                { yAxis: median_std_ticket || 200, label: { formatter: '標準差中位: {c}', position: 'end', color: '#94a3b8', fontSize: 10 } }
+                                { xAxis: curAvg || 500, label: { formatter: `當前客單中位: NT$ ${Math.round(curAvg).toLocaleString()}`, position: 'end', color: '#38bdf8', fontSize: 10 } },
+                                { yAxis: curStd || 200, label: { formatter: `當前標準差中位: NT$ ${Math.round(curStd).toLocaleString()}`, position: 'end', color: '#38bdf8', fontSize: 10 } }
                             ]
                         },
                         itemStyle: {
@@ -347,6 +390,7 @@
                         }
                     }]
                 };
+
 
                 rfmChartInst.setOption(option);
                 window.addEventListener('resize', () => rfmChartInst.resize());
