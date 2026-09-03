@@ -194,3 +194,38 @@ class ECPlatformTagger:
                 continue
 
         return df
+
+
+def _apply_final_prefixes(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    [標準化版本] 依照規範合併商家名稱
+    公式：[支付前綴]－[電商平台]－[正規化商家名稱]
+    """
+    def compose_display(row):
+        parts = []
+
+        # 1. 支付前綴 (來自 process_prefix)
+        prefix = str(row.get(const.COL_PROCESS_PREFIX, '')).strip()
+        if prefix and prefix.lower() != 'nan':
+            prefix = prefix.rstrip('－- ')
+            parts.append(prefix)
+
+        # 2. 電商平台 (來自 ec_platform)
+        ec = str(row.get(const.COL_EC_PLATFORM, '')).strip()
+        if ec and ec.lower() != 'nan':
+            parts.append(ec)
+
+        # 3. 正規化商家名稱 (來自 normalized_merchant)
+        merchant = str(row.get(const.COL_NORMALIZED_MERCHANT, '')).strip()
+        if merchant and merchant.lower() != 'nan':
+            # [關鍵去重]：如果商家名稱跟電商平台完全一樣，就不重複添加
+            # 例如：MOMO網購 (電商) + MOMO網購 (商家) -> 只顯示一次
+            if merchant != ec:
+                parts.append(merchant)
+
+        return "－".join(parts) if parts else merchant
+
+    df[const.COL_MERCHANT_DISPLAY] = df.apply(compose_display, axis=1)
+    logger.info("✅ 已依照規範 [支付前綴]－[電商平台]－[正規化商家] 完成 Merchant_Display 合併")
+
+    return df

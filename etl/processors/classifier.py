@@ -5,6 +5,7 @@ import logging
 import yaml
 import const
 from typing import Optional
+from etl.utils import save_anomaly_report
 
 logger = logging.getLogger(__name__)
 
@@ -190,6 +191,7 @@ class TransactionClassifier:
         df = self._mark_refunds(df)   
         df = self._mark_foreign(df)
         df = self._mark_general(df)
+        df = self._check_uncategorized(df)
 
         return df
 
@@ -333,4 +335,14 @@ class TransactionClassifier:
         if mask_empty.any():
             df.loc[mask_empty, const.COL_TXN_TYPE] = const.TransactionType.GENERAL.label
             
+        return df
+
+    def _check_uncategorized(self, df: pd.DataFrame) -> pd.DataFrame:
+        """檢查未分類交易並輸出異常報告"""
+        if 'transaction_type' in df.columns:
+            anomalies = df[df['transaction_type'].isin(['未分類', 'Unknown', '', None])]
+            if not isinstance(anomalies, pd.DataFrame):
+                anomalies = pd.DataFrame(anomalies)
+            if not anomalies.empty:
+                save_anomaly_report(anomalies, 'anomaly_uncategorized.csv', f"發現 {len(anomalies)} 筆未分類交易")
         return df
