@@ -170,6 +170,22 @@ def test_api_endpoints():
     json_sankey = res_sankey.json()
     assert json_sankey["success"] is True
 
+    # 測試 RFM 視覺化圖表 API 端點
+    res_rfm = client.get("/api/analytics/rfm-chart")
+    assert res_rfm.status_code == 200
+    json_rfm = res_rfm.json()
+    assert json_rfm["success"] is True
+    assert "merchants" in json_rfm["data"]
+    assert "cards" in json_rfm["data"]
+
+
+def test_merchant_ticket_stats(sample_tx_df):
+    from analytics.rfm.service import compute_merchant_ticket_stats
+    stats = compute_merchant_ticket_stats(sample_tx_df)
+    assert "麥當勞" in stats
+    assert stats["麥當勞"]["avg_ticket"] == 500.0
+    assert stats["麥當勞"]["count"] == 1.0
+
 
 def test_time_window_resolution():
     import const

@@ -7,7 +7,7 @@ import re
 import json
 import sqlite3
 import logging
-from typing import Optional, List, Dict, Any, cast, Union
+from typing import Optional, List, Dict, Any, Union
 import httpx
 import pandas as pd
 from fastapi import APIRouter, HTTPException
@@ -26,6 +26,7 @@ from analytics.common import (
     generate_monthly_percentage_pivot
 )
 from analytics.sankeyflow import build_sankey_flow
+from analytics.rfm import get_rfm_dashboard_data
 from api.utils import run_task_and_stream
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,27 @@ async def stream_csharp_rewards_calculation(
             yield f"data: ❌ [C# 引擎連線失敗] 無法連線至 C# RewardEngine 服務 ({CSHARP_REWARDS_API_URL}): {e}\n\n"
 
 
+def _parse_filter_lists(
+    banks: Optional[str] = None,
+    cards: Optional[str] = None,
+    payments: Optional[str] = None,
+    location: Optional[str] = None,
+    categories: Optional[str] = None,
+    sub_categories: Optional[str] = None,
+    include_direct_payment: Optional[str] = "true"
+) -> Dict[str, Any]:
+    """解析並標準化 API Query 參數為串列與布林值"""
+    return {
+        'banks': [b.strip() for b in banks.split(',')] if banks else None,
+        'cards': [c.strip() for c in cards.split(',')] if cards else None,
+        'payments': [p.strip() for p in payments.split(',')] if payments else None,
+        'location': [l.strip() for l in location.split(',')] if location else None,
+        'categories': [c.strip() for c in categories.split(',')] if categories else None,
+        'sub_categories': [sc.strip() for sc in sub_categories.split(',')] if sub_categories else None,
+        'include_direct_payment': include_direct_payment.strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True,
+    }
+
+
 @router.get("/analytics")
 async def api_run_analytics(
     banks: Optional[str] = None,
@@ -93,26 +115,18 @@ async def api_run_analytics(
     sub_categories: Optional[str] = None
 ):
     """執行全方位 RFM 分析計算並產出矩陣報表"""
-    bank_list = [b.strip() for b in banks.split(',')] if banks else None
-    card_list = [c.strip() for c in cards.split(',')] if cards else None
-    pay_list = [p.strip() for p in payments.split(',')] if payments else None
-    loc_list = [l.strip() for l in location.split(',')] if location else None
-    cat_list = [c.strip() for c in categories.split(',')] if categories else None
-    sub_cat_list = [sc.strip() for sc in sub_categories.split(',')] if sub_categories else None
-    is_include_direct = include_direct_payment.strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
+    filters = _parse_filter_lists(
+        banks=banks, cards=cards, payments=payments,
+        location=location, categories=categories, sub_categories=sub_categories,
+        include_direct_payment=include_direct_payment
+    )
 
     def run_task():
         run_analytics(
-            banks=bank_list,
-            cards=card_list,
-            payments=pay_list,
-            include_direct_payment=is_include_direct,
             time_window=time_window,
             start_date=start_date,
             end_date=end_date,
-            location=loc_list,
-            categories=cat_list,
-            sub_categories=sub_cat_list
+            **filters
         )
     return StreamingResponse(run_task_and_stream(run_task, "RFM 分析", require_db=True), media_type="text/event-stream")
 
@@ -130,20 +144,17 @@ async def api_run_rewards(
     limit_by_card_start: bool = False
 ):
     """啟動信用卡回饋金計算引擎 (直連 C# 瀑布式引擎)"""
-    bank_list = [b.strip() for b in banks.split(',')] if banks else None
-    card_list = [c.strip() for c in cards.split(',')] if cards else None
-    pay_list = [p.strip() for p in payments.split(',')] if payments else None
-    loc_list = [l.strip() for l in location.split(',')] if location else None
+    filters = _parse_filter_lists(banks=banks, cards=cards, payments=payments, location=location)
 
     return StreamingResponse(
         stream_csharp_rewards_calculation(
-            banks=bank_list,
-            cards=card_list,
-            payments=pay_list,
+            banks=filters['banks'],
+            cards=filters['cards'],
+            payments=filters['payments'],
+            location=filters['location'],
             time_window=time_window,
             start_date=start_date,
             end_date=end_date,
-            location=loc_list,
             enable_billing_validation=enable_billing_validation,
             limit_by_card_start=limit_by_card_start
         ),
@@ -165,25 +176,25 @@ async def api_run_query_export(
     sub_categories: Optional[str] = None
 ):
     """執行交易動態 SQL 條件篩選並導出 CSV"""
-    bank_list = [b.strip() for b in banks.split(',')] if banks else None
-    card_list = [c.strip() for c in cards.split(',')] if cards else None
-    pay_list = [p.strip() for p in payments.split(',')] if payments else None
-    loc_list = [l.strip() for l in location.split(',')] if location else None
-    cat_list = [c.strip() for c in categories.split(',')] if categories else None
-    sub_cat_list = [sc.strip() for sc in sub_categories.split(',')] if sub_categories else None
-    is_include_direct = include_direct_payment.strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
+    filters = _parse_filter_lists(
+        banks=banks, cards=cards, payments=payments,
+        location=location, categories=categories, sub_categories=sub_categories,
+        include_direct_payment=include_direct_payment
+    )
+    cat_list = filters['categories']
+    sub_cat_list = filters['sub_categories']
 
     def run_task():
         logger.info("⚙️ 啟動 SQL 條件篩選與匯出任務...")
         df = query_transactions_modular(
-            banks=bank_list,
-            cards=card_list,
-            payments=pay_list,
-            include_direct_payment=is_include_direct,
+            banks=filters['banks'],
+            cards=filters['cards'],
+            payments=filters['payments'],
+            include_direct_payment=filters['include_direct_payment'],
             time_window=time_window,
             start_date=start_date,
             end_date=end_date,
-            location=loc_list
+            location=filters['location']
         )
         
         if df.empty:
@@ -228,25 +239,16 @@ def _extract_dataset_from_query(
     categories: Optional[str] = None,
     sub_categories: Optional[str] = None
 ) -> pd.DataFrame:
-    bank_list = [b.strip() for b in banks.split(',')] if banks else None
-    card_list = [c.strip() for c in cards.split(',')] if cards else None
-    pay_list = [p.strip() for p in payments.split(',')] if payments else None
-    loc_list = [l.strip() for l in location.split(',')] if location else None
-    cat_list = [c.strip() for c in categories.split(',')] if categories else None
-    sub_cat_list = [sc.strip() for sc in sub_categories.split(',')] if sub_categories else None
-    is_include_direct = include_direct_payment.strip().lower() in ('true', '1', 'yes') if include_direct_payment is not None else True
-
+    filters = _parse_filter_lists(
+        banks=banks, cards=cards, payments=payments,
+        location=location, categories=categories, sub_categories=sub_categories,
+        include_direct_payment=include_direct_payment
+    )
     return prepare_analytics_dataset(
-        banks=bank_list,
-        cards=card_list,
-        payments=pay_list,
-        include_direct_payment=is_include_direct,
         time_window=time_window,
         start_date=start_date,
         end_date=end_date,
-        location=loc_list,
-        categories=cat_list,
-        sub_categories=sub_cat_list
+        **filters
     )
 
 
@@ -377,273 +379,13 @@ async def get_rfm_chart_data(
 ):
     """查詢 RFM 視覺化圖表資料 (客單價 vs 標準差氣泡圖、客群分佈統計、信用卡置頂排序)"""
     try:
-        prefix = f"{window}_" if window and window != "life" else "life_"
-        db_path = const.ANALYSIS_DB_PATH
-        df_merchants = pd.DataFrame()
-        df_cards = pd.DataFrame()
-
-        # 優先從 TransactionsAnalysis.db 讀取
-        if os.path.exists(db_path):
-            try:
-                with sqlite3.connect(db_path) as conn:
-                    df_merchants = pd.read_sql_query("SELECT * FROM rfm_merchants", conn)
-                    try:
-                        df_cards = pd.read_sql_query("SELECT * FROM rfm_cards", conn)
-                    except Exception:
-                        pass
-            except Exception as e:
-                logger.warning(f"⚠️ 從 DB 讀取 RFM 失敗: {e}")
-
-        # Fallback 讀取 CSV
-        if df_merchants.empty:
-            csv_path = os.path.join(const.OUTPUT_DIR, 'rfm', 'merchant_rfm.csv')
-            if os.path.exists(csv_path):
-                df_merchants = pd.read_csv(csv_path, encoding='utf-8')
-
-        if df_cards.empty:
-            card_csv_path = os.path.join(const.OUTPUT_DIR, 'rfm', 'card_rfm.csv')
-            if os.path.exists(card_csv_path):
-                df_cards = pd.read_csv(card_csv_path, encoding='utf-8')
-
-        if df_merchants.empty:
-            return JSONResponse(content={
-                "success": True,
-                "data": {
-                    "merchants": [],
-                    "segment_counts": {},
-                    "categories": [],
-                    "top_by_category": [],
-                    "cards": [],
-                    "median_avg_ticket": 0.0,
-                    "median_std_ticket": 0.0
-                }
-            })
-
-        # 1. 提取所有有效分類清單 (在篩選前提取)
-        all_categories = sorted([str(c) for c in df_merchants['category'].unique() if pd.notna(c) and str(c).strip() != '' and str(c).strip() != 'nan']) if 'category' in df_merchants.columns else []
-
-        # 保障 segment 欄位依「最近六個月 (180d)」與最新命名即時對齊
-        if '180d_frequency' in df_merchants.columns and 'life_m_rank' in df_merchants.columns:
-            def _calc_live_segment(row):
-                is_high_val = float(pd.to_numeric(row.get('life_m_rank', 0), errors='coerce') or 0.0) >= 0.8
-                is_act = float(pd.to_numeric(row.get('180d_frequency', 0), errors='coerce') or 0.0) > 0
-                rank_180d = float(pd.to_numeric(row.get('180d_m_rank', 0), errors='coerce') or 0.0)
-                if is_high_val and is_act:
-                    return "核心商家 (Core)"
-                elif is_high_val and not is_act:
-                    return "流失高價值 (Churned)"
-                elif not is_high_val and is_act and rank_180d >= 0.8:
-                    return "潛力商家 (Rising)"
-                elif is_act:
-                    return "一般活躍 (Active)"
-                else:
-                    return "沉睡 (Dormant)"
-            df_merchants['segment'] = df_merchants.apply(_calc_live_segment, axis=1)
-        elif 'segment' in df_merchants.columns:
-            df_merchants['segment'] = df_merchants['segment'].replace({
-                '潛力新星 (Rising)': '潛力商家 (Rising)',
-                '流失商家 (Churned)': '流失高價值 (Churned)',
-            })
-
-        m_col = f"{prefix}monetary" if f"{prefix}monetary" in df_merchants.columns else "life_monetary"
-        f_col = f"{prefix}frequency" if f"{prefix}frequency" in df_merchants.columns else "life_frequency"
-        r_col = f"{prefix}recency_days" if f"{prefix}recency_days" in df_merchants.columns else "life_recency_days"
-
-        # 2. 計算各商家的單筆交易明細統計 (平均客單價 μ, 樣本標準差 σ, 變異係數 CV)
-        merchant_stats: Dict[str, Dict[str, float]] = {}
-        try:
-            df_tx = _extract_dataset_from_query(time_window=window)
-            if not df_tx.empty and 'payment_amount' in df_tx.columns:
-                m_field = 'normalized_merchant' if 'normalized_merchant' in df_tx.columns else 'merchant_display'
-                if m_field in df_tx.columns:
-                    df_tx_clean = cast(pd.DataFrame, df_tx[df_tx[m_field].notna() & (df_tx[m_field] != '')].copy())
-                    amount_series = pd.to_numeric(df_tx_clean['payment_amount'], errors='coerce')
-                    if isinstance(amount_series, pd.Series):
-                        df_tx_clean['payment_amount'] = amount_series.fillna(0.0)
-                    else:
-                        df_tx_clean['payment_amount'] = pd.Series(amount_series).fillna(0.0)
-
-                    for m_name, group in df_tx_clean.groupby(m_field):
-                        group_df = cast(pd.DataFrame, group)
-                        pmt_val = pd.to_numeric(group_df['payment_amount'], errors='coerce')
-                        pmt_series = pmt_val.dropna() if isinstance(pmt_val, pd.Series) else pd.Series(pmt_val).dropna()
-                        cnt = len(pmt_series)
-                        mean_amt = float(cast(Any, pmt_series.mean())) if cnt > 0 else 0.0
-                        std_amt = float(cast(Any, pmt_series.std(ddof=1))) if cnt >= 2 else 0.0
-                        if pd.isna(std_amt):
-                            std_amt = 0.0
-                        cv_amt = round(std_amt / mean_amt, 3) if mean_amt > 0 else 0.0
-                        merchant_stats[str(m_name).strip()] = {
-                            'avg_ticket': round(mean_amt, 2),
-                            'std_ticket': round(std_amt, 2),
-                            'cv': cv_amt,
-                            'count': float(cnt)
-                        }
-        except Exception as stat_err:
-            logger.warning(f"⚠️ 計算單筆標準差統計失敗: {stat_err}")
-
-        # 3. 計算各生活消費領域 Top 3 商家排行 (依 M 累積金額降冪)
-        top_by_category = []
-        if 'category' in df_merchants.columns and m_col in df_merchants.columns:
-            df_calc = df_merchants.copy()
-            df_calc[m_col] = cast(pd.Series, pd.to_numeric(df_calc[m_col], errors='coerce')).fillna(0.0)
-            
-            valid_cats = cast(pd.DataFrame, df_calc[
-                df_calc['category'].notna() & 
-                (df_calc['category'] != '') & 
-                (df_calc['category'] != '未分類') & 
-                (df_calc['category'] != 'nan') &
-                (df_calc[m_col] > 0)
-            ])
-
-            # 若前端指定特定類別，則僅計算該類別 Top 3
-            if category and category != 'all':
-                valid_cats = cast(pd.DataFrame, valid_cats[valid_cats['category'] == category])
-
-            for cat_name, group in valid_cats.groupby('category'):
-                group_df = cast(pd.DataFrame, group)
-                top_3 = cast(pd.DataFrame, group_df.sort_values(by=m_col, ascending=False)).head(3)
-                for rank, (_, row) in enumerate(top_3.iterrows(), start=1):
-                    top_by_category.append({
-                        "category": str(cat_name),
-                        "rank": rank,
-                        "name": str(row.get('normalized_merchant', '')),
-                        "sub_category": str(row.get('sub_category', '') if pd.notna(row.get('sub_category')) and str(row.get('sub_category')) != 'nan' else ''),
-                        "monetary": float(pd.to_numeric(row.get(m_col, 0), errors='coerce') or 0.0),
-                        "frequency": int(pd.to_numeric(row.get(f_col, 0), errors='coerce') or 0),
-                        "recency": int(pd.to_numeric(row.get(r_col, 9999), errors='coerce') or 9999),
-                        "segment": str(row.get('segment', '一般活躍 (Active)'))
-                    })
-
-        # 4. 構建全量有效商家清單，以計算不隨分類篩選變動之「全類別中位數 (Global Medians)」
-        if m_col in df_merchants.columns:
-            df_merchants_sorted = cast(pd.DataFrame, df_merchants.sort_values(by=m_col, ascending=False))
-        else:
-            df_merchants_sorted = df_merchants.copy()
-
-        all_merchants_processed = []
-        for _, row in df_merchants_sorted.iterrows():
-            name_str = str(row.get('normalized_merchant', '')).strip()
-            m_val = float(pd.to_numeric(row.get(m_col, 0), errors='coerce') or 0.0)
-            f_val = int(pd.to_numeric(row.get(f_col, 0), errors='coerce') or 0)
-            r_val = int(pd.to_numeric(row.get(r_col, 9999), errors='coerce') or 9999)
-
-            stats = merchant_stats.get(name_str)
-            if stats:
-                avg_ticket = stats['avg_ticket']
-                std_ticket = stats['std_ticket']
-                cv_val = stats['cv']
-            else:
-                avg_ticket = round(m_val / f_val, 2) if f_val > 0 else 0.0
-                std_ticket = 0.0
-                cv_val = 0.0
-
-            all_merchants_processed.append({
-                "name": name_str,
-                "recency": r_val,
-                "frequency": f_val,
-                "monetary": m_val,
-                "avg_ticket": avg_ticket,
-                "std_ticket": std_ticket,
-                "cv": cv_val,
-                "segment": str(row.get('segment', '一般活躍 (Active)')),
-                "category": str(row.get('category', '未分類')),
-                "sub_category": str(row.get('sub_category', '') if pd.notna(row.get('sub_category')) and str(row.get('sub_category')) != 'nan' else '')
-            })
-
-        # 計算全類別（Global）固定的客單價與標準差中位數
-        global_avg_list = [m['avg_ticket'] for m in all_merchants_processed if m['avg_ticket'] > 0]
-        global_std_list = [m['std_ticket'] for m in all_merchants_processed if m['std_ticket'] > 0]
-        global_median_avg = float(pd.Series(global_avg_list).median()) if global_avg_list else 183.0
-        global_median_std = float(pd.Series(global_std_list).median()) if global_std_list else 73.0
-        if pd.isna(global_median_avg): global_median_avg = 183.0
-        if pd.isna(global_median_std): global_median_std = 73.0
-
-        # 5. 類別篩選 (若有傳入特定 category，則篩選子集；若為 all 則取全量)
-        if category and category != 'all':
-            merchants_filtered = [m for m in all_merchants_processed if m['category'] == category]
-            cur_avg_list = [m['avg_ticket'] for m in merchants_filtered if m['avg_ticket'] > 0]
-            cur_std_list = [m['std_ticket'] for m in merchants_filtered if m['std_ticket'] > 0]
-            cur_median_avg = float(pd.Series(cur_avg_list).median()) if cur_avg_list else global_median_avg
-            cur_median_std = float(pd.Series(cur_std_list).median()) if cur_std_list else global_median_std
-            if pd.isna(cur_median_avg): cur_median_avg = global_median_avg
-            if pd.isna(cur_median_std): cur_median_std = global_median_std
-            merchants_list = merchants_filtered[:limit]
-            df_filtered = cast(pd.DataFrame, df_merchants[df_merchants['category'] == category]) if 'category' in df_merchants.columns else df_merchants
-        else:
-            cur_median_avg = global_median_avg
-            cur_median_std = global_median_std
-            merchants_list = all_merchants_processed[:limit]
-            df_filtered = df_merchants
-
-        # 標註波動度象限分群（依當前類別之中位數基準分割）
-        for m in merchants_list:
-            mu = m['avg_ticket']
-            sigma = m['std_ticket']
-            if mu >= cur_median_avg and sigma < cur_median_std:
-                vol_seg = "固定大額型 (Fixed High-Value)"
-            elif mu >= cur_median_avg and sigma >= cur_median_std:
-                vol_seg = "大額偶發型 (Spike Big-Ticket)"
-            elif mu < cur_median_avg and sigma < cur_median_std:
-                vol_seg = "微額日常型 (Micro-Routine)"
-            else:
-                vol_seg = "長尾混合型 (Elastic Long-Tail)"
-            m['volatility_segment'] = vol_seg
-
-        # 客群分佈統計 (基於篩選後的商家資料)
-        segment_counts = df_filtered['segment'].value_counts().to_dict() if 'segment' in df_filtered.columns else {}
-
-
-        # 5. 卡片資料與 DEMO 模式釘選排序 (Cube, Uniopen, Unicard 置頂)
-        cards_list = []
-        if not df_cards.empty:
-            for _, row in df_cards.iterrows():
-                card_name = str(row.get('card_type', ''))
-                cards_list.append({
-                    "bank_name": str(row.get('bank_name', '')),
-                    "card_type": card_name,
-                    "status": str(row.get('status', 'active')),
-                    "segment": str(row.get('segment', '')),
-                    "recency": int(pd.to_numeric(row.get(r_col, row.get('life_recency_days', 9999)), errors='coerce') or 9999),
-                    "frequency": int(pd.to_numeric(row.get(f_col, row.get('life_frequency', 0)), errors='coerce') or 0),
-                    "monetary": float(pd.to_numeric(row.get(m_col, row.get('life_monetary', 0)), errors='coerce') or 0.0),
-                    "avg_ticket": float(pd.to_numeric(row.get('avg_ticket', 0), errors='coerce') or 0.0)
-                })
-
-            def _card_sort_priority(item: Dict[str, Any]):
-                cn = str(item.get('card_type', '')).lower()
-                if 'cube' in cn:
-                    prio = 1
-                elif 'uniopen' in cn:
-                    prio = 2
-                elif 'unicard' in cn:
-                    prio = 3
-                else:
-                    prio = 99
-                return (prio, -float(item.get('monetary', 0.0)))
-
-            cards_list.sort(key=_card_sort_priority)
-            for item in cards_list:
-                cn = str(item.get('card_type', '')).lower()
-                item['is_demo_pinned'] = any(kw in cn for kw in ['cube', 'uniopen', 'unicard'])
-
-        return JSONResponse(content={
-            "success": True,
-            "data": {
-                "merchants": merchants_list,
-                "segment_counts": segment_counts,
-                "categories": all_categories,
-                "top_by_category": top_by_category,
-                "cards": cards_list,
-                "median_avg_ticket": round(cur_median_avg, 2),
-                "median_std_ticket": round(cur_median_std, 2),
-                "current_median_avg_ticket": round(cur_median_avg, 2),
-                "current_median_std_ticket": round(cur_median_std, 2),
-                "global_median_avg_ticket": round(global_median_avg, 2),
-                "global_median_std_ticket": round(global_median_std, 2)
-            }
-        })
-
+        data = get_rfm_dashboard_data(
+            window=window,
+            category=category,
+            limit=limit,
+            df_tx_provider=lambda: _extract_dataset_from_query(time_window=window)
+        )
+        return JSONResponse(content={"success": True, "data": data})
     except Exception as e:
         logger.error(f"❌ 查詢 RFM 圖表數據失敗: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
