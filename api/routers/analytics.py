@@ -5,7 +5,6 @@ RFM 分析、回饋金計算 (直連 C# 瀑布式引擎)、交易 SQL 篩選導�
 import os
 import re
 import json
-import sqlite3
 import logging
 from typing import Optional, List, Dict, Any, Union
 import httpx
@@ -14,17 +13,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse, Response
 
 import const
-from analytics.api import run_analytics
+from analytics.api import run_analytics, get_rewards_summary_mart_data
 from analytics.analytics_base import prepare_analytics_dataset
 from analytics.common.transaction_query import query_transactions_modular
-from analytics.common import (
-    aggregate_monthly_by_category,
-    aggregate_monthly_by_card,
-    aggregate_monthly_by_payment,
-    aggregate_monthly_card_category,
-    generate_monthly_pivot,
-    generate_monthly_percentage_pivot
-)
+from analytics.common import build_monthly_trend_payload
 from analytics.sankeyflow import build_sankey_flow
 from analytics.rfm import get_rfm_dashboard_data
 from api.utils import run_task_and_stream
@@ -274,66 +266,8 @@ async def get_monthly_trend(
             end_date=end_date, location=location,
             categories=categories, sub_categories=sub_categories
         )
-        if df.empty:
-            return JSONResponse(content={
-                "success": True,
-                "data": {
-                    "months": [],
-                    "categories": [],
-                    "series": [],
-                    "category_summary": [],
-                    "card_summary": [],
-                    "summary": {
-                        "total_amount": 0.0,
-                        "active_months": 0,
-                        "card_count": 0,
-                        "payment_count": 0
-                    }
-                }
-            })
-
-        df_cat = aggregate_monthly_by_category(df)
-        df_card = aggregate_monthly_by_card(df)
-        pivot_cat = generate_monthly_pivot(df, column_dim='category')
-
-        months = sorted(list(set(df_cat['month'])))
-        all_categories = sorted(list(set(df_cat['category'])))
-        
-        # 建立 ECharts 堆疊面積/折線圖 series
-        series = []
-        for cat in all_categories:
-            sub = df_cat[df_cat['category'] == cat].set_index('month')['total_amount'].to_dict()
-            data_points = [sub.get(m, 0.0) for m in months]
-            series.append({
-                "name": cat,
-                "type": "line",
-                "stack": "Total",
-                "areaStyle": {},
-                "emphasis": {"focus": "series"},
-                "data": data_points
-            })
-
-        total_amount = round(float(df['payment_amount'].sum()), 2)
-        active_months = len(months)
-        card_count = df['card_type'].nunique() if 'card_type' in df.columns else 0
-        payment_count = df['payment_process'].nunique() if 'payment_process' in df.columns else 0
-
-        return JSONResponse(content={
-            "success": True,
-            "data": {
-                "months": months,
-                "categories": all_categories,
-                "series": series,
-                "category_summary": df_cat.to_dict(orient='records'),
-                "card_summary": df_card.to_dict(orient='records'),
-                "summary": {
-                    "total_amount": total_amount,
-                    "active_months": active_months,
-                    "card_count": card_count,
-                    "payment_count": payment_count
-                }
-            }
-        })
+        data = build_monthly_trend_payload(df)
+        return JSONResponse(content={"success": True, "data": data})
     except Exception as e:
         logger.error(f"❌ 查詢月度趨勢失敗: {e}")
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
@@ -410,62 +344,8 @@ def _safe_json_response(payload: Any) -> Response:
 async def get_rewards_summary_data():
     """查詢 C# 回饋金月度彙總與回饋池上限使用率 (Data Mart)"""
     try:
-        db_path = const.ANALYSIS_DB_PATH
-        monthly_summary: List[Dict] = []
-        pool_utilization: List[Dict] = []
-
-        # 每次都嘗試同步 Data Mart (確保資料是最新計算結果)
-        from analytics.api import sync_rewards_data_mart
-        sync_ok = sync_rewards_data_mart()
-        logger.info(f"🔄 [rewards-summary] Data Mart 同步結果: {sync_ok}")
-
-        if os.path.exists(db_path):
-            with sqlite3.connect(db_path) as conn:
-                try:
-                    df_m = pd.read_sql_query(
-                        "SELECT * FROM rewards_monthly_summary ORDER BY month DESC", conn
-                    )
-                    for col in df_m.select_dtypes(include='number').columns:
-                        df_m[col] = df_m[col].replace(
-                            [float('inf'), float('-inf')], 0.0
-                        ).fillna(0.0)
-                    for col in df_m.select_dtypes(include='object').columns:
-                        df_m[col] = df_m[col].fillna('')
-                    logger.info(f"✅ rewards_monthly_summary: {len(df_m)} 筆")
-                    monthly_summary = df_m.to_dict(orient='records')
-                except Exception as e:
-                    logger.warning(f"⚠️ 讀取 rewards_monthly_summary 失敗: {e}")
-
-                try:
-                    df_p = pd.read_sql_query(
-                        "SELECT * FROM rewards_pool_utilization ORDER BY month DESC", conn
-                    )
-                    for col in df_p.select_dtypes(include='number').columns:
-                        df_p[col] = df_p[col].replace(
-                            [float('inf'), float('-inf')], 0.0
-                        ).fillna(0.0)
-                    if 'is_capped' in df_p.columns:
-                        df_p['is_capped'] = df_p['is_capped'].apply(
-                            lambda x: bool(str(x).strip().upper() in ('TRUE', '1', 'YES'))
-                            if pd.notna(x) else False
-                        )
-                    for col in df_p.select_dtypes(include='object').columns:
-                        df_p[col] = df_p[col].fillna('')
-                    logger.info(f"✅ rewards_pool_utilization: {len(df_p)} 筆")
-                    pool_utilization = df_p.to_dict(orient='records')
-                except Exception as e:
-                    logger.warning(f"⚠️ 讀取 rewards_pool_utilization 失敗: {e}")
-        else:
-            logger.warning(f"⚠️ 找不到 TransactionsAnalysis.db: {db_path}")
-
-        return _safe_json_response({
-            "success": True,
-            "data": {
-                "monthly_summary": monthly_summary,
-                "pool_utilization": pool_utilization
-            }
-        })
-
+        data = get_rewards_summary_mart_data()
+        return _safe_json_response({"success": True, "data": data})
     except Exception as e:
         logger.error(f"❌ 查詢回饋彙總數據失敗: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})

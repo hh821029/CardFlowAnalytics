@@ -187,6 +187,16 @@ def test_merchant_ticket_stats(sample_tx_df):
     assert stats["麥當勞"]["count"] == 1.0
 
 
+def test_build_monthly_trend_payload(sample_tx_df):
+    from analytics.common import build_monthly_trend_payload
+    payload = build_monthly_trend_payload(sample_tx_df)
+    assert "months" in payload
+    assert "series" in payload
+    assert len(payload["series"]) > 0
+    assert payload["summary"]["total_amount"] == 2800.0
+
+
+
 def test_time_window_resolution():
     import const
     anchor = "2026-08-26"

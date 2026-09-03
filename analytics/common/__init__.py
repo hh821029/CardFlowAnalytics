@@ -19,6 +19,7 @@ from .pivot_table import (
     generate_monthly_percentage_pivot,
     generate_cross_dimension_pivot
 )
+from .chart import build_monthly_trend_payload
 
 __all__ = [
     'EXCLUDE_TYPES',
@@ -34,5 +35,7 @@ __all__ = [
     'aggregate_monthly_card_category',
     'generate_monthly_pivot',
     'generate_monthly_percentage_pivot',
-    'generate_cross_dimension_pivot'
+    'generate_cross_dimension_pivot',
+    'build_monthly_trend_payload'
 ]
+

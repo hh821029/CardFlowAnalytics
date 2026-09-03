@@ -265,4 +265,61 @@ def sync_rewards_data_mart(detailed_csv_path: Optional[str] = None, db_path: str
         return False
 
 
-__all__ = ['run_analytics', 'sync_rewards_data_mart']
+def get_rewards_summary_mart_data(db_path: str = const.ANALYSIS_DB_PATH) -> Dict[str, Any]:
+    """
+    從 Data Mart (TransactionsAnalysis.db) 讀取回饋彙總與回饋池上限使用率，並執行數值防護清洗
+    """
+    # 每次都嘗試同步 Data Mart (確保資料是最新計算結果)
+    sync_ok = sync_rewards_data_mart(db_path=db_path)
+    logger.info(f"🔄 [rewards-summary] Data Mart 同步結果: {sync_ok}")
+
+    monthly_summary: List[Dict[str, Any]] = []
+    pool_utilization: List[Dict[str, Any]] = []
+
+    if os.path.exists(db_path):
+        with sqlite3.connect(db_path) as conn:
+            try:
+                df_m = pd.read_sql_query(
+                    "SELECT * FROM rewards_monthly_summary ORDER BY month DESC", conn
+                )
+                for col in df_m.select_dtypes(include='number').columns:
+                    df_m[col] = df_m[col].replace(
+                        [float('inf'), float('-inf')], 0.0
+                    ).fillna(0.0)
+                for col in df_m.select_dtypes(include='object').columns:
+                    df_m[col] = df_m[col].fillna('')
+                logger.info(f"✅ rewards_monthly_summary: {len(df_m)} 筆")
+                monthly_summary = cast(List[Dict[str, Any]], df_m.to_dict(orient='records'))
+            except Exception as e:
+                logger.warning(f"⚠️ 讀取 rewards_monthly_summary 失敗: {e}")
+
+            try:
+                df_p = pd.read_sql_query(
+                    "SELECT * FROM rewards_pool_utilization ORDER BY month DESC", conn
+                )
+                for col in df_p.select_dtypes(include='number').columns:
+                    df_p[col] = df_p[col].replace(
+                        [float('inf'), float('-inf')], 0.0
+                    ).fillna(0.0)
+                if 'is_capped' in df_p.columns:
+                    df_p['is_capped'] = df_p['is_capped'].apply(
+                        lambda x: bool(str(x).strip().upper() in ('TRUE', '1', 'YES'))
+                        if pd.notna(x) else False
+                    )
+                for col in df_p.select_dtypes(include='object').columns:
+                    df_p[col] = df_p[col].fillna('')
+                logger.info(f"✅ rewards_pool_utilization: {len(df_p)} 筆")
+                pool_utilization = cast(List[Dict[str, Any]], df_p.to_dict(orient='records'))
+            except Exception as e:
+                logger.warning(f"⚠️ 讀取 rewards_pool_utilization 失敗: {e}")
+    else:
+        logger.warning(f"⚠️ 找不到 TransactionsAnalysis.db: {db_path}")
+
+    return {
+        "monthly_summary": monthly_summary,
+        "pool_utilization": pool_utilization
+    }
+
+
+__all__ = ['run_analytics', 'sync_rewards_data_mart', 'get_rewards_summary_mart_data']
+
