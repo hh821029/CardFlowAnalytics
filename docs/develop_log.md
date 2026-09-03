@@ -1,4 +1,18 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-09-04**
+   * **ETL 程式碼整理3**：
+     * 整理模組之間的架構跟引用關係，並整理成便於未來理解與撰寫測試資料的流程。
+   * **Analytics API 模組化重構**：
+     * 將時間相依圖表與金流桑基圖資料查詢邏輯從 router 移至 `analytics.common.chart` 模組。
+     * 新增 Data Mart 專用查詢工具，統一 `analytics.api.rewards_service` 與 router 的資料來源。
+
+* **2026-09-03**：
+   * 前端修正
+
+* **2026-09-01**：
+   * 視覺化圖表展示調優、DEMO 脫敏分組與商家消費波動統計分析
+
+
 * **2026-08-27**
    * **RFM 視覺化依類別篩選與各領域 Top 3 商家排行**：
      - 於 [analytics_dashboard.html](file:///d:/記帳用EXCEL/MyCreditCardProjectPro/web/analytics_dashboard.html) 新增 **消費類別即時篩選下拉選單**，切換時連動縮減氣泡圖點數並更新該類別之五大客群統計數值。

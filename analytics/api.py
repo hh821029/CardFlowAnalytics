@@ -7,7 +7,7 @@ import os
 import sqlite3
 import logging
 import pandas as pd
-from typing import Optional, List, Union, Dict, Any, cast
+from typing import Optional, List, Union, Dict, Any, cast, Tuple
 
 import const
 from analytics import (
@@ -221,6 +221,44 @@ def sync_rewards_data_mart(detailed_csv_path: Optional[str] = None, db_path: str
         monthly_summary = monthly_summary.replace([float('inf'), float('-inf')], 0.0)
         monthly_summary = monthly_summary.where(pd.notna(monthly_summary), other=0.0)
 
+        def _resolve_reward_unit(rt_str: Any) -> str:
+            if not rt_str or pd.isna(rt_str):
+                return '元'
+            s = str(rt_str).strip().lower()
+            if 'tree' in s or '小樹' in s:
+                return '小樹點'
+            if 'line' in s:
+                return 'LINE POINTS'
+            if 'openpoint' in s:
+                return 'OPENPOINT'
+            if 'esun' in s or 'e point' in s or s in ('e_points', 'e_point', 'esun_points', 'esun_points_round', 'esun_points_floor'):
+                return '玉山 e point'
+            if 'hami' in s:
+                return 'Hami Point'
+            if '紅利' in s:
+                return '紅利點數'
+            return '元'
+
+        # 建立各卡回饋單位對應表 (優先取有實質回饋的 predominant reward_type)
+        df_valid_reward = df[
+            df['reward_type'].notna() &
+            (df['reward_type'].astype(str).str.strip() != '') &
+            (df['reward_type'].astype(str).str.lower() != 'nan')
+        ]
+        card_reward_units: Dict[Tuple[str, str], str] = {}
+        if not df_valid_reward.empty:
+            reward_pos = df_valid_reward[df_valid_reward['calculated_reward'] > 0]
+            target_df = reward_pos if not reward_pos.empty else df_valid_reward
+            for (bank, card), grp in target_df.groupby(['bank_name', 'card_type']):
+                mode_type = grp['reward_type'].mode()
+                if not mode_type.empty:
+                    card_reward_units[(str(bank), str(card))] = _resolve_reward_unit(mode_type.iloc[0])
+
+        monthly_summary['reward_unit'] = monthly_summary.apply(
+            lambda r: card_reward_units.get((str(r.get('bank_name', '')), str(r.get('card_type', ''))), '元'),
+            axis=1
+        )
+
         # 2. rewards_pool_utilization 彙總
         pool_cols = ['month', 'bank_name', 'card_type', 'pool_id', 'pool_name']
         valid_pool_cols = [c for c in pool_cols if c in df.columns]
@@ -232,7 +270,7 @@ def sync_rewards_data_mart(detailed_csv_path: Optional[str] = None, db_path: str
                         val = pd.to_numeric(v, errors='coerce')
                         if pd.notna(val):
                             return val
-                return None
+                    return None
             if pd.notna(x):
                 val = pd.to_numeric(x, errors='coerce')
                 return val if pd.notna(val) else None
@@ -249,6 +287,22 @@ def sync_rewards_data_mart(detailed_csv_path: Optional[str] = None, db_path: str
         pool_util['total_reward'] = pool_util['total_reward'].round(2)
         if 'cap_amount' in pool_util.columns:
             pool_util['cap_amount'] = cast(pd.Series, pd.to_numeric(pool_util['cap_amount'], errors='coerce')).fillna(0.0)
+
+        # 建立回饋池單位對應
+        pool_reward_units: Dict[Tuple[str, str, str], str] = {}
+        if not df_valid_reward.empty:
+            for (bank, card, pool), grp in df_valid_reward.groupby(['bank_name', 'card_type', 'pool_name']):
+                mode_type = grp['reward_type'].mode()
+                if not mode_type.empty:
+                    pool_reward_units[(str(bank), str(card), str(pool))] = _resolve_reward_unit(mode_type.iloc[0])
+
+        pool_util['reward_unit'] = pool_util.apply(
+            lambda r: pool_reward_units.get(
+                (str(r.get('bank_name', '')), str(r.get('card_type', '')), str(r.get('pool_name', ''))),
+                card_reward_units.get((str(r.get('bank_name', '')), str(r.get('card_type', ''))), '元')
+            ),
+            axis=1
+        )
         # 清除任何 NaN/inf，避免 JSON 序列化失敗
         pool_util = pool_util.replace([float('inf'), float('-inf')], 0.0)
         pool_util = pool_util.where(pd.notna(pool_util), other=None)

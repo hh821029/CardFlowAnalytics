@@ -241,7 +241,7 @@
                                 <th>發卡行</th>
                                 <th>信用卡名稱</th>
                                 <th>當月總消費</th>
-                                <th>實質回饋金</th>
+                                <th>實質回饋</th>
                                 <th>實質回饋率</th>
                             </tr>
                         </thead>
@@ -651,6 +651,27 @@
 
                 const { monthly_summary, pool_utilization } = result.data;
 
+                // ── 格式化回饋數值與專屬單位 ─────────────────────
+                function formatRewardWithUnit(amount, unit, cardType) {
+                    const num = Number(amount || 0);
+                    let u = (unit || '').trim();
+                    if (!u) {
+                        const c = (cardType || '').toLowerCase();
+                        if (c.includes('cube')) u = '小樹點';
+                        else if (c.includes('unicard')) u = '玉山 e point';
+                        else if (c.includes('uniopen') || c.includes('統一時代')) u = 'OPENPOINT';
+                        else if (c.includes('daway')) u = 'LINE POINTS';
+                        else if (c.includes('love')) u = '紅利點數';
+                        else u = '元';
+                    }
+
+                    const formattedNum = (u === 'OPENPOINT')
+                        ? num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+                        : num.toLocaleString();
+
+                    return `${formattedNum} ${u}`;
+                }
+
                 // ── 月度回饋表格 ─────────────────────────────────
                 if (monthlyTbody) {
                     if (monthly_summary && monthly_summary.length > 0) {
@@ -660,7 +681,7 @@
                                 <td>${r.bank_name || ''}</td>
                                 <td>${r.card_type || ''}</td>
                                 <td>NT$ ${Number(r.total_spending || 0).toLocaleString()}</td>
-                                <td style="color: #34d399; font-weight: 600;">NT$ ${Number(r.total_reward || 0).toLocaleString()}</td>
+                                <td style="color: #34d399; font-weight: 600;">${formatRewardWithUnit(r.total_reward, r.reward_unit, r.card_type)}</td>
                                 <td><span class="quick-badge" style="background: rgba(56,189,248,0.15); color: #38bdf8;">${Number(r.effective_rate || 0).toFixed(2)}%</span></td>
                             </tr>
                         `).join('');
@@ -678,8 +699,8 @@
                                 <td>${p.bank_name || ''}</td>
                                 <td>${p.card_type || ''}</td>
                                 <td>${p.pool_name || p.pool_id || ''}</td>
-                                <td style="color: #34d399;">NT$ ${Number(p.total_reward || 0).toLocaleString()}</td>
-                                <td>${(p.cap_amount && Number(p.cap_amount) > 0) ? 'NT$ ' + Number(p.cap_amount).toLocaleString() : '無上限'}</td>
+                                <td style="color: #34d399;">${formatRewardWithUnit(p.total_reward, p.reward_unit, p.card_type)}</td>
+                                <td>${(p.cap_amount && Number(p.cap_amount) > 0) ? formatRewardWithUnit(p.cap_amount, p.reward_unit, p.card_type) : '無上限'}</td>
                                 <td><span class="quick-badge" style="background: ${p.is_capped ? 'rgba(248,113,113,0.15)' : 'rgba(52,211,153,0.15)'}; color: ${p.is_capped ? '#f87171' : '#34d399'};">${p.is_capped ? '🔒 已達上限' : '✅ 正常'}</span></td>
                             </tr>
                         `).join('');
