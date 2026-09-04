@@ -29,7 +29,8 @@
             <a href="task_console.html">⚡ 任務控制中心</a> |
             <a href="cards_manager.html">💳 卡片管理</a> |
             <a href="time_depend_plot.html">📈 時間趨勢分析</a> |
-            <span class="active">👑 卡片回饋與客群</span>
+            <span class="active">👑 卡片回饋與客群</span> |
+            <a href="ranking.html">🏆 核心排行與資產分群</a>
         </div>
 
         <!-- 頁籤切換元件 -->
@@ -170,58 +171,104 @@
                 <div id="rfmBubbleChart" style="width: 100%; height: 480px;"></div>
             </div>
 
-            <!-- 各生活消費領域 Top 3 核心商家排行表 -->
+            <!-- 📱 金流維度消費波動氣泡圖 (Sankey 流向探索) -->
             <div class="chart-box" style="margin-bottom: 20px;">
-                <div class="chart-header">
-                    <div class="chart-title">🏆 各生活消費領域 Top 3 核心主力商家 (依累積消費金額 M 排名)</div>
+                <!-- 第一行：標題靠左，維度與顯示筆數靠右 -->
+                <div class="chart-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 8px;">
+                    <div>
+                        <div class="chart-title">📱 金流維度消費波動氣泡圖 (Sankey 流向探索)</div>
+                        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
+                            依「Sankey 流向維度」分組聚合；觀察不同支付管道、消費領域與卡片資產的客單價 (μ) 與標準差 (σ) 分類取向
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; color: var(--accent-blue); font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                        <span id="dimBubbleFilterLabel">目前維度：行動支付 ✕ 消費類別</span> ｜
+                        <span id="dimBubbleDisplayedCount" style="color: #38bdf8; font-weight: 600;">顯示 - 分組</span>
+                    </div>
                 </div>
-                <div class="table-container">
-                    <table class="dashboard-table" id="topCategoryTable">
-                        <thead>
-                            <tr>
-                                <th>消費類別</th>
-                                <th style="width: 70px; text-align: center;">排名</th>
-                                <th>商家名稱</th>
-                                <th>次分類 / 備註</th>
-                                <th>累積消費金額 (M)</th>
-                                <th>交易次數 (F)</th>
-                                <th>客群分群</th>
-                            </tr>
-                        </thead>
-                        <tbody id="topCategoryTbody">
-                            <tr>
-                                <td colspan="7" style="text-align: center; color: #64748b;">暫無排名數據</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
 
-            <!-- 卡片價值與使用狀態表 -->
-            <div class="chart-box">
-                <div class="chart-header">
-                    <div class="chart-title">💳 信用卡資產價值分群 (示範卡片置頂)</div>
+                <!-- 工具與篩選列 -->
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                    <label style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">🔀 觀察維度：</label>
+                    <select id="dimGroupModeSelect" onchange="onDimGroupModeChange()"
+                        style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(56, 189, 248, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none; font-weight: 500;">
+                        <option value="payment_category" selected>🔀 行動支付 ✕ 消費類別 (通路場景)</option>
+                        <option value="card_category">💳 信用卡 ✕ 消費類別 (卡片領域配比)</option>
+                        <option value="card_payment">💳 信用卡 ✕ 行動支付 (卡片錢包偏好)</option>
+                        <option value="payment_only">📱 純依行動支付 (通路宏觀)</option>
+                        <option value="category_only">🏷️ 純依消費類別 (領域宏觀)</option>
+                        <option value="card_only">💳 純依信用卡 (卡片資產宏觀)</option>
+                    </select>
+
+                    <label id="lblDimPayment" style="font-size: 13px; color: var(--text-secondary);">📱 支付管道：</label>
+                    <select id="dimPaymentSelect" onchange="onDimFilterChange()"
+                        style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;">
+                        <option value="all">🌐 全部支付</option>
+                    </select>
+
+                    <label id="lblDimCategory" style="font-size: 13px; color: var(--text-secondary);">🏷️ 消費類別：</label>
+                    <select id="dimCategorySelect" onchange="onDimFilterChange()"
+                        style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;">
+                        <option value="all">🌐 全部類別</option>
+                    </select>
+
+                    <label id="lblDimCard" style="font-size: 13px; color: var(--text-secondary); display: none;">💳 信用卡別：</label>
+                    <select id="dimCardSelect" onchange="onDimFilterChange()"
+                        style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none; display: none;">
+                        <option value="all">🌐 全部卡片</option>
+                    </select>
+
+                    <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px;"
+                        onclick="loadDimVolatilityData()">🔄 讀取</button>
+                    <button class="btn-secondary"
+                        style="font-size: 12px; padding: 6px 12px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;"
+                        onclick="resetDimFilters()">✨ 全部重設/全選</button>
                 </div>
-                <div class="table-container">
-                    <table class="dashboard-table" id="cardRfmTable">
-                        <thead>
-                            <tr>
-                                <th>發卡行</th>
-                                <th>卡片名稱</th>
-                                <th>持卡狀態</th>
-                                <th>價值分群</th>
-                                <th>交易次數</th>
-                                <th>累積金額</th>
-                                <th>平均客單價</th>
-                            </tr>
-                        </thead>
-                        <tbody id="cardRfmTbody">
-                            <tr>
-                                <td colspan="7" style="text-align: center; color: #64748b;">暫無卡片 RFM 數據</td>
-                            </tr>
-                        </tbody>
-                    </table>
+
+                <!-- 波動型態切換列 (參照原氣泡圖象限設計) -->
+                <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📊 消費波動型態象限（點擊按鈕切換顯示）</span>
+                        <span id="dimVolActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 4/4 種型態</span>
+                    </div>
+                    <div class="vol-row">
+                        <button class="vol-toggle-btn active" id="btnDimVolFixed" data-vol="固定大額"
+                            onclick="toggleDimVolSegment('固定大額')" style="--badge-color: #38bdf8;">
+                            <span class="vol-dot" style="background-color: #38bdf8;"></span>
+                            <strong>固定大額型 (藍)</strong>
+                            <span id="dimVolCountFixed" class="vol-count">(-)</span>
+                        </button>
+                        <button class="vol-toggle-btn active" id="btnDimVolSpike" data-vol="大額偶發"
+                            onclick="toggleDimVolSegment('大額偶發')" style="--badge-color: #f87171;">
+                            <span class="vol-dot" style="background-color: #f87171;"></span>
+                            <strong>大額偶發型 (紅)</strong>
+                            <span id="dimVolCountSpike" class="vol-count">(-)</span>
+                        </button>
+                        <button class="vol-toggle-btn active" id="btnDimVolMicro" data-vol="微額日常"
+                            onclick="toggleDimVolSegment('微額日常')" style="--badge-color: #34d399;">
+                            <span class="vol-dot" style="background-color: #34d399;"></span>
+                            <strong>微額日常型 (綠)</strong>
+                            <span id="dimVolCountMicro" class="vol-count">(-)</span>
+                        </button>
+                        <button class="vol-toggle-btn active" id="btnDimVolElastic" data-vol="長尾混合"
+                            onclick="toggleDimVolSegment('長尾混合')" style="--badge-color: #c084fc;">
+                            <span class="vol-dot" style="background-color: #c084fc;"></span>
+                            <strong>長尾混合型 (紫)</strong>
+                            <span id="dimVolCountElastic" class="vol-count">(-)</span>
+                        </button>
+                    </div>
                 </div>
+
+                <!-- X/Y 指標中位數說明 -->
+                <div id="dimBubbleMetricsInfo"
+                    style="font-size: 12px; color: #94a3b8; line-height: 1.6; margin-bottom: 8px;">
+                    (X: 平均客單價，目前中位數: <b id="lblDimCurAvgMed" style="color: #38bdf8;">NT$ -</b> [全域: <span
+                        id="lblDimGlobalAvgMed" style="color: #cbd5e1;">NT$ -</span>] ；
+                    Y: 單筆標準差，目前中位數: <b id="lblDimCurStdMed" style="color: #38bdf8;">NT$ -</b> [全域: <span
+                        id="lblDimGlobalStdMed" style="color: #cbd5e1;">NT$ -</span>] ；
+                    氣泡大小: 累積總額)
+                </div>
+                <div id="dimBubbleChart" style="width: 100%; height: 500px;"></div>
             </div>
         </div>
 
@@ -428,7 +475,9 @@
 
             if (tabId === 'rfm') {
                 loadRfmData();
+                loadDimVolatilityData();
                 if (rfmChartInst) setTimeout(() => rfmChartInst.resize(), 100);
+                if (dimChartInst) setTimeout(() => dimChartInst.resize(), 100);
             } else if (tabId === 'rewards') {
                 loadRewardsData();
             }
@@ -587,47 +636,266 @@
                 };
 
                 rfmChartInst.setOption(option);
-                window.addEventListener('resize', () => rfmChartInst.resize());
+                window.addEventListener('resize', () => {
+                    if (rfmChartInst) rfmChartInst.resize();
+                    if (dimChartInst) dimChartInst.resize();
+                });
 
                 // 根據目前篩選渲染氣泡資料
                 renderFilteredBubbleChart();
 
-                // 渲染 Top 排行表
-                const topTbody = document.getElementById('topCategoryTbody');
-                if (topTbody && top_by_category) {
-                    topTbody.innerHTML = top_by_category.map(item => `
-                        <tr>
-                            <td><span class="quick-badge" style="font-size:11px; padding:3px 8px;">🏷️ ${item.category}</span></td>
-                            <td style="text-align: center; font-weight: 700; font-size: 14px;">${item.rank}</td>
-                            <td><strong>${item.name}</strong></td>
-                            <td style="color: #94a3b8; font-size: 12px;">${item.sub_category || '-'}</td>
-                            <td style="color: #38bdf8; font-weight: 600;">NT$ ${Number(item.monetary || 0).toLocaleString()}</td>
-                            <td>${item.frequency || 0} 次</td>
-                            <td><span class="quick-badge" style="background: rgba(255,255,255,0.05); color: #e2e8f0; font-size: 11px;">${item.segment}</span></td>
-                        </tr>
-                    `).join('');
-                }
-
-                // 卡片表格
-                const cardTbody = document.getElementById('cardRfmTbody');
-                if (cards && cards.length > 0) {
-                    cardTbody.innerHTML = cards.map(c => {
-                        const pinnedBadge = c.is_demo_pinned ? '<span class="quick-badge" style="background: rgba(251,191,36,0.2); color: #fbbf24; margin-right: 6px; font-weight: 600;">⭐ 示範卡</span>' : '';
-                        return `
-                        <tr style="${c.is_demo_pinned ? 'background: rgba(56,189,248,0.06);' : ''}">
-                            <td>${c.bank_name || ''}</td>
-                            <td><strong>${c.card_type || ''}</strong></td>
-                            <td><span class="quick-badge" style="background: ${c.status === 'active' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)'}; color: ${c.status === 'active' ? '#34d399' : '#f87171'};">${c.status}</span></td>
-                            <td>${c.segment || ''}</td>
-                            <td>${c.frequency || 0}</td>
-                            <td>NT$ ${Number(c.monetary || 0).toLocaleString()}</td>
-                        </tr>
-                        `;
-                    }).join('');
-                }
-
             } catch (e) {
                 console.error("載入 RFM 數據失敗:", e);
+            }
+        }
+
+        // ── 金流維度消費波動氣泡圖 (Sankey 6 大流向維度) 邏輯 ───────────
+        let dimChartInst = null;
+        let allDimGroupsCache = [];
+        let dimCurMedianAvg = 0;
+        let dimCurMedianStd = 0;
+        let activeDimVolSegments = new Set(['固定大額', '大額偶發', '微額日常', '長尾混合']);
+
+        function toggleDimVolSegment(volKey) {
+            if (activeDimVolSegments.has(volKey)) {
+                activeDimVolSegments.delete(volKey);
+            } else {
+                activeDimVolSegments.add(volKey);
+            }
+            updateDimVolButtonStyles();
+            renderFilteredDimBubbleChart();
+        }
+
+        function resetDimFilters() {
+            activeDimVolSegments = new Set(['固定大額', '大額偶發', '微額日常', '長尾混合']);
+            const pSelect = document.getElementById('dimPaymentSelect');
+            const cSelect = document.getElementById('dimCategorySelect');
+            const cardSelect = document.getElementById('dimCardSelect');
+            if (pSelect) pSelect.value = 'all';
+            if (cSelect) cSelect.value = 'all';
+            if (cardSelect) cardSelect.value = 'all';
+            updateDimVolButtonStyles();
+            loadDimVolatilityData();
+        }
+
+        function updateDimVolButtonStyles() {
+            const btnMap = {
+                '固定大額': 'btnDimVolFixed',
+                '大額偶發': 'btnDimVolSpike',
+                '微額日常': 'btnDimVolMicro',
+                '長尾混合': 'btnDimVolElastic'
+            };
+            Object.entries(btnMap).forEach(([key, id]) => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    if (activeDimVolSegments.has(key)) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                }
+            });
+            const cntEl = document.getElementById('dimVolActiveCount');
+            if (cntEl) cntEl.textContent = `已選 ${activeDimVolSegments.size}/4 種型態`;
+        }
+
+        function onDimGroupModeChange() {
+            const modeSelect = document.getElementById('dimGroupModeSelect');
+            const mode = modeSelect ? modeSelect.value : 'payment_category';
+
+            // 動態控制篩選器顯示與隱藏
+            const pLbl = document.getElementById('lblDimPayment');
+            const pSel = document.getElementById('dimPaymentSelect');
+            const cLbl = document.getElementById('lblDimCategory');
+            const cSel = document.getElementById('dimCategorySelect');
+            const cardLbl = document.getElementById('lblDimCard');
+            const cardSel = document.getElementById('dimCardSelect');
+
+            const hasPayment = mode.includes('payment');
+            const hasCategory = mode.includes('category');
+            const hasCard = mode.includes('card');
+
+            if (pLbl && pSel) { pLbl.style.display = hasPayment ? '' : 'none'; pSel.style.display = hasPayment ? '' : 'none'; }
+            if (cLbl && cSel) { cLbl.style.display = hasCategory ? '' : 'none'; cSel.style.display = hasCategory ? '' : 'none'; }
+            if (cardLbl && cardSel) { cardLbl.style.display = hasCard ? '' : 'none'; cardSel.style.display = hasCard ? '' : 'none'; }
+
+            const labelEl = document.getElementById('dimBubbleFilterLabel');
+            if (labelEl && modeSelect) {
+                const optText = modeSelect.options[modeSelect.selectedIndex].text;
+                labelEl.textContent = `目前維度：${optText.replace(/^[^\s]+\s*/, '')}`;
+            }
+
+            loadDimVolatilityData();
+        }
+
+        function onDimFilterChange() {
+            loadDimVolatilityData();
+        }
+
+        function renderFilteredDimBubbleChart() {
+            if (!dimChartInst || !allDimGroupsCache) return;
+
+            const filtered = allDimGroupsCache.filter(g => {
+                const vol = g.volatility_segment || '';
+                return Array.from(activeDimVolSegments).some(k => vol.includes(k));
+            });
+
+            const countEl = document.getElementById('dimBubbleDisplayedCount');
+            if (countEl) {
+                countEl.textContent = `顯示 ${filtered.length} / ${allDimGroupsCache.length} 分組`;
+            }
+
+            const bubbleData = filtered.map(g => [
+                g.avg_ticket || 0,
+                g.std_ticket || 0,
+                g.monetary || 0,
+                g.name || '',
+                g.volatility_segment || '',
+                g.payment_process || '-',
+                g.category || '-',
+                g.card_type || '-',
+                g.frequency || 0,
+                g.cv || 0
+            ]);
+
+            dimChartInst.setOption({
+                series: [{
+                    data: bubbleData
+                }]
+            });
+        }
+
+        async function loadDimVolatilityData() {
+            try {
+                const modeSelect = document.getElementById('dimGroupModeSelect');
+                const groupMode = modeSelect ? modeSelect.value : 'payment_category';
+                const pSelect = document.getElementById('dimPaymentSelect');
+                const cSelect = document.getElementById('dimCategorySelect');
+                const cardSelect = document.getElementById('dimCardSelect');
+
+                const payment = pSelect ? pSelect.value : 'all';
+                const category = cSelect ? cSelect.value : 'all';
+                const card = cardSelect ? cardSelect.value : 'all';
+
+                const url = `/api/analytics/dimension-volatility?group_mode=${encodeURIComponent(groupMode)}&payment=${encodeURIComponent(payment)}&category=${encodeURIComponent(category)}&card=${encodeURIComponent(card)}&limit=150`;
+                const res = await fetch(url);
+                const result = await res.json();
+                if (!result.success || !result.data) return;
+
+                const { groups, payments, categories, cards, current_median_avg_ticket, current_median_std_ticket, global_median_avg_ticket, global_median_std_ticket, volatility_counts } = result.data;
+
+                // 填充下拉清單 (若選項數量改變則重填)
+                if (payments && pSelect && pSelect.options.length <= 1) {
+                    const curVal = pSelect.value;
+                    pSelect.innerHTML = '<option value="all">🌐 全部支付</option>' + payments.map(p => `<option value="${p}" ${p === curVal ? 'selected' : ''}>📱 ${p}</option>`).join('');
+                }
+                if (categories && cSelect && cSelect.options.length <= 1) {
+                    const curVal = cSelect.value;
+                    cSelect.innerHTML = '<option value="all">🌐 全部類別</option>' + categories.map(c => `<option value="${c}" ${c === curVal ? 'selected' : ''}>🏷️ ${c}</option>`).join('');
+                }
+                if (cards && cardSelect && cardSelect.options.length <= 1) {
+                    const curVal = cardSelect.value;
+                    cardSelect.innerHTML = '<option value="all">🌐 全部卡片</option>' + cards.map(c => `<option value="${c}" ${c === curVal ? 'selected' : ''}>💳 ${c}</option>`).join('');
+                }
+
+                // 中位數標籤更新
+                const curAvg = Number(current_median_avg_ticket || 0);
+                const globalAvg = Number(global_median_avg_ticket || 0);
+                const curStd = Number(current_median_std_ticket || 0);
+                const globalStd = Number(global_median_std_ticket || 0);
+                dimCurMedianAvg = curAvg;
+                dimCurMedianStd = curStd;
+
+                const elCurAvg = document.getElementById('lblDimCurAvgMed');
+                if (elCurAvg) elCurAvg.textContent = `NT$ ${Math.round(curAvg).toLocaleString()}`;
+                const elGlobalAvg = document.getElementById('lblDimGlobalAvgMed');
+                if (elGlobalAvg) elGlobalAvg.textContent = `NT$ ${Math.round(globalAvg).toLocaleString()}`;
+                const elCurStd = document.getElementById('lblDimCurStdMed');
+                if (elCurStd) elCurStd.textContent = `NT$ ${Math.round(curStd).toLocaleString()}`;
+                const elGlobalStd = document.getElementById('lblDimGlobalStdMed');
+                if (elGlobalStd) elGlobalStd.textContent = `NT$ ${Math.round(globalStd).toLocaleString()}`;
+
+                // 更新型態計數
+                allDimGroupsCache = groups || [];
+                const vc = volatility_counts || {};
+                const elFixed = document.getElementById('dimVolCountFixed');
+                if (elFixed) elFixed.textContent = `(${vc['固定大額'] || 0})`;
+                const elSpike = document.getElementById('dimVolCountSpike');
+                if (elSpike) elSpike.textContent = `(${vc['大額偶發'] || 0})`;
+                const elMicro = document.getElementById('dimVolCountMicro');
+                if (elMicro) elMicro.textContent = `(${vc['微額日常'] || 0})`;
+                const elElastic = document.getElementById('dimVolCountElastic');
+                if (elElastic) elElastic.textContent = `(${vc['長尾混合'] || 0})`;
+
+                updateDimVolButtonStyles();
+
+                const dom = document.getElementById('dimBubbleChart');
+                if (!dom) return;
+                if (!dimChartInst) dimChartInst = echarts.init(dom, 'dark');
+
+                const option = {
+                    backgroundColor: 'transparent',
+                    tooltip: {
+                        formatter: function (param) {
+                            const val = param.value;
+                            return `
+                                <div style="font-weight:bold; font-size:14px; margin-bottom:4px; color:#38bdf8;">${val[3]}</div>
+                                <div>📱 支付: <b>${val[5]}</b> ｜ 🏷️ 類別: <b>${val[6]}</b> ${val[7] && val[7] !== '-' ? '｜ 💳 卡片: <b>' + val[7] + '</b>' : ''}</div>
+                                <div>👑 波動分群: <span style="color:#fbbf24; font-weight:600;">${val[4]}</span></div>
+                                <div>💵 平均客單價 (μ): <b>NT$ ${Number(val[0]).toLocaleString()}</b></div>
+                                <div>📊 單筆標準差 (σ): <b>NT$ ${Number(val[1]).toLocaleString()}</b></div>
+                                <div>📈 變異係數 (CV): <b>${val[9] !== undefined ? val[9] : 0}</b></div>
+                                <div>🔄 交易筆數 (F): <b>${val[8]} 筆</b></div>
+                                <div>💰 累積消費 (M): <b>NT$ ${Number(val[2]).toLocaleString()}</b></div>
+                            `;
+                        }
+                    },
+                    grid: { top: 40, right: 60, bottom: 50, left: 70 },
+                    xAxis: {
+                        name: '平均客單價 (NT$)',
+                        nameLocation: 'middle',
+                        nameGap: 30,
+                        type: 'value',
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+                    },
+                    yAxis: {
+                        name: '單筆標準差 (NT$)',
+                        type: 'value',
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+                    },
+                    series: [{
+                        type: 'scatter',
+                        data: [],
+                        symbolSize: function (val) {
+                            return Math.min(Math.max(Math.sqrt(val[2]) * 0.65, 14), 70);
+                        },
+                        markLine: {
+                            silent: true,
+                            lineStyle: { type: 'dashed', color: 'rgba(255, 255, 255, 0.25)', width: 1 },
+                            data: [
+                                { xAxis: curAvg || 500, label: { formatter: `中位客單: NT$ ${Math.round(curAvg).toLocaleString()}`, position: 'end', color: '#38bdf8', fontSize: 10 } },
+                                { yAxis: curStd || 200, label: { formatter: `中位標準差: NT$ ${Math.round(curStd).toLocaleString()}`, position: 'end', color: '#38bdf8', fontSize: 10 } }
+                            ]
+                        },
+                        itemStyle: {
+                            color: function (params) {
+                                const seg = params.value[4] || '';
+                                if (seg.includes('固定大額') || seg.includes('Fixed')) return '#38bdf8';
+                                if (seg.includes('大額偶發') || seg.includes('Spike')) return '#f87171';
+                                if (seg.includes('微額日常') || seg.includes('Micro')) return '#34d399';
+                                if (seg.includes('長尾混合') || seg.includes('Elastic')) return '#c084fc';
+                                return '#64748b';
+                            },
+                            opacity: 0.85
+                        }
+                    }]
+                };
+
+                dimChartInst.setOption(option);
+                renderFilteredDimBubbleChart();
+
+            } catch (err) {
+                console.error("載入維度消費波動數據失敗:", err);
             }
         }
 

@@ -400,3 +400,210 @@ def get_rfm_dashboard_data(
         "global_median_avg_ticket": round(global_median_avg, 2),
         "global_median_std_ticket": round(global_median_std, 2)
     }
+
+
+def get_dimension_volatility_bubble_data(
+    window: Optional[str] = "life",
+    group_mode: str = "payment_category",
+    payment: Optional[str] = None,
+    category: Optional[str] = None,
+    card: Optional[str] = None,
+    limit: int = 200,
+    df_tx_provider: Optional[Callable[[], pd.DataFrame]] = None
+) -> Dict[str, Any]:
+    """
+    Sankey 6 大流向維度消費波動通用聚合引擎：
+    支援 6 種聚合分組模式：
+    1. payment_category: 行動支付 ✕ 消費類別 (預設)
+    2. card_category: 信用卡 ✕ 消費類別
+    3. card_payment: 信用卡 ✕ 行動支付
+    4. payment_only: 純依行動支付
+    5. category_only: 純依消費類別
+    6. card_only: 純依信用卡
+    
+    回傳各組之客單均值 (μ), 單筆標準差 (σ), 變異係數 (CV), 累積金額 (M), 筆數 (F), 中位數十字劃分與四象限型態。
+    """
+    try:
+        df_tx = df_tx_provider() if df_tx_provider is not None else prepare_analytics_dataset(time_window=window)
+    except Exception as e:
+        logger.error(f"❌ [dimension_volatility] 提取交易數據失敗: {e}")
+        df_tx = pd.DataFrame()
+
+    empty_res = {
+        "group_mode": group_mode,
+        "groups": [],
+        "total_groups": 0,
+        "payments": [],
+        "categories": [],
+        "cards": [],
+        "median_avg_ticket": 0.0,
+        "median_std_ticket": 0.0,
+        "current_median_avg_ticket": 0.0,
+        "current_median_std_ticket": 0.0,
+        "global_median_avg_ticket": 0.0,
+        "global_median_std_ticket": 0.0,
+        "volatility_counts": {"固定大額": 0, "大額偶發": 0, "微額日常": 0, "長尾混合": 0}
+    }
+
+    if df_tx is None or df_tx.empty or 'payment_amount' not in df_tx.columns:
+        return empty_res
+
+    df_clean = df_tx.copy()
+    df_clean['payment_amount'] = _safe_to_numeric_series(df_clean['payment_amount'], df_clean.index, 0.0)
+    df_clean = df_clean[df_clean['payment_amount'] > 0]
+
+    if df_clean.empty:
+        return empty_res
+
+    # 欄位標準化補齊
+    p_col = 'payment_process' if 'payment_process' in df_clean.columns else 'mobile_payment'
+    if p_col not in df_clean.columns:
+        df_clean[p_col] = '實體卡/其他'
+    else:
+        df_clean[p_col] = df_clean[p_col].fillna('實體卡/其他').astype(str).str.strip().replace({'': '實體卡/其他', 'nan': '實體卡/其他', 'None': '實體卡/其他'})
+
+    if 'category' not in df_clean.columns:
+        df_clean['category'] = '未分類'
+    else:
+        df_clean['category'] = df_clean['category'].fillna('未分類').astype(str).str.strip().replace({'': '未分類', 'nan': '未分類', 'None': '未分類'})
+
+    c_col = 'card_type' if 'card_type' in df_clean.columns else 'card_name'
+    if c_col not in df_clean.columns:
+        df_clean[c_col] = '其他卡別'
+    else:
+        df_clean[c_col] = df_clean[c_col].fillna('其他卡別').astype(str).str.strip().replace({'': '其他卡別', 'nan': '其他卡別', 'None': '其他卡別'})
+
+    # 提取全量維度清單以供前端下拉選單使用
+    all_payments = sorted([p for p in df_clean[p_col].unique() if p and p != 'nan'])
+    all_categories = sorted([c for c in df_clean['category'].unique() if c and c not in ('nan', '未分類')])
+    all_cards = sorted([c for c in df_clean[c_col].unique() if c and c not in ('nan', '其他卡別')])
+
+    # 決定聚合分組鍵值
+    valid_modes = ['payment_category', 'card_category', 'card_payment', 'payment_only', 'category_only', 'card_only']
+    if group_mode not in valid_modes:
+        group_mode = 'payment_category'
+
+    if group_mode == 'payment_category':
+        group_cols = [p_col, 'category']
+    elif group_mode == 'card_category':
+        group_cols = [c_col, 'category']
+    elif group_mode == 'card_payment':
+        group_cols = [c_col, p_col]
+    elif group_mode == 'payment_only':
+        group_cols = [p_col]
+    elif group_mode == 'category_only':
+        group_cols = ['category']
+    else:  # card_only
+        group_cols = [c_col]
+
+    # 向量化分組計算均值、標準差、金額加總與筆數
+    grouped = df_clean.groupby(group_cols)['payment_amount']
+    cnt_series = grouped.count()
+    sum_series = grouped.sum()
+    mean_series = grouped.mean()
+    std_series = grouped.std(ddof=1).fillna(0.0)
+    cv_raw = (std_series / mean_series).replace([np.inf, -np.inf], 0.0)
+    cv_series = _safe_to_numeric_series(cv_raw, std_series.index, 0.0).round(3)
+
+    all_groups = []
+    for idx in cnt_series.index:
+        cnt = int(cnt_series.at[idx])
+        s_amt = round(float(sum_series.at[idx]), 2)
+        m_amt = round(float(mean_series.at[idx]), 2) if cnt > 0 else 0.0
+        sd_amt = round(float(std_series.at[idx]), 2) if cnt >= 2 else 0.0
+        cv_amt = float(cv_series.at[idx]) if m_amt > 0 else 0.0
+
+        p_val, cat_val, card_val = None, None, None
+        if len(group_cols) == 2:
+            val1, val2 = idx[0], idx[1]
+            disp_name = f"{val1} ✕ {val2}"
+            if group_mode == 'payment_category':
+                p_val, cat_val = str(val1), str(val2)
+            elif group_mode == 'card_category':
+                card_val, cat_val = str(val1), str(val2)
+            elif group_mode == 'card_payment':
+                card_val, p_val = str(val1), str(val2)
+        else:
+            val1 = idx
+            disp_name = str(val1)
+            if group_mode == 'payment_only':
+                p_val = str(val1)
+            elif group_mode == 'category_only':
+                cat_val = str(val1)
+            else:
+                card_val = str(val1)
+
+        all_groups.append({
+            "name": disp_name,
+            "payment_process": p_val,
+            "category": cat_val,
+            "card_type": card_val,
+            "avg_ticket": m_amt,
+            "std_ticket": sd_amt,
+            "cv": cv_amt,
+            "monetary": s_amt,
+            "frequency": cnt
+        })
+
+    if not all_groups:
+        return empty_res
+
+    # 計算全域固定的客單價與標準差中位數
+    global_med_avg = float(pd.Series([g['avg_ticket'] for g in all_groups]).median())
+    global_med_std = float(pd.Series([g['std_ticket'] for g in all_groups]).median())
+
+    # 依使用者傳入的條件篩選
+    filtered_groups = all_groups
+    if payment and payment != 'all':
+        filtered_groups = [g for g in filtered_groups if g['payment_process'] == payment]
+    if category and category != 'all':
+        filtered_groups = [g for g in filtered_groups if g['category'] == category]
+    if card and card != 'all':
+        filtered_groups = [g for g in filtered_groups if g['card_type'] == card]
+
+    # 計算當前篩選下的中位數
+    if filtered_groups:
+        cur_med_avg = float(pd.Series([g['avg_ticket'] for g in filtered_groups]).median())
+        cur_med_std = float(pd.Series([g['std_ticket'] for g in filtered_groups]).median())
+    else:
+        cur_med_avg = global_med_avg
+        cur_med_std = global_med_std
+
+    # 標註四象限波動型態與統計計數
+    vol_counts = {"固定大額": 0, "大額偶發": 0, "微額日常": 0, "長尾混合": 0}
+    for g in filtered_groups:
+        mu = g['avg_ticket']
+        sigma = g['std_ticket']
+        if mu >= cur_med_avg and sigma < cur_med_std:
+            v_seg = "固定大額型 (Fixed High-Value)"
+            vol_counts["固定大額"] += 1
+        elif mu >= cur_med_avg and sigma >= cur_med_std:
+            v_seg = "大額偶發型 (Spike Big-Ticket)"
+            vol_counts["大額偶發"] += 1
+        elif mu < cur_med_avg and sigma < cur_med_std:
+            v_seg = "微額日常型 (Micro-Routine)"
+            vol_counts["微額日常"] += 1
+        else:
+            v_seg = "長尾混合型 (Elastic Long-Tail)"
+            vol_counts["長尾混合"] += 1
+        g['volatility_segment'] = v_seg
+
+    # 依金額排序
+    filtered_groups = sorted(filtered_groups, key=lambda x: x['monetary'], reverse=True)
+
+    return {
+        "group_mode": group_mode,
+        "groups": filtered_groups[:limit],
+        "total_groups": len(filtered_groups),
+        "payments": all_payments,
+        "categories": all_categories,
+        "cards": all_cards,
+        "median_avg_ticket": round(cur_med_avg, 2),
+        "median_std_ticket": round(cur_med_std, 2),
+        "current_median_avg_ticket": round(cur_med_avg, 2),
+        "current_median_std_ticket": round(cur_med_std, 2),
+        "global_median_avg_ticket": round(global_med_avg, 2),
+        "global_median_std_ticket": round(global_med_std, 2),
+        "volatility_counts": vol_counts
+    }
+

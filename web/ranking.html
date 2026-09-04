@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyCreditCardProjectPro - 核心排行與資產分群</title>
+    <!-- 引入 Outfit 字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 引入 AI風 CSS模組 -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- 頁首標題區塊 -->
+        <div class="page-header">
+            <div>
+                <h1>🏆 核心排行與資產分群</h1>
+                <p class="page-desc">各生活消費領域 Top 3 核心主力商家與信用卡資產價值分群展示</p>
+            </div>
+        </div>
+
+        <!-- 導覽超連結 (全站對齊) -->
+        <div class="nav-bar">
+            <a href="index.html">🏠 總控制台</a> |
+            <a href="task_console.html">⚡ 任務控制中心</a> |
+            <a href="cards_manager.html">💳 卡片管理</a> |
+            <a href="time_depend_plot.html">📈 時間趨勢分析</a> |
+            <a href="analytics_dashboard.html">👑 卡片回饋與客群</a> |
+            <span class="active">🏆 核心排行與資產分群</span>
+        </div>
+
+        <!-- 篩選與工具列 -->
+        <div class="chart-box" style="margin-bottom: 20px;">
+            <div class="chart-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 0;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <label style="font-size: 13px; color: var(--text-secondary);">🏷️ 篩選領域類別：</label>
+                    <select id="rankingCategorySelect" onchange="onCategoryChange()"
+                        style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;">
+                        <option value="all">🌐 全部類別 (All Categories)</option>
+                    </select>
+                    <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px;"
+                        onclick="loadRankingData()">🔄 讀取 / 重新整理</button>
+                </div>
+                <div style="font-size: 12px; color: #94a3b8;" id="rankingStatusLabel">
+                    載入中...
+                </div>
+            </div>
+        </div>
+
+        <!-- 各生活消費領域 Top 3 核心商家排行表 -->
+        <div class="chart-box" style="margin-bottom: 20px;">
+            <div class="chart-header">
+                <div class="chart-title">🏆 各生活消費領域 Top 3 核心主力商家 (依累積消費金額 M 排名)</div>
+            </div>
+            <div class="table-container">
+                <table class="dashboard-table" id="topCategoryTable">
+                    <thead>
+                        <tr>
+                            <th>消費類別</th>
+                            <th style="width: 70px; text-align: center;">排名</th>
+                            <th>商家名稱</th>
+                            <th>次分類 / 備註</th>
+                            <th>累積消費金額 (M)</th>
+                            <th>交易次數 (F)</th>
+                            <th>客群分群</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topCategoryTbody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #64748b;">暫無排名數據</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 卡片價值與使用狀態表 -->
+        <div class="chart-box">
+            <div class="chart-header">
+                <div class="chart-title">💳 信用卡資產價值分群 (示範卡片置頂)</div>
+            </div>
+            <div class="table-container">
+                <table class="dashboard-table" id="cardRfmTable">
+                    <thead>
+                        <tr>
+                            <th>發卡行</th>
+                            <th>卡片名稱</th>
+                            <th>持卡狀態</th>
+                            <th>價值分群</th>
+                            <th>交易次數</th>
+                            <th>累積金額</th>
+                            <th>平均客單價</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cardRfmTbody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #64748b;">暫無卡片 RFM 數據</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadRankingData(selectedCategory = null) {
+            const statusLabel = document.getElementById('rankingStatusLabel');
+            const topTbody = document.getElementById('topCategoryTbody');
+            const cardTbody = document.getElementById('cardRfmTbody');
+            const categorySelect = document.getElementById('rankingCategorySelect');
+
+            const cat = selectedCategory !== null ? selectedCategory : (categorySelect ? categorySelect.value : 'all');
+            if (statusLabel) statusLabel.textContent = '⏳ 資料載入中...';
+
+            try {
+                const res = await fetch(`/api/analytics/rfm-chart?limit=150&category=${encodeURIComponent(cat)}`);
+                const result = await res.json();
+                if (!result.success || !result.data) {
+                    if (statusLabel) statusLabel.textContent = '❌ 載入失敗';
+                    return;
+                }
+
+                const { top_by_category, cards, categories } = result.data;
+
+                // 填充類別選單
+                if (categories && categories.length > 0 && categorySelect) {
+                    const currentVal = categorySelect.value;
+                    const catOptions = ['<option value="all">🌐 全部類別 (All Categories)</option>'];
+                    categories.forEach(c => {
+                        catOptions.push(`<option value="${c}" ${c === currentVal ? 'selected' : ''}>🏷️ ${c}</option>`);
+                    });
+                    categorySelect.innerHTML = catOptions.join('');
+                }
+
+                // 渲染 Top 排行表
+                if (topTbody) {
+                    if (top_by_category && top_by_category.length > 0) {
+                        topTbody.innerHTML = top_by_category.map(item => `
+                            <tr>
+                                <td><span class="quick-badge" style="font-size:11px; padding:3px 8px;">🏷️ ${item.category}</span></td>
+                                <td style="text-align: center; font-weight: 700; font-size: 14px;">${item.rank}</td>
+                                <td><strong>${item.name}</strong></td>
+                                <td style="color: #94a3b8; font-size: 12px;">${item.sub_category || '-'}</td>
+                                <td style="color: #38bdf8; font-weight: 600;">NT$ ${Number(item.monetary || 0).toLocaleString()}</td>
+                                <td>${item.frequency || 0} 次</td>
+                                <td><span class="quick-badge" style="background: rgba(255,255,255,0.05); color: #e2e8f0; font-size: 11px;">${item.segment}</span></td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        topTbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b;">暫無排名數據</td></tr>';
+                    }
+                }
+
+                // 渲染卡片表格
+                if (cardTbody) {
+                    if (cards && cards.length > 0) {
+                        cardTbody.innerHTML = cards.map(c => {
+                            const pinnedBadge = c.is_demo_pinned ? '<span class="quick-badge" style="background: rgba(251,191,36,0.2); color: #fbbf24; margin-right: 6px; font-weight: 600;">⭐ 示範卡</span>' : '';
+                            return `
+                            <tr style="${c.is_demo_pinned ? 'background: rgba(56,189,248,0.06);' : ''}">
+                                <td>${c.bank_name || ''}</td>
+                                <td>${pinnedBadge}<strong>${c.card_type || ''}</strong></td>
+                                <td><span class="quick-badge" style="background: ${c.status === 'active' ? 'rgba(52,211,153,0.15)' : 'rgba(248,113,113,0.15)'}; color: ${c.status === 'active' ? '#34d399' : '#f87171'};">${c.status}</span></td>
+                                <td>${c.segment || ''}</td>
+                                <td>${c.frequency || 0}</td>
+                                <td>NT$ ${Number(c.monetary || 0).toLocaleString()}</td>
+                                <td>NT$ ${Number(c.avg_ticket || (c.frequency ? c.monetary / c.frequency : 0)).toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+                            </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        cardTbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b;">暫無卡片 RFM 數據</td></tr>';
+                    }
+                }
+
+                if (statusLabel) {
+                    statusLabel.textContent = `✅ 已同步最新排名 (${top_by_category ? top_by_category.length : 0} 筆核心商家 / ${cards ? cards.length : 0} 張卡片)`;
+                }
+
+            } catch (err) {
+                console.error("載入排名數據失敗:", err);
+                if (statusLabel) statusLabel.textContent = `❌ 載入錯誤: ${err.message}`;
+            }
+        }
+
+        function onCategoryChange() {
+            const select = document.getElementById('rankingCategorySelect');
+            const cat = select ? select.value : 'all';
+            loadRankingData(cat);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadRankingData();
+        });
+    </script>
+</body>
+
+</html>

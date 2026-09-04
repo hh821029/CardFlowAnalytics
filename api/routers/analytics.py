@@ -18,7 +18,7 @@ from analytics.analytics_base import prepare_analytics_dataset
 from analytics.common.transaction_query import query_transactions_modular
 from analytics.common import build_monthly_trend_payload
 from analytics.sankeyflow import build_sankey_flow
-from analytics.rfm import get_rfm_dashboard_data
+from analytics.rfm import get_rfm_dashboard_data, get_dimension_volatility_bubble_data
 from api.utils import run_task_and_stream
 
 logger = logging.getLogger(__name__)
@@ -322,6 +322,33 @@ async def get_rfm_chart_data(
         return JSONResponse(content={"success": True, "data": data})
     except Exception as e:
         logger.error(f"❌ 查詢 RFM 圖表數據失敗: {e}")
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
+@data_router.get("/dimension-volatility")
+@data_router.get("/payment-volatility")
+async def get_dimension_volatility_data(
+    window: Optional[str] = "life",
+    group_mode: str = "payment_category",
+    payment: Optional[str] = None,
+    category: Optional[str] = None,
+    card: Optional[str] = None,
+    limit: int = 200
+):
+    """查詢 Sankey 6 大流向維度消費波動氣泡圖數據 (支援行動支付、消費類別、信用卡等交叉分組)"""
+    try:
+        data = get_dimension_volatility_bubble_data(
+            window=window,
+            group_mode=group_mode,
+            payment=payment,
+            category=category,
+            card=card,
+            limit=limit,
+            df_tx_provider=lambda: _extract_dataset_from_query(time_window=window)
+        )
+        return _safe_json_response({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"❌ 查詢維度消費波動數據失敗: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 

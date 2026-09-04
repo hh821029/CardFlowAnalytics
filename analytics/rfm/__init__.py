@@ -12,7 +12,8 @@ from .modules import (
 )
 from .service import (
     get_rfm_dashboard_data,
-    compute_merchant_ticket_stats
+    compute_merchant_ticket_stats,
+    get_dimension_volatility_bubble_data
 )
 
 __all__ = [
@@ -23,6 +24,7 @@ __all__ = [
     'calculate_payment_rfm',
     'calculate_card_rfm',
     'get_rfm_dashboard_data',
-    'compute_merchant_ticket_stats'
+    'compute_merchant_ticket_stats',
+    'get_dimension_volatility_bubble_data'
 ]
 

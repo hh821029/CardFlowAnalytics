@@ -178,6 +178,15 @@ def test_api_endpoints():
     assert "merchants" in json_rfm["data"]
     assert "cards" in json_rfm["data"]
 
+    # 測試維度波動 API 端點 (支援 6 種模式)
+    res_dim = client.get("/api/analytics/dimension-volatility?group_mode=payment_category")
+    assert res_dim.status_code == 200
+    json_dim = res_dim.json()
+    assert json_dim["success"] is True
+    assert "groups" in json_dim["data"]
+    assert "volatility_counts" in json_dim["data"]
+    assert json_dim["data"]["group_mode"] == "payment_category"
+
 
 def test_merchant_ticket_stats(sample_tx_df):
     from analytics.rfm.service import compute_merchant_ticket_stats
@@ -220,4 +229,33 @@ def test_time_window_resolution():
     start_life, end_life = const.TimeWindow.resolve_range("LIFETIME", anchor)
     assert start_life is None
     assert end_life is None
+
+
+def test_dimension_volatility_stats(sample_tx_df):
+    from analytics.rfm.service import get_dimension_volatility_bubble_data
+
+    # 1. 測試 payment_category 交叉聚合
+    res_cross = get_dimension_volatility_bubble_data(
+        group_mode="payment_category",
+        df_tx_provider=lambda: sample_tx_df
+    )
+    assert res_cross["group_mode"] == "payment_category"
+    assert len(res_cross["groups"]) > 0
+    # sample_tx_df 包含 LINE Pay ✕ 餐飲食品
+    line_cat = next((g for g in res_cross["groups"] if "line pay" in g["name"].lower() and "餐飲食品" in g["name"]), None)
+    assert line_cat is not None
+    assert line_cat["frequency"] == 2
+    assert line_cat["avg_ticket"] == 400.0  # (500 + 300) / 2
+    assert line_cat["monetary"] == 800.0
+
+    # 2. 測試 card_category 聚合
+    res_card = get_dimension_volatility_bubble_data(
+        group_mode="card_category",
+        df_tx_provider=lambda: sample_tx_df
+    )
+    assert res_card["group_mode"] == "card_category"
+    assert len(res_card["groups"]) > 0
+    cube_group = next((g for g in res_card["groups"] if "CUBE卡" in g["name"]), None)
+    assert cube_group is not None
+
 
