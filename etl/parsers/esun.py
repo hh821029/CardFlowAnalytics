@@ -69,6 +69,7 @@ class EsunParser(BaseCsvParser):
         
         # 8. 最終正規化 (補齊 TWD 等)
         df = self._finalize_normalization(df)
+        df = self._enforce_dtypes(df)
 
         return df
 

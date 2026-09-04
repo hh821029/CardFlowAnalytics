@@ -1,10 +1,10 @@
 # generate_mock_data.py
 import os
+from typing import Dict
 import pandas as pd
 import const
 
-def generate_mock_data():
-    mock_dir = "profiles/example_public/data"
+def generate_mock_data(mock_dir: str = "profiles/example_public/data") -> Dict[str, str]:
     os.makedirs(mock_dir, exist_ok=True)
     print(f"Creating mock credit card bills in directory: '{mock_dir}'...")
 
@@ -84,7 +84,7 @@ def generate_mock_data():
   <tr>
     <td></td>
     <td></td>
-    <td>華南世界卡************5678</td>
+    <td>華南SNY卡************5678</td>
     <td></td>
     <td></td>
     <td></td>
@@ -125,11 +125,26 @@ def generate_mock_data():
         f.write(hncb_html_content)
     print(f"Generated: {hncb_filename}")
     
-    print("\n✅ 所有模擬脫敏帳單已成功生成！")
-    print(f"📁 存放路徑: {mock_dir}")
-    print("🚀 立即體驗 ETL 與分析流程：")
-    print("   1. 確保 .env 中設定 ACTIVE_PROFILE=example_public")
-    print("   2. 執行 'python main.py' 並選擇 [1F] 進行全量解析與入庫！")
+    try:
+        print("\n✅ 所有模擬脫敏帳單已成功生成！")
+        print(f"📁 存放路徑: {mock_dir}")
+    except UnicodeEncodeError:
+        print("\n[OK] 所有模擬脫敏帳單已成功生成！")
+        print(f"存放路徑: {mock_dir}")
+
+    try:
+        print("🚀 立即體驗 ETL 與分析流程：")
+        print("   1. 確保 .env 中設定 ACTIVE_PROFILE=example_public")
+        print("   2. 執行 'python main.py' 並選擇 [1F] 進行全量解析與入庫！")
+    except UnicodeEncodeError:
+        pass
+
+    return {
+        "cathay": cathay_filename,
+        "esun": esun_filename,
+        "ctbc": ctbc_filename,
+        "hncb": hncb_filename
+    }
 
     
 if __name__ == "__main__":

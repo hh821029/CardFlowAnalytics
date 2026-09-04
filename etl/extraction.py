@@ -35,7 +35,7 @@ CONFIG_DIR = const.CONFIG_DIR
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def get_bank_info(filename: str) -> Optional[Dict[str, Any]]:
+def get_bank_info(filename: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """
     透過 dim_banks.yaml 比對檔名中的 bill_mapping_name 與 keywords
     回傳比對到的銀行資訊字典 (bank_id, bank_no, bank_name, bill_mapping_name)
@@ -67,10 +67,12 @@ def get_bank_info(filename: str) -> Optional[Dict[str, Any]]:
                 return bank
     return None
 
-def get_parser(filename: str):
+def get_parser(filename: Optional[str] = None):
     """
     根據檔名與 dim_banks.yaml 特徵，回傳對應的 Parser 實例與銀行資訊
     """
+    if not filename:
+        return None
     bank_info = get_bank_info(filename)
     if not bank_info:
         return None
