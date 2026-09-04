@@ -505,6 +505,26 @@ def get_dimension_volatility_bubble_data(
     cv_raw = (std_series / mean_series).replace([np.inf, -np.inf], 0.0)
     cv_series = _safe_to_numeric_series(cv_raw, std_series.index, 0.0).round(3)
 
+    # 計算 RFM 客群價值指標 (近 180 天活躍度與全期金額分位數)
+    if 'transaction_date' in df_clean.columns:
+        df_clean['transaction_date'] = pd.to_datetime(df_clean['transaction_date'], errors='coerce')
+        max_txn_date = df_clean['transaction_date'].max()
+        cutoff_180d = max_txn_date - pd.Timedelta(days=180) if pd.notna(max_txn_date) else None
+    else:
+        max_txn_date = None
+        cutoff_180d = None
+
+    if cutoff_180d is not None:
+        is_rec = df_clean['transaction_date'] >= cutoff_180d
+        rec_cnt_series = df_clean[is_rec].groupby(group_cols)['payment_amount'].count()
+        rec_sum_series = df_clean[is_rec].groupby(group_cols)['payment_amount'].sum()
+    else:
+        rec_cnt_series = pd.Series(dtype=int)
+        rec_sum_series = pd.Series(dtype=float)
+
+    m_rank_series = sum_series.rank(pct=True)
+    rec_m_rank_series = rec_sum_series.reindex(sum_series.index, fill_value=0.0).rank(pct=True)
+
     all_groups = []
     for idx in cnt_series.index:
         cnt = int(cnt_series.at[idx])
@@ -512,6 +532,21 @@ def get_dimension_volatility_bubble_data(
         m_amt = round(float(mean_series.at[idx]), 2) if cnt > 0 else 0.0
         sd_amt = round(float(std_series.at[idx]), 2) if cnt >= 2 else 0.0
         cv_amt = float(cv_series.at[idx]) if m_amt > 0 else 0.0
+
+        is_act = int(rec_cnt_series.get(idx, 0)) > 0 if cutoff_180d is not None else True
+        is_high = float(m_rank_series.get(idx, 0.0)) >= 0.8
+        is_rising = (not is_high) and is_act and (float(rec_m_rank_series.get(idx, 0.0)) >= 0.8)
+
+        if is_high and is_act:
+            rfm_seg = "核心 (Core)"
+        elif is_high and not is_act:
+            rfm_seg = "流失高價值 (Churned)"
+        elif is_rising:
+            rfm_seg = "潛力 (Rising)"
+        elif is_act:
+            rfm_seg = "一般活躍 (Active)"
+        else:
+            rfm_seg = "沉睡 (Dormant)"
 
         p_val, cat_val, card_val = None, None, None
         if len(group_cols) == 2:
@@ -542,7 +577,8 @@ def get_dimension_volatility_bubble_data(
             "std_ticket": sd_amt,
             "cv": cv_amt,
             "monetary": s_amt,
-            "frequency": cnt
+            "frequency": cnt,
+            "segment": rfm_seg
         })
 
     if not all_groups:
@@ -571,6 +607,14 @@ def get_dimension_volatility_bubble_data(
 
     # 標註四象限波動型態與統計計數
     vol_counts = {"固定大額": 0, "大額偶發": 0, "微額日常": 0, "長尾混合": 0}
+    segment_counts = {
+        "核心 (Core)": 0,
+        "潛力 (Rising)": 0,
+        "一般活躍 (Active)": 0,
+        "流失高價值 (Churned)": 0,
+        "沉睡 (Dormant)": 0
+    }
+
     for g in filtered_groups:
         mu = g['avg_ticket']
         sigma = g['std_ticket']
@@ -588,6 +632,20 @@ def get_dimension_volatility_bubble_data(
             vol_counts["長尾混合"] += 1
         g['volatility_segment'] = v_seg
 
+        s = g.get('segment', '一般活躍 (Active)')
+        if s in segment_counts:
+            segment_counts[s] += 1
+        elif '核心' in s:
+            segment_counts['核心 (Core)'] += 1
+        elif '潛力' in s:
+            segment_counts['潛力 (Rising)'] += 1
+        elif '流失' in s:
+            segment_counts['流失高價值 (Churned)'] += 1
+        elif '沉睡' in s:
+            segment_counts['沉睡 (Dormant)'] += 1
+        else:
+            segment_counts['一般活躍 (Active)'] += 1
+
     # 依金額排序
     filtered_groups = sorted(filtered_groups, key=lambda x: x['monetary'], reverse=True)
 
@@ -604,6 +662,7 @@ def get_dimension_volatility_bubble_data(
         "current_median_std_ticket": round(cur_med_std, 2),
         "global_median_avg_ticket": round(global_med_avg, 2),
         "global_median_std_ticket": round(global_med_std, 2),
-        "volatility_counts": vol_counts
+        "volatility_counts": vol_counts,
+        "segment_counts": segment_counts
     }
 

@@ -225,10 +225,50 @@
                         onclick="resetDimFilters()">✨ 全部重設/全選</button>
                 </div>
 
-                <!-- 波動型態切換列 (參照原氣泡圖象限設計) -->
-                <div style="margin-bottom: 12px;">
+                <!-- 操作面板第一列：RFM 分組客群價值（5 個可點擊卡片） -->
+                <div style="margin-bottom: 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📊 消費波動型態象限（點擊按鈕切換顯示）</span>
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">👑 第一維度：RFM 分組客群價值（點擊卡片切換顯示）</span>
+                        <span id="dimRfmFilterActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 5/5 個客群</span>
+                    </div>
+                    <div class="kpi-row">
+                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmCore" data-seg="核心 (Core)"
+                            onclick="toggleDimRfmSegment('核心 (Core)')">
+                            <div class="kpi-lbl">核心分組 (Core)</div>
+                            <div id="dimSegCore" class="kpi-val" style="color: #38bdf8;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmRising" data-seg="潛力 (Rising)"
+                            onclick="toggleDimRfmSegment('潛力 (Rising)')">
+                            <div class="kpi-lbl">潛力分組 (Rising)</div>
+                            <div id="dimSegRising" class="kpi-val" style="color: #c084fc;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmActive" data-seg="一般活躍 (Active)"
+                            onclick="toggleDimRfmSegment('一般活躍 (Active)')">
+                            <div class="kpi-lbl">一般活躍 (Active)</div>
+                            <div id="dimSegActive" class="kpi-val" style="color: #34d399;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmChurned" data-seg="流失高價值 (Churned)"
+                            onclick="toggleDimRfmSegment('流失高價值 (Churned)')">
+                            <div class="kpi-lbl">流失高價值 (Churned)</div>
+                            <div id="dimSegChurned" class="kpi-val" style="color: #f87171;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmDormant" data-seg="沉睡 (Dormant)"
+                            onclick="toggleDimRfmSegment('沉睡 (Dormant)')">
+                            <div class="kpi-lbl">沉睡分組 (Dormant)</div>
+                            <div id="dimSegDormant" class="kpi-val" style="color: #94a3b8;">-</div>
+                            <div class="kpi-status-badge">● 顯示中</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作面板第二列：消費波動型態象限（4 個可點擊按鈕） -->
+                <div style="padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06); margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📊 第二維度：消費波動型態象限（點擊按鈕切換顯示）</span>
                         <span id="dimVolActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 4/4 種型態</span>
                     </div>
                     <div class="vol-row">
@@ -654,7 +694,24 @@
         let allDimGroupsCache = [];
         let dimCurMedianAvg = 0;
         let dimCurMedianStd = 0;
+        let activeDimRfmSegments = new Set([
+            '核心 (Core)',
+            '潛力 (Rising)',
+            '一般活躍 (Active)',
+            '流失高價值 (Churned)',
+            '沉睡 (Dormant)'
+        ]);
         let activeDimVolSegments = new Set(['固定大額', '大額偶發', '微額日常', '長尾混合']);
+
+        function toggleDimRfmSegment(segName) {
+            if (activeDimRfmSegments.has(segName)) {
+                activeDimRfmSegments.delete(segName);
+            } else {
+                activeDimRfmSegments.add(segName);
+            }
+            updateDimFilterButtonStyles();
+            renderFilteredDimBubbleChart();
+        }
 
         function toggleDimVolSegment(volKey) {
             if (activeDimVolSegments.has(volKey)) {
@@ -662,11 +719,18 @@
             } else {
                 activeDimVolSegments.add(volKey);
             }
-            updateDimVolButtonStyles();
+            updateDimFilterButtonStyles();
             renderFilteredDimBubbleChart();
         }
 
         function resetDimFilters() {
+            activeDimRfmSegments = new Set([
+                '核心 (Core)',
+                '潛力 (Rising)',
+                '一般活躍 (Active)',
+                '流失高價值 (Churned)',
+                '沉睡 (Dormant)'
+            ]);
             activeDimVolSegments = new Set(['固定大額', '大額偶發', '微額日常', '長尾混合']);
             const pSelect = document.getElementById('dimPaymentSelect');
             const cSelect = document.getElementById('dimCategorySelect');
@@ -674,11 +738,25 @@
             if (pSelect) pSelect.value = 'all';
             if (cSelect) cSelect.value = 'all';
             if (cardSelect) cardSelect.value = 'all';
-            updateDimVolButtonStyles();
+            updateDimFilterButtonStyles();
             loadDimVolatilityData();
         }
 
-        function updateDimVolButtonStyles() {
+        function updateDimFilterButtonStyles() {
+            // RFM 卡片樣式更新
+            document.querySelectorAll('.dim-rfm-toggle-btn').forEach(btn => {
+                const seg = btn.getAttribute('data-seg');
+                const badge = btn.querySelector('.kpi-status-badge');
+                if (activeDimRfmSegments.has(seg)) {
+                    btn.classList.add('active');
+                    if (badge) badge.textContent = '● 顯示中';
+                } else {
+                    btn.classList.remove('active');
+                    if (badge) badge.textContent = '○ 已隱藏';
+                }
+            });
+
+            // 波動型態按鈕更新
             const btnMap = {
                 '固定大額': 'btnDimVolFixed',
                 '大額偶發': 'btnDimVolSpike',
@@ -695,8 +773,12 @@
                     }
                 }
             });
-            const cntEl = document.getElementById('dimVolActiveCount');
-            if (cntEl) cntEl.textContent = `已選 ${activeDimVolSegments.size}/4 種型態`;
+
+            const rfmCntEl = document.getElementById('dimRfmFilterActiveCount');
+            if (rfmCntEl) rfmCntEl.textContent = `已選 ${activeDimRfmSegments.size}/5 個客群`;
+
+            const volCntEl = document.getElementById('dimVolActiveCount');
+            if (volCntEl) volCntEl.textContent = `已選 ${activeDimVolSegments.size}/4 種型態`;
         }
 
         function onDimGroupModeChange() {
@@ -736,8 +818,19 @@
             if (!dimChartInst || !allDimGroupsCache) return;
 
             const filtered = allDimGroupsCache.filter(g => {
+                const seg = g.segment || '一般活躍 (Active)';
                 const vol = g.volatility_segment || '';
-                return Array.from(activeDimVolSegments).some(k => vol.includes(k));
+
+                const rfmMatch = activeDimRfmSegments.has(seg) ||
+                    (seg.includes('核心') && activeDimRfmSegments.has('核心 (Core)')) ||
+                    (seg.includes('潛力') && activeDimRfmSegments.has('潛力 (Rising)')) ||
+                    (seg.includes('活躍') && activeDimRfmSegments.has('一般活躍 (Active)')) ||
+                    (seg.includes('流失') && activeDimRfmSegments.has('流失高價值 (Churned)')) ||
+                    (seg.includes('沉睡') && activeDimRfmSegments.has('沉睡 (Dormant)'));
+
+                const volMatch = Array.from(activeDimVolSegments).some(k => vol.includes(k));
+
+                return rfmMatch && volMatch;
             });
 
             const countEl = document.getElementById('dimBubbleDisplayedCount');
@@ -755,7 +848,8 @@
                 g.category || '-',
                 g.card_type || '-',
                 g.frequency || 0,
-                g.cv || 0
+                g.cv || 0,
+                g.segment || '一般活躍 (Active)'
             ]);
 
             dimChartInst.setOption({
@@ -782,7 +876,7 @@
                 const result = await res.json();
                 if (!result.success || !result.data) return;
 
-                const { groups, payments, categories, cards, current_median_avg_ticket, current_median_std_ticket, global_median_avg_ticket, global_median_std_ticket, volatility_counts } = result.data;
+                const { groups, payments, categories, cards, current_median_avg_ticket, current_median_std_ticket, global_median_avg_ticket, global_median_std_ticket, volatility_counts, segment_counts } = result.data;
 
                 // 填充下拉清單 (若選項數量改變則重填)
                 if (payments && pSelect && pSelect.options.length <= 1) {
@@ -815,6 +909,19 @@
                 const elGlobalStd = document.getElementById('lblDimGlobalStdMed');
                 if (elGlobalStd) elGlobalStd.textContent = `NT$ ${Math.round(globalStd).toLocaleString()}`;
 
+                // 更新 RFM 分組計數
+                const sc = segment_counts || {};
+                const elCore = document.getElementById('dimSegCore');
+                if (elCore) elCore.textContent = sc['核心 (Core)'] || 0;
+                const elRising = document.getElementById('dimSegRising');
+                if (elRising) elRising.textContent = sc['潛力 (Rising)'] || 0;
+                const elActive = document.getElementById('dimSegActive');
+                if (elActive) elActive.textContent = sc['一般活躍 (Active)'] || 0;
+                const elChurned = document.getElementById('dimSegChurned');
+                if (elChurned) elChurned.textContent = sc['流失高價值 (Churned)'] || 0;
+                const elDormant = document.getElementById('dimSegDormant');
+                if (elDormant) elDormant.textContent = sc['沉睡 (Dormant)'] || 0;
+
                 // 更新型態計數
                 allDimGroupsCache = groups || [];
                 const vc = volatility_counts || {};
@@ -827,7 +934,7 @@
                 const elElastic = document.getElementById('dimVolCountElastic');
                 if (elElastic) elElastic.textContent = `(${vc['長尾混合'] || 0})`;
 
-                updateDimVolButtonStyles();
+                updateDimFilterButtonStyles();
 
                 const dom = document.getElementById('dimBubbleChart');
                 if (!dom) return;
@@ -847,6 +954,7 @@
                                 <div>📈 變異係數 (CV): <b>${val[9] !== undefined ? val[9] : 0}</b></div>
                                 <div>🔄 交易筆數 (F): <b>${val[8]} 筆</b></div>
                                 <div>💰 累積消費 (M): <b>NT$ ${Number(val[2]).toLocaleString()}</b></div>
+                                <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.15);">🏆 RFM 客群: <span style="color:#38bdf8; font-weight:600;">${val[10]}</span></div>
                             `;
                         }
                     },
