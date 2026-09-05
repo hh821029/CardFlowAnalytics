@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import const
-from etl.processors.classifier import TransactionClassifier
+from etl.processors.transaction_classifier import TransactionClassifier
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))

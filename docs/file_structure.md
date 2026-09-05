@@ -26,7 +26,7 @@ My-Credit-Card-ETL/
 │   ├── views_manager.py        # PostgreSQL / SQLite 視圖建立與維護
 │   ├── utils.py                # 欄位標準化常數定義
 │   ├── parsers/                # 各銀行專用 Parser (玉山、國泰、中信、富邦、台新、星展等)
-│   └── processors/             # 商家正規化、支付管道、交易類型分類處理器
+│   └── processors/             # 商家正規化、支付管道、卡片分類 (card_classifier) 與交易分類(transaction_classifier)
 │
 ├── analytics/                  # [分析與模型層] 多時間視窗 RFM 客群與消費矩陣
 │   ├── api.py                  # 分析模組統一進入點 (run_analytics)

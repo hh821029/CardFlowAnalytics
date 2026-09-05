@@ -15,7 +15,9 @@ from etl.processors.merchant import (
     ECPlatformTagger,
     _apply_final_prefixes
 )
-from etl.processors.classifier import CardClassifier, TransactionClassifier
+from etl.processors.card_classifier import CardClassifier
+from etl.processors.transaction_classifier import TransactionClassifier
+
 
 try:
     from profiles.loaders.config_loader import ConfigLoader

@@ -7,7 +7,7 @@ import pandas as pd
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import const
-from etl.processors.classifier import CardClassifier
+from etl.processors.card_classifier import CardClassifier
 from profiles.loaders.config_loader import ConfigLoader
 
 class TestCardClassifierMapping(unittest.TestCase):
