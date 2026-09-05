@@ -173,18 +173,17 @@
 
             <!-- 📱 金流維度消費波動氣泡圖 (Sankey 流向探索) -->
             <div class="chart-box" style="margin-bottom: 20px;">
-                <!-- 第一行：標題靠左，維度與顯示筆數靠右 -->
-                <div class="chart-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 8px;">
-                    <div>
-                        <div class="chart-title">📱 金流維度消費波動氣泡圖 (Sankey 流向探索)</div>
-                        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
-                            依「Sankey 流向維度」分組聚合；觀察不同支付管道、消費領域與卡片資產的客單價 (μ) 與標準差 (σ) 分類取向
-                        </div>
-                    </div>
-                    <div style="font-size: 12px; color: var(--accent-blue); font-weight: 500; display: flex; align-items: center; gap: 6px;">
-                        <span id="dimBubbleFilterLabel">目前維度：行動支付 ✕ 消費類別</span> ｜
+                <!-- 第一行：標題靠左，維度與顯示筆數靠右 (防止折行跑位) -->
+                <div class="chart-header" style="flex-wrap: nowrap; margin-bottom: 4px;">
+                    <div class="chart-title" style="white-space: nowrap;">📱 金流維度消費波動氣泡圖 (Sankey 流向探索)</div>
+                    <div style="font-size: 12px; color: var(--accent-blue); font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; margin-left: auto;">
+                        <span id="dimBubbleFilterLabel">目前維度：行動支付 ✕ 消費類別 (通路場景)</span> ｜
                         <span id="dimBubbleDisplayedCount" style="color: #38bdf8; font-weight: 600;">顯示 - 分組</span>
                     </div>
+                </div>
+                <!-- 第二行：維度副標說明 -->
+                <div style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 10px;">
+                    依「Sankey 流向維度」分組聚合；觀察不同支付管道、消費領域與卡片資產的客單價 (μ) 與標準差 (σ) 分類取向
                 </div>
 
                 <!-- 工具與篩選列 -->
@@ -372,6 +371,7 @@
     <script>
         let rfmChartInst = null;
         let allMerchantsCache = [];
+        let currentRfmBubbleData = [];
         let curMedianAvgCached = 0;
         let curMedianStdCached = 0;
 
@@ -497,6 +497,10 @@
                 m.segment || '一般活躍 (Active)'
             ]);
 
+            // 方案 1：氣泡面積降序排序（大氣泡在底層、小氣泡在頂層，避免遮蔽）
+            bubbleData.sort((a, b) => (Number(b[2]) || 0) - (Number(a[2]) || 0));
+            currentRfmBubbleData = bubbleData;
+
             rfmChartInst.setOption({
                 series: [{
                     data: bubbleData
@@ -619,8 +623,51 @@
                 const option = {
                     backgroundColor: 'transparent',
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.94)',
+                        borderColor: 'rgba(56, 189, 248, 0.35)',
+                        borderWidth: 1,
+                        padding: [10, 12],
+                        textStyle: { color: '#f8fafc', fontSize: 12 },
                         formatter: function (param) {
                             const val = param.value;
+                            const curX = Number(val[0]);
+                            const curY = Number(val[1]);
+
+                            // 方案 4：檢測相同/極相近座標（客單價與標準差差異 < 0.5）
+                            const overlaps = currentRfmBubbleData.filter(d => 
+                                Math.abs(Number(d[0]) - curX) < 0.5 && Math.abs(Number(d[1]) - curY) < 0.5
+                            );
+
+                            if (overlaps.length > 1) {
+                                let html = `
+                                    <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.15);">
+                                        <div style="font-size:11px; background:rgba(251,191,36,0.2); color:#fbbf24; border:1px solid rgba(251,191,36,0.4); padding:2px 8px; border-radius:4px; display:inline-block; font-weight:600;">
+                                            📍 此座標重疊 ${overlaps.length} 商家（依累積金額排序）
+                                        </div>
+                                        <div style="font-size:11px; color:#94a3b8; margin-top:4px;">
+                                            平均客單價 (μ): NT$ ${Math.round(curX).toLocaleString()} ｜ 單筆標準差 (σ): NT$ ${Math.round(curY).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div style="max-height: 280px; overflow-y: auto; padding-right: 4px;">
+                                `;
+                                overlaps.forEach((item, idx) => {
+                                    html += `
+                                        <div style="margin-bottom: ${idx < overlaps.length - 1 ? '8px' : '0'}; padding-bottom: ${idx < overlaps.length - 1 ? '6px' : '0'}; ${idx < overlaps.length - 1 ? 'border-bottom:1px dashed rgba(255,255,255,0.1);' : ''}">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                                <span style="font-weight:bold; font-size:13px; color:#38bdf8;">${idx + 1}. ${item[3]}</span>
+                                                <span style="font-size:11px; color:#fbbf24; background:rgba(251,191,36,0.15); padding:1px 5px; border-radius:3px;">${item[4]}</span>
+                                            </div>
+                                            <div style="font-size:11px; color:#cbd5e1;">🏷️ 分類: ${item[5]} ${item[6] ? '(' + item[6] + ')' : ''} ｜ 🏆 客群: ${item[9]}</div>
+                                            <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
+                                                🔄 交易次數: <b style="color:#34d399; font-size:12px;">${item[7]} 次</b> ｜ 💰 累積: <b>NT$ ${Number(item[2]).toLocaleString()}</b>
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                                html += `</div>`;
+                                return html;
+                            }
+
                             return `
                                 <div style="font-weight:bold; font-size:14px; margin-bottom:4px; color:#38bdf8;">${val[3]}</div>
                                 <div>🏷️ 分類: ${val[5]} ${val[6] ? '(' + val[6] + ')' : ''}</div>
@@ -670,7 +717,9 @@
                                 if (seg.includes('長尾混合') || seg.includes('Elastic')) return '#c084fc';
                                 return '#64748b';
                             },
-                            opacity: 0.85
+                            opacity: 0.72,
+                            borderColor: 'rgba(255, 255, 255, 0.45)',
+                            borderWidth: 1.2
                         }
                     }]
                 };
@@ -692,6 +741,7 @@
         // ── 金流維度消費波動氣泡圖 (Sankey 6 大流向維度) 邏輯 ───────────
         let dimChartInst = null;
         let allDimGroupsCache = [];
+        let currentDimBubbleData = [];
         let dimCurMedianAvg = 0;
         let dimCurMedianStd = 0;
         let activeDimRfmSegments = new Set([
@@ -852,6 +902,10 @@
                 g.segment || '一般活躍 (Active)'
             ]);
 
+            // 方案 1：氣泡面積降序排序（大氣泡在底層、小氣泡在頂層，避免遮蔽）
+            bubbleData.sort((a, b) => (Number(b[2]) || 0) - (Number(a[2]) || 0));
+            currentDimBubbleData = bubbleData;
+
             dimChartInst.setOption({
                 series: [{
                     data: bubbleData
@@ -943,8 +997,51 @@
                 const option = {
                     backgroundColor: 'transparent',
                     tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.94)',
+                        borderColor: 'rgba(56, 189, 248, 0.35)',
+                        borderWidth: 1,
+                        padding: [10, 12],
+                        textStyle: { color: '#f8fafc', fontSize: 12 },
                         formatter: function (param) {
                             const val = param.value;
+                            const curX = Number(val[0]);
+                            const curY = Number(val[1]);
+
+                            // 方案 4：檢測相同/極相近座標（客單價與標準差差異 < 0.5）
+                            const overlaps = currentDimBubbleData.filter(d => 
+                                Math.abs(Number(d[0]) - curX) < 0.5 && Math.abs(Number(d[1]) - curY) < 0.5
+                            );
+
+                            if (overlaps.length > 1) {
+                                let html = `
+                                    <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.15);">
+                                        <div style="font-size:11px; background:rgba(251,191,36,0.2); color:#fbbf24; border:1px solid rgba(251,191,36,0.4); padding:2px 8px; border-radius:4px; display:inline-block; font-weight:600;">
+                                            📍 此座標重疊 ${overlaps.length} 組維度（依累積金額排序）
+                                        </div>
+                                        <div style="font-size:11px; color:#94a3b8; margin-top:4px;">
+                                            平均客單價 (μ): NT$ ${Math.round(curX).toLocaleString()} ｜ 單筆標準差 (σ): NT$ ${Math.round(curY).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div style="max-height: 280px; overflow-y: auto; padding-right: 4px;">
+                                `;
+                                overlaps.forEach((item, idx) => {
+                                    html += `
+                                        <div style="margin-bottom: ${idx < overlaps.length - 1 ? '8px' : '0'}; padding-bottom: ${idx < overlaps.length - 1 ? '6px' : '0'}; ${idx < overlaps.length - 1 ? 'border-bottom:1px dashed rgba(255,255,255,0.1);' : ''}">
+                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                                <span style="font-weight:bold; font-size:13px; color:#38bdf8;">${idx + 1}. ${item[3]}</span>
+                                                <span style="font-size:11px; color:#fbbf24; background:rgba(251,191,36,0.15); padding:1px 5px; border-radius:3px;">${item[4]}</span>
+                                            </div>
+                                            <div style="font-size:11px; color:#cbd5e1;">📱 支付: <b>${item[5]}</b> ｜ 🏷️ 類別: <b>${item[6]}</b> ${item[7] && item[7] !== '-' ? '｜ 💳 卡片: <b>' + item[7] + '</b>' : ''}</div>
+                                            <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
+                                                🔄 交易筆數: <b style="color:#34d399; font-size:12px;">${item[8]} 筆</b> ｜ 💰 累積: <b>NT$ ${Number(item[2]).toLocaleString()}</b> ｜ 🏆 客群: ${item[10]}
+                                            </div>
+                                        </div>
+                                    `;
+                                });
+                                html += `</div>`;
+                                return html;
+                            }
+
                             return `
                                 <div style="font-weight:bold; font-size:14px; margin-bottom:4px; color:#38bdf8;">${val[3]}</div>
                                 <div>📱 支付: <b>${val[5]}</b> ｜ 🏷️ 類別: <b>${val[6]}</b> ${val[7] && val[7] !== '-' ? '｜ 💳 卡片: <b>' + val[7] + '</b>' : ''}</div>
@@ -994,7 +1091,9 @@
                                 if (seg.includes('長尾混合') || seg.includes('Elastic')) return '#c084fc';
                                 return '#64748b';
                             },
-                            opacity: 0.85
+                            opacity: 0.72,
+                            borderColor: 'rgba(255, 255, 255, 0.45)',
+                            borderWidth: 1.2
                         }
                     }]
                 };
