@@ -1,4 +1,14 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-09-07**
+   * **資料庫載入層與 FastAPI 資料管線測試套件實作**：
+     - 新增 `tests/test_database_loaders.py`（16 項測試）：涵蓋 `BaseDBLoader` 資料清洗與布林/日期標準化、`SQLiteLoader` 增全量模式與索引建立、`DatabaseFactory` 動態分派與降級、`DBReader` 查詢與連線失敗降級、`PostgresLoader` 連線字串規範。
+     - 新增 `tests/test_fastapi_pipeline.py`（13 項測試）：涵蓋 FastAPI SSE 任務串流調度（`/api/run/etl`、`/api/run/config_*`、`/api/run/query_export`）、`_task_lock` 系統忙碌防併發保護、端到端 (Extract -> Transform -> Load -> Database query) 隔離入庫與動態 SQL 導出。
+     - 全套 pytest 回歸驗證（共 138 項測試）100% 全數通過，既有資料庫完全隔離零污染。
+   * **變更風險清冊與測試覆蓋對齊 (CRAP Metrics Align)**：
+     - 更新 `docs/Change_Risk_Anti_Patterns.md` 日期戳至 2026-09-07，同步補入 `MerchantPipeline`、`DataRefiner` 與 FastAPI 圖表端點等既有測試項目至保護清單。
+     - 修正文件中資料庫載入層類別命名與 FastAPI SSE 串流任務端點之 HTTP 方法（更正為 GET）。
+     - 清理 `api/routers/etl.py` 中棄用的 scratch 引用與廢棄註解。
+
 * **2026-09-04**
    * **ETL 程式碼整理3**：
      * 整理模組之間的架構跟引用關係，並整理成便於未來理解與撰寫測試資料的流程。
@@ -15,9 +25,9 @@
 
 * **2026-08-27**
    * **RFM 視覺化依類別篩選與各領域 Top 3 商家排行**：
-     - 於 [analytics_dashboard.html](file:///d:/記帳用EXCEL/MyCreditCardProjectPro/web/analytics_dashboard.html) 新增 **消費類別即時篩選下拉選單**，切換時連動縮減氣泡圖點數並更新該類別之五大客群統計數值。
+     - 於 `web/analytics_dashboard.html` 新增 **消費類別即時篩選下拉選單**，切換時連動縮減氣泡圖點數並更新該類別之五大客群統計數值。
      - 新增 **「🏆 各生活消費領域 Top 3 核心主力商家」** 排行表格，依便利商店、百貨量販、連鎖飲食、商圈、生活服務、電子商務等分類，自動列出累積消費金額最高的前三名主力商家與客群分群。
-     - 於 [api/routers/analytics.py](file:///d:/記帳用EXCEL/MyCreditCardProjectPro/api/routers/analytics.py) 之 `/api/analytics/rfm-chart` 新增 `top_by_category` 彙算與全域 `categories` 清單回傳。
+     - 於 `api/routers/analytics.py` 之 `/api/analytics/rfm-chart` 新增 `top_by_category` 彙算與全域 `categories` 清單回傳。
    * **前端全任務控制台與純視覺化儀表板二元化重構**：
      - **全任務控制中心 (`web/task_console.html`)**：整合所有需要 Console 串流日誌之任務（ETL 帳單處理、SSOT 設定維度同步、C# 回饋計算、RFM 價值模型、條件 SQL 匯出），並消除跨 Tab 的重複 `config_all` 按鈕。
      - **純視覺化分析儀表板 (`web/analytics_dashboard.html`, `web/time_depend_plot.html`)**：依時間維度 (趨勢與桑基圖) 與卡片/客群維度 (RFM 氣泡九宮格與回饋池) 獨立拆分，移除所有 Console 雜訊。
