@@ -61,14 +61,15 @@ async def api_login(response: Response, payload: dict = Body(...)):
     # 2. Hash 驗證帳號鍵值規範 (user_<userid>)
     auth_user_key = resolve_auth_user_key(username)
 
-    # 3. 限定安全常數 Profile 映射 (CWE-22 / CWE-614 Strict Constant Allowlist)
+    # 3. 解析 Profile ID 與路徑白名單安全映射 (CWE-22 / CWE-73 Path Traversal Defense)
+    profile_id = resolve_profile_id(username)
     base_profiles_dir = os.path.abspath(const.PROFILES_DIR)
 
-    # 僅允許限定之安全常數 Profile 登入與設定 Session Cookie
-    if profile_id in ["example_public", "public"]:
+    # 採用白名單與已知合法 Profile 映射，阻絕未受信任輸入進入檔案系統 API (Sink)
+    if profile_id == "example_public":
         safe_profile_id = "example_public"
         safe_profile_dir = os.path.join(base_profiles_dir, "example_public")
-    elif profile_id in ["user_main", "main"]:
+    elif profile_id == "user_main":
         safe_profile_id = "user_main"
         safe_profile_dir = os.path.join(base_profiles_dir, "user_main")
     else:
