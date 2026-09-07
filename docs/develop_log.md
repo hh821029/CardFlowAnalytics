@@ -8,6 +8,12 @@
      - 更新 `docs/Change_Risk_Anti_Patterns.md` 日期戳至 2026-09-07，同步補入 `MerchantPipeline`、`DataRefiner` 與 FastAPI 圖表端點等既有測試項目至保護清單。
      - 修正文件中資料庫載入層類別命名與 FastAPI SSE 串流任務端點之 HTTP 方法（更正為 GET）。
      - 清理 `api/routers/etl.py` 中棄用的 scratch 引用與廢棄註解。
+   * **脫敏公開樣本與測試資料集統一 (Unified Public Mock Dataset - SSOT)**：
+     - 更新 `generate_mock_data.py` 產出覆蓋 2025/10 ~ 2026/06 多時間維度的精簡帳單樣本（4 家銀行共 21 筆交易）。
+     - 完美對齊 RFM 價值模型五大分群：統一超商 (核心 Core)、新光三越 (流失高價值 Churned)、APPLE.COM/BILL (潛力 Rising)、全家便利商店 (一般活躍 Active)、麥當勞 (沉睡 Dormant)。
+     - 同時滿足消費透視矩陣 (Spending Matrix)：Tier 1 主流支付保底補 0 顯示、Tier 2 通路錢包動態呈現、保險費用 (富邦人壽) 固定置底與銀行費用精確排除。
+     - 兼顧並相容既有銀行解析契約測試，全套回歸測試（138 項測試）100% 全數綠燈。
+     - 更新 `.gitignore` 排除 `**/ingested_files.json`，確保環境狀態隔離。
 
 * **2026-09-04**
    * **ETL 程式碼整理3**：

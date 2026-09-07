@@ -10,5 +10,6 @@ merchant_pattern,normalized_merchant,priority,category,sub_category,rfm_exclusio
 .*萊爾富.*,萊爾富,55,便利商店,,FALSE,萊爾富便利商店
 .*新光三越.*,新光三越,70,百貨量販,,FALSE,新光三越百貨
 (?i).*(?:統一超商|7-11|7-ELEVEN).*,統一超商,70,便利商店,,FALSE,統一集團通路，統一超商的所有實體門市
+.*富邦人壽.*,富邦人壽,30,保險費用,壽險,FALSE,富邦人壽保險
 .*一般商品買賣.*,一般商品買賣,90,百貨量販,,FALSE,中信通用商品買賣
 
