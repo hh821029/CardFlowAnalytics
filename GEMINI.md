@@ -57,15 +57,7 @@
 - [ ] 注意：隱私相關檔案應被 `.dockerignore` 排除，請再次確認。
 - [ ] 每一個issues處理完一個項目之後請提示進行一次關聯檔案的git add跟git commit
 
-## 5. 待辦與待改善項目 (Backlog)
-- [ ] 整理日後待更新的解析器 (Parsers) 清單。
-- [ ] 建立自動化單元測試以覆蓋 `Append/Replace` 讀取邏輯。
-- [ ] 前後端資料結構改善。
-- [ ] **[核心] 回饋引擎開發**：開發具備「跨月份、上限控管、動態規則載入」功能的計算引擎，取代原本 Excel 難以維護的公式邏輯。
-- [ ] **[結帳日管理] 建立 `configs/dim_billing_history.csv`**：記錄每張卡片各月份的「實際結帳日 (actual_closing_date)」，以應對假日浮動與歷史變更。
-- [ ] **[引擎優化] `BILLING_CYCLE` 邏輯對接**：讓 `RewardsCalculator` 能根據事實表精確劃分消費所屬的帳單月份。
-
-## 6. 回饋計算引擎實作規範 (Rewards Engine Implementation)
+## 5. 回饋計算引擎實作規範 (Rewards Engine Implementation)
 為解決 Excel 公式管理規則引用與「Before-After」對照困難的痛點，實作應遵循以下邏輯：
 1.  **資料源讀取**：一律從資料庫 `all_transactions` 讀取，並在 SQL 階段利用 `WHERE` 排除 `繳款`、`紅利折抵`、`各項費用`。
 2.  **瀑布式回饋引擎 (Waterfall Engine)**：
@@ -79,14 +71,9 @@
     *   `bridge_reward_rules.csv` 關鍵欄位：`rules_reward_program`, `mobile_payment`, `merchant_display`, `start_date`, `end_date`, `merchant_rate`, `priority`, `reward_cal_break`。
     *   交易資料比對優先採用 `card_type` 作為卡片識別。
 
-## 7. 內容輸出規範
+## 6. 內容輸出規範
 1.  **README.md修改權限**：整個README.md的修改要事先詢問，並且僅提供文字跟修改建議。
 2.  **暫時資料的輸出位址**：需要檢查的暫時資料請以csv格式並明確命名後輸出至 `output\` (該資料夾已被.gitignore忽略)，並提示使用者去該資料夾查看。 
-
-## 8. 開發文件撰寫模式
-1.在對話框中輸入提示詞「進入開發文件撰寫模式」開啟本模式，並在Gemini.md的第一行新增「目前為開發文件撰寫模式」。
-2.在對話框中輸入提示詞「結束開發文件撰寫模式」來結束本模式，並移除Gemini.md的第一行「目前為開發文件撰寫模式」。
-3.Gemini.md的第一行存在「目前為開發文件撰寫模式」時，對所有markdown以外的檔案均採取唯讀模式，僅能檢視，不做任何修改。
-4.開發文件的輸出資料夾在docs/，輸出格式是markdown檔案。
-5.路徑提示時請使用專案的相對路徑，確保所有檢視專案的視角一致。
+3.  **develop_log.md修改規範**：
+    - **路徑使用**：路徑位置使用專案的相對路徑，確保所有檢視專案的視角一致。  
 
