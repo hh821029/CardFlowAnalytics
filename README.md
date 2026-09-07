@@ -1,6 +1,11 @@
-# 💳 Credit Card Transaction ETL Pipeline
+# 💳 CardFlow Analytics (信用卡金流分析系統)
 
-[![CI](https://github.com/hh821029/CardFlowAnalytics/actions/workflows/ci.yml/badge.svg)](https://github.com/hh821029/CardFlowAnalytics/actions/workflows/ci.yml)
+![CI Status](https://github.com/hh821029/CardFlowAnalytics/actions/workflows/ci.yml/badge.svg)
+![Test Coverage](https://img.shields.io/badge/Coverage-94%25-brightgreen?style=flat-square&logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-184%20passed-success?style=flat-square)
+![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)
+![.NET](https://img.shields.io/badge/.NET-8.0-purple?style=flat-square&logo=dotnet)
+
 
 ## 📖 專案背景 (Project Context)
 1. 為了理解"我是如何使用信用卡"，像是我會在什麼樣的消費情境下會使用信用卡，以及我對於回饋的偏好來改進我的信用卡使用配置和消費策略。
