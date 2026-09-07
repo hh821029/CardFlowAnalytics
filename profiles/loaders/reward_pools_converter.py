@@ -17,6 +17,7 @@ import os
 import csv
 import json
 import argparse
+import pandas as pd
 from typing import Any, Dict, List
 
 DEFAULT_CSV_PATH = os.path.join("profiles", "common", "configs", "bridge_reward_pools.csv")
@@ -63,19 +64,23 @@ def csv_to_json(csv_path: str = DEFAULT_CSV_PATH, json_path: str = DEFAULT_JSON_
     with open(csv_path, "r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            pool_id = (row.get("merchant_reward_pools_id") or "").strip()
-            if not pool_id:
+            raw_pool_id = row.get("merchant_reward_pools_id")
+            pool_id = str(raw_pool_id).strip() if pd.notna(raw_pool_id) and raw_pool_id is not None else ""
+            if not pool_id or pool_id.lower() in ['nan', 'none']:
                 continue
             
             if pool_id not in pools_dict:
+                raw_pool_name = row.get("pool_name")
+                pool_name = str(raw_pool_name).strip() if pd.notna(raw_pool_name) and raw_pool_name is not None else ""
                 pools_dict[pool_id] = {
                     "merchant_reward_pools_id": pool_id,
-                    "pool_name": (row.get("pool_name") or "").strip() or None,
+                    "pool_name": pool_name or None,
                     "pass_rules": [],
                     "rules": []
                 }
                 
-            rule_type = (row.get("rule_type") or "rule").strip().lower()
+            raw_rule_type = row.get("rule_type")
+            rule_type = (str(raw_rule_type).strip().lower() if pd.notna(raw_rule_type) and raw_rule_type is not None else "rule") or "rule"
             
             # 建立 rule item：動態支援所有 CSV 中的非元資料欄位
             rule_item: Dict[str, Any] = {}

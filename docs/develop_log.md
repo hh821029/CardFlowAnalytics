@@ -1,5 +1,11 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-07**
+   * **GitHub Actions CI 測試失敗修復 (Refiner 浮點型別防御修復)**：
+     - **根因定位**：CI 環境（Ubuntu + Python 3.11 + Pandas）在 `transform_data` 階段拋出 `AttributeError: 'float' object has no attribute 'strip'`，導致 `DataRefiner.process` 捕捉異常後退回未清洗的原始 `merged_df`，連帶造成 5 項依賴清洗後欄位（`category`、`normalized_merchant`、`payment_process`）的測試單元失敗。
+     - **核心修復**：
+       1. `etl/processors/card_classifier.py`：在比對虛擬卡號 `vpc_val = input_vpc.get(idx, '')` 時，加入 `pd.notna()` 與字串型別防禦判定，防止非國泰交易（`vpc_no` 為 `np.nan` 浮點數）呼叫 `.strip()` 崩潰。
+       2. `profiles/loaders/reward_pools_converter.py`：對 `pool_id`、`pool_name`、`rule_type` 補強 `pd.notna()` 防禦，杜絕同類浮點空值解析問題。
+       3. `etl/transformation.py`：於例外日誌加入 `exc_info=True`，確保未來若有例外可於 CI 輸出完整呼叫堆疊。
    * **資料庫載入層與 FastAPI 資料管線測試套件實作**：
      - 新增 `tests/test_database_loaders.py`（16 項測試）：涵蓋 `BaseDBLoader` 資料清洗與布林/日期標準化、`SQLiteLoader` 增全量模式與索引建立、`DatabaseFactory` 動態分派與降級、`DBReader` 查詢與連線失敗降級、`PostgresLoader` 連線字串規範。
      - 新增 `tests/test_fastapi_pipeline.py`（13 項測試）：涵蓋 FastAPI SSE 任務串流調度（`/api/run/etl`、`/api/run/config_*`、`/api/run/query_export`）、`_task_lock` 系統忙碌防併發保護、端到端 (Extract -> Transform -> Load -> Database query) 隔離入庫與動態 SQL 導出。

@@ -79,7 +79,7 @@ def transform_data(merged_df: pd.DataFrame) -> pd.DataFrame:
 
             logger.info("✨ 資料清洗完成")
         except Exception as e:
-            logger.error(f"❌ Refiner 清洗過程發生嚴重錯誤: {e}")
+            logger.error(f"❌ Refiner 清洗過程發生嚴重錯誤: {e}", exc_info=True)
             save_anomaly_report(merged_df, 'crash_dump_refiner.csv', "清洗過程發生崩潰，已備份原始合併資料")
             final_df = merged_df
 

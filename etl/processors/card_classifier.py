@@ -87,7 +87,8 @@ class CardClassifier:
             card_str_zfill = card_str.zfill(4) if card_str.isdigit() and len(card_str) <= 4 else card_str
             valid_card_nos = [card_str, card_str_zfill] if card_str != card_str_zfill else [card_str]
 
-            vpc_val = input_vpc.get(idx, '').strip()
+            raw_vpc = input_vpc.get(idx, '')
+            vpc_val = str(raw_vpc).strip() if pd.notna(raw_vpc) else ''
             if vpc_val.lower() in ['nan', 'none']:
                 vpc_val = ''
             vpc_val_zfill = vpc_val.zfill(4) if vpc_val.isdigit() and len(vpc_val) <= 4 else vpc_val
