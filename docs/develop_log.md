@@ -1,5 +1,8 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-07**
+   * **卡片配置 API 嚴格型別守門與 CI 測資修復 (Cards JSON API Strict Type Enforcement)**：
+     - **型別防禦**：重構 `api/routers/cards_json.py` 之 `/api/cards/json` POST 端點，強制規範根節點資料必須為陣列清單（`List`），凡傳入 `Dict` 或其他非法型態一律立即拋出 `HTTP 400 Bad Request`。
+     - **欄位合規性檢查**：對陣列內每筆物件檢驗有效 `card_id` 與 `bank_no`，兼顧前端操作完整性並修復 `test_post_cards_json_validation` 測資。
    * **Profile 身分驗證防護強化與安全防禦 (Authentication Hardening)**：
      - 修復 `api/routers/auth.py` 之 Session Cookie 傳入值安全校驗，落實格式檢驗與路徑穿越防護。
      - 確立身分驗證內部比對隔離機制與安全性文件規範。

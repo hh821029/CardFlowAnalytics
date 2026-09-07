@@ -64,16 +64,30 @@ async def api_get_user_cards_json():
         raise HTTPException(status_code=500, detail="讀取卡片配置失敗，請稍後再試")
 
 @router.post("/json")
-async def api_save_user_cards_json(payload: dict = Body(...), sync_db: bool = True):
+async def api_save_user_cards_json(payload: Any = Body(...), sync_db: bool = True):
     """
     更新當前 Profile 之下 bridge_user_cards.json，並依參數同步至 DB (dim_cards)
     支援原子性寫入 (Atomic Write) 防止檔案半寫入損毀
+    嚴格限制根節點必須為卡片陣列清單 (List)，若傳入 Dict 或其他型別一律拋出 HTTP 400
     """
-    cards = payload.get("cards", [])
-    if not isinstance(cards, list):
-        raise HTTPException(status_code=400, detail="傳入資料格式錯誤，cards 必須為陣列清單")
+    # 1. 嚴格根節點型別校驗：必須為 list
+    if not isinstance(payload, list):
+        raise HTTPException(
+            status_code=400,
+            detail="傳入資料格式錯誤：根節點必須為卡片陣列清單 (List)，不支援非陣列型態"
+        )
 
-    # 校驗銀行代碼 (bank_no)
+    cards = payload
+
+    # 2. 元素結構與必要欄位校驗
+    for c in cards:
+        if not isinstance(c, dict) or not str(c.get("card_id", "")).strip():
+            raise HTTPException(
+                status_code=400,
+                detail="卡片清單中包含無效項目：每筆卡片資料必須為物件且包含有效之 'card_id' 欄位"
+            )
+
+    # 3. 校驗銀行代碼 (bank_no)
     valid_banks = const.get_all_banks()
     if valid_banks:
         valid_bank_nos = {str(b.get("bank_no", "")).strip() for b in valid_banks if b.get("bank_no")}
