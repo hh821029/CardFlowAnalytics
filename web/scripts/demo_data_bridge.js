@@ -29,8 +29,10 @@
         // 檢查是否符合需降級之 API
         const match = API_MOCK_MAP.find(m => m.pattern.test(url));
 
-        // 1. 如果是 GitHub Pages (hostname 包含 github.io) 或 file:// 協議，直接讀取靜態 mock
-        const isStaticHost = window.location.hostname.includes('github.io') || window.location.protocol === 'file:';
+        // 1. 如果是 GitHub Pages (精準比對 hostname 為 github.io 或其子網域) 或 file:// 協議，直接讀取靜態 mock
+        const hostname = window.location.hostname;
+        const isGitHubPages = hostname === 'github.io' || hostname.endsWith('.github.io');
+        const isStaticHost = isGitHubPages || window.location.protocol === 'file:';
         if (isStaticHost && match) {
             console.log(`🌐 [GitHub Pages / Static Mode] 導向靜態預載資料: ${match.mock}`);
             return originalFetch.call(this, match.mock, init);

@@ -10,12 +10,13 @@ logger = logging.getLogger(__name__)
 # 嘗試載入 SQLAlchemy
 try:
     import sqlalchemy
-    from sqlalchemy.engine import URL, Engine
     from sqlalchemy import create_engine
+    from sqlalchemy.engine import URL, Engine, make_url
     HAS_SQLALCHEMY = True
 except ImportError:
     HAS_SQLALCHEMY = False
-    Engine = None  # type: ignore
+    Engine = None      # type: ignore
+    make_url = None    # type: ignore
 
 # 全域 Engine 快取實體 (Singleton Engine Instance)
 _cached_pg_engine: Optional[Any] = None
@@ -32,9 +33,8 @@ def get_postgres_url(hide_password: bool = False) -> str:
     if env_url:
         if not getattr(const, 'IS_IN_DOCKER', False):
             env_url = env_url.replace('@localhost:', '@127.0.0.1:')
-        if hide_password and HAS_SQLALCHEMY:
+        if hide_password and HAS_SQLALCHEMY and make_url is not None:
             try:
-                from sqlalchemy.engine import make_url
                 url_obj = make_url(env_url)
                 return url_obj.render_as_string(hide_password=True)
             except Exception:
@@ -81,10 +81,20 @@ def get_postgres_engine(connect_timeout: int = 5, force_new: bool = False):
     if _cached_pg_engine is not None and not force_new:
         return _cached_pg_engine
 
+    # 1. 在 try 之前安全初始化 conn_str 與 target_info (避免 except 發生 UnboundLocalError)
+    conn_str = ""
+    target_info = "PostgreSQL"
     try:
         conn_str = get_postgres_url(hide_password=False)
-        safe_log_str = get_postgres_url(hide_password=True)
-        logger.debug(f"🔌 建立 PostgreSQL Engine: {safe_log_str}")
+        if HAS_SQLALCHEMY and make_url is not None:
+            url_meta = make_url(conn_str)
+            target_info = f"{url_meta.host}:{url_meta.port}/{url_meta.database}"
+    except Exception:
+        pass
+
+    # 2. 建立 Engine
+    try:
+        logger.debug(f"🔌 建立 PostgreSQL Engine (Target: {target_info})")
         
         engine = create_engine(
             conn_str, 
@@ -93,7 +103,7 @@ def get_postgres_engine(connect_timeout: int = 5, force_new: bool = False):
         )
         _cached_pg_engine = engine
         return engine
-    except Exception as e:
-        safe_log_str = get_postgres_url(hide_password=True)
-        logger.warning(f"⚠️ 無法建立 PostgreSQL Engine ({safe_log_str}): {e}")
+    except Exception:
+        logger.warning(f"⚠️ 無法建立 PostgreSQL Engine (Target: {target_info}): 連線逾時或認證失敗")
         return None
+

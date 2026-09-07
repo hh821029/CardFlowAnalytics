@@ -1,5 +1,9 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-07**
+   * **全面修復 CodeQL 程式碼安全掃描警告 (CodeQL Security Hardening & Sanitization)**：
+     - **Cookie 污點阻斷 (CWE-614)**：於 `api/routers/auth.py` 改採白名單安全變數 `safe_profile_id` 賦值 Cookie，切斷來自使用者輸入的污點傳播流。
+     - **資料庫敏感資訊日誌脫敏 (CWE-532)**：盤點 `database/loaders/db_config.py`，移除包含連線字串與例外細節的日誌印出，改以脫敏之 Host/Port/DB 名稱記錄，杜絕帳號密碼洩漏風險。
+     - **URL 子字串精確校驗 (Incomplete URL substring sanitization)**：修正 `web/scripts/demo_data_bridge.js`，將 `hostname.includes('github.io')` 改為嚴格後綴比對 `endsWith('.github.io')` 或全等 `github.io`，防止惡意釣魚網域包含該子字串繞過安全檢查。
    * **卡片配置 API 嚴格型別守門與 CI 測資修復 (Cards JSON API Strict Type Enforcement)**：
      - **型別防禦**：重構 `api/routers/cards_json.py` 之 `/api/cards/json` POST 端點，強制規範根節點資料必須為陣列清單（`List`），凡傳入 `Dict` 或其他非法型態一律立即拋出 `HTTP 400 Bad Request`。
      - **欄位合規性檢查**：對陣列內每筆物件檢驗有效 `card_id` 與 `bank_no`，兼顧前端操作完整性並修復 `test_post_cards_json_validation` 測資。

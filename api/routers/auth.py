@@ -61,32 +61,46 @@ async def api_login(response: Response, payload: dict = Body(...)):
     # 2. Hash 驗證帳號鍵值規範 (user_<userid>)
     auth_user_key = resolve_auth_user_key(username)
 
-    # 3. 解析 Profile ID 與路徑穿越防禦 (Path Traversal Protection)
+    # 3. 解析 Profile ID 與路徑白名單安全映射 (CWE-22 / CWE-73 Path Traversal Defense)
     profile_id = resolve_profile_id(username)
     base_profiles_dir = os.path.abspath(const.PROFILES_DIR)
-    profile_dir = os.path.abspath(os.path.join(base_profiles_dir, profile_id))
 
-    if os.path.commonpath([base_profiles_dir, profile_dir]) != base_profiles_dir:
-        raise HTTPException(status_code=400, detail="不合法的 Profile 路徑")
-
-    # 4. 檢查目標 Profile 目錄是否存在 (若為 example_public 或 user_main 且尚未建立則自動建立)
-    if not os.path.exists(profile_dir):
-        if profile_id in ["example_public", "user_main"]:
-            os.makedirs(os.path.join(profile_dir, "configs"), exist_ok=True)
-            os.makedirs(os.path.join(profile_dir, "data"), exist_ok=True)
-        else:
+    # 採用白名單與已知合法 Profile 映射，阻絕未受信任輸入進入檔案系統 API (Sink)
+    if profile_id == "example_public":
+        safe_profile_id = "example_public"
+        safe_profile_dir = os.path.join(base_profiles_dir, "example_public")
+    elif profile_id == "user_main":
+        safe_profile_id = "user_main"
+        safe_profile_dir = os.path.join(base_profiles_dir, "user_main")
+    else:
+        # 動態掃描 profiles/ 目錄下實際存在的子目錄，構建受信任的白名單映射字典
+        existing_profiles = {
+            entry: os.path.join(base_profiles_dir, entry)
+            for entry in os.listdir(base_profiles_dir)
+            if os.path.isdir(os.path.join(base_profiles_dir, entry)) and not entry.startswith((".", "_"))
+        }
+        if profile_id not in existing_profiles:
             raise HTTPException(status_code=404, detail=f"找不到對應的 Profile 設定目錄: {profile_id}")
+        safe_profile_id = profile_id
+        safe_profile_dir = existing_profiles[profile_id]
 
-    # 5. 動態更新系統全局 ACTIVE_PROFILE
-    const.ACTIVE_PROFILE_NAME = profile_id
-    const.ACTIVE_PROFILE_DIR = profile_dir
-    const.PROFILE_CONFIG_DIR = os.path.join(profile_dir, "configs")
-    const.PROFILE_DATA_DIR = os.path.join(profile_dir, "data")
-    const.PROFILE_JSON_PATH = os.path.join(profile_dir, "profile.json")
+    # 4. 僅允許內建展示帳號 (example_public / user_main) 於首次登入時自動初始化目錄
+    if not os.path.exists(safe_profile_dir):
+        if safe_profile_id in ["example_public", "user_main"]:
+            os.makedirs(os.path.join(safe_profile_dir, "configs"), exist_ok=True)
+            os.makedirs(os.path.join(safe_profile_dir, "data"), exist_ok=True)
+        else:
+            raise HTTPException(status_code=404, detail=f"找不到對應的 Profile 設定目錄: {safe_profile_id}")
 
-    # 6. 設定安全 Cookie (值已通過正規化校驗與格式保證，杜絕 CWE-614 Cookie Injection)
-    # 使用經過 SAFE_USERNAME_REGEX 驗證的 profile_id
-    cookie_val = str(profile_id)
+    # 5. 動態更新系統全局 ACTIVE_PROFILE (使用已驗證之安全變數)
+    const.ACTIVE_PROFILE_NAME = safe_profile_id
+    const.ACTIVE_PROFILE_DIR = safe_profile_dir
+    const.PROFILE_CONFIG_DIR = os.path.join(safe_profile_dir, "configs")
+    const.PROFILE_DATA_DIR = os.path.join(safe_profile_dir, "data")
+    const.PROFILE_JSON_PATH = os.path.join(safe_profile_dir, "profile.json")
+
+    # 6. 設定安全 Cookie (使用經過白名單校驗的 safe_profile_id，徹底杜絕 CWE-614 污點流)
+    cookie_val = str(safe_profile_id)
     response.set_cookie(
         key="session_user",
         value=cookie_val,
@@ -95,7 +109,7 @@ async def api_login(response: Response, payload: dict = Body(...)):
         secure=False  # 若部署在 HTTPS 環境建議啟用 Secure
     )
 
-    logger.info(f"🔑 使用者 '{username}' 登入成功，切換至 Profile: {profile_id}")
+    logger.info(f"🔑 使用者 '{username}' 登入成功，切換至 Profile: {safe_profile_id}")
 
     return {
         "status": "ok",
