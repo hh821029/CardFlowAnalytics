@@ -20,6 +20,12 @@
      - 覆蓋消費類別、支付管道與信用卡多維度 RFM 聚合、持卡狀態（active/cancelled）關聯與客單價整數化計算。
      - 健全防禦性機制：修復 `analytics/rfm/modules.py` 中 `calculate_payment_rfm` 與 `calculate_card_rfm` 在面對空 DataFrame 或缺失特定欄位時的潛在 `KeyError` 缺陷。
      - 全套測試套件由 138 項擴充至 155 項，100% 全數通過（35.92s）。
+   * **消費交叉透視矩陣核心測試套件實作 (`tests/test_matrix_modules.py`)**：
+     - 新增 `tests/test_matrix_modules.py`（29 項測試）：涵蓋支付分層（Tier 1 強制保留補 0 / Tier 2 通路錢包動態呈現 / 其他）、類別排序（固定「保險費用」置底、排除銀行費用與未分類）。
+     - 驗證 `create_pivot_matrix` 橫向 100% 百分比佔比與 `Total_Amount` 彙算正確。
+     - 驗證 `generate_spending_matrix` 多時間視窗（全期、半年、季）端到端矩陣產出與 `save_spending_matrix_reports` 輸出 UTF-8-SIG CSV 報表。
+     - 完善通用配置：在 `profiles/common/configs/dim_merchants.csv` 補入富邦人壽保費規則，確保專案配置一致性。
+     - 全套測試套件由 155 項擴充至 184 項，100% 全數綠燈通過（36.57s）。
 
 * **2026-09-04**
    * **ETL 程式碼整理3**：
