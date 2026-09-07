@@ -1,5 +1,8 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-07**
+   * **Profile 身分驗證防護強化與安全防禦 (Authentication Hardening)**：
+     - 修復 `api/routers/auth.py` 之 Session Cookie 傳入值安全校驗，落實格式檢驗與路徑穿越防護。
+     - 確立身分驗證內部比對隔離機制與安全性文件規範。
    * **CodeQL 程式碼安全掃描漏洞修復 (Information Exposure Through Exception)**：
      - **防護強化**：全面盤點 `api/routers/analytics.py`、`api/routers/cards_json.py` 與 `api/routers/configs.py`，修復 CodeQL 警告的 `Information exposure through an exception` (CWE-209)。
      - **日誌與回應脫敏 (Log & Sanitize)**：底層詳細錯誤與呼叫堆疊改以 `logger.error(..., exc_info=True)` 留存於本地日誌，所有對外 HTTP / SSE 錯誤回應一律脫敏，替換為標準通用錯誤描述，杜絕伺服器內部結構與例外資訊暴露風險。

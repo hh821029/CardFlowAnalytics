@@ -1,3 +1,4 @@
+import os
 import const
 import json
 import pandas as pd
@@ -99,6 +100,14 @@ def BRIDGE_REWARD_LINKED_LISTS_COL_MAPPING():
 def load_pools_json_to_df():
     """對應 bridge_reward_pools.json"""
     json_path = const.BRIDGE_REWARD_POOLS_PATH
+    if not os.path.exists(json_path):
+        profile_path = os.path.join(const.PROFILE_CONFIG_DIR, 'bridge_reward_pools.json')
+        if os.path.exists(profile_path):
+            json_path = profile_path
+
+    if not os.path.exists(json_path):
+        return pd.DataFrame()
+
     with open(json_path, 'r', encoding='utf-8') as f:
         pools_data = json.load(f)
         
