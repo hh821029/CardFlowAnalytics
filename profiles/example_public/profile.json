@@ -1,0 +1,15 @@
+{
+  "profile_id": "example_public",
+  "name": "Public Example Profile",
+  "description": "公開展示用脫敏帳單與回饋計算展示 Profile",
+  "active": true,
+  "paths": {
+    "data_dir": "profiles/example_public/data",
+    "configs_dir": "profiles/example_public/configs",
+    "ingested_files_json": "profiles/example_public/ingested_files.json"
+  },
+  "features": {
+    "enable_reward_calc": true,
+    "enable_file_hash_check": true
+  }
+}

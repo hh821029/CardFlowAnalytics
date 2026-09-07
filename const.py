@@ -727,10 +727,10 @@ REWARD_DOTNET_OUTPUT_DIR = os.path.join(OUTPUT_DIR, 'reward_dotnet', 'detail')  
 CONFIG_DIR = COMMON_CONFIG_DIR                     # 規則設定檔區 (profiles/common/configs)
 DATABASE_DIR = os.path.join(ROOT_DIR, 'database')    # 資料庫區
 
-# 資料庫路徑 (多資料庫獨立設計)
-TRANSACTIONS_DB_PATH = os.path.join(DATABASE_DIR, 'TransactionsBills.db')
-CONFIGS_DB_PATH = os.path.join(DATABASE_DIR, 'TransactionsConfigs.db')
-ANALYSIS_DB_PATH = os.path.join(DATABASE_DIR, 'TransactionsAnalysis.db')
+# 資料庫路徑 (多資料庫獨立設計，支援環境變數覆蓋以實現 Demo / 測試隔離)
+TRANSACTIONS_DB_PATH = os.getenv('TRANSACTIONS_DB_PATH', os.path.join(DATABASE_DIR, 'TransactionsBills.db'))
+CONFIGS_DB_PATH = os.getenv('CONFIGS_DB_PATH', os.path.join(DATABASE_DIR, 'TransactionsConfigs.db'))
+ANALYSIS_DB_PATH = os.getenv('ANALYSIS_DB_PATH', os.path.join(DATABASE_DIR, 'TransactionsAnalysis.db'))
 # 向後相容別名：指向主要交易資料庫，避免專案其他地方崩潰
 DB_PATH = TRANSACTIONS_DB_PATH
 

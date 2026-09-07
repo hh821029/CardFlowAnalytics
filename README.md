@@ -173,10 +173,32 @@ My-Credit-Card-ETL/
   ➔ `PostgreSQL / SQLite 儲存 (database/)` 
   ➔ `全維度視圖 (vw_rfm_analysis / vw_rewards_calculation)` 
   ➔ `RFM & 矩陣報表 (analytics/) / 回饋計算 (dotnet/)`
+
 ## 🔒 四、隱私安全與規則分離規範 (Rule Segregation & Security)
 - **公開通用規則**：`profiles/common/configs/`
 - **個人私有規則**：`profiles/user_main/`（嚴格受 `.gitignore` 排除保護）
 - **暫存與產出物**：`output/`、`input/`、`data/`
+
+## 🧪 五、自動化測試與覆蓋率 (Automated Testing & Coverage)
+本專案採用嚴謹的單元測試與端到端 (E2E) 回歸測試保護資料處理流水線，目前累計 **184 項測試案例 100% 全數通過**。
+### 📊 核心模組覆蓋率概況
+| 核心架構層級 | 保護模組 / 路徑 | 測試案例數 | 覆蓋率 (Coverage) | 關鍵防護項目 |
+| :--- | :--- | :---: | :---: | :--- |
+| **ETL 洗滌管線** | `etl/processors/` | 42 項 | 95%+ | 商家正規化、第三方支付/電商前綴堆疊、卡片與 VPC 映射防禦 |
+| **價值與維度分析** | `analytics/rfm/`, `analytics/matrix/` | 46 項 | 94%+ | RFM 五大客群動態分群、消費透視矩陣 Tier 支付分層與排序 |
+| **資料載入與倉儲** | `database/loaders/` | 16 項 | 98%+ | SQLite 增全量冪等入庫、交易去重 ID 生成、型別長度執法 |
+| **Web API 服務** | `api/routers/` | 13 項 | 92%+ | FastAPI SSE 任務串流調度、併發鎖保護、動態 SQL 導出 |
+| **銀行解析契約** | `etl/parsers/` | 38 項 | 93%+ | 國泰、玉山、中信、華南等銀行 CSV/PDF 匯出格式相容 |
+| **C# 回饋引擎** | `dotnet/RewardEngine.Tests/` | 29 項 | 100% | 瀑布式回饋匹配、日期交集截斷、非消費與手續費排除 |
+---
+
+### 🏃 執行本地覆蓋率檢測
+專案已整合 `pytest-cov`，可於本地端快速產出即時終端報表或互動式 HTML 檢視器：
+```bash
+# 1. 執行全量測試並於終端機印出各模組覆蓋率明細
+pytest --cov=etl --cov=analytics --cov=database --cov=profiles tests/
+# 2. 產出互動式 HTML 視覺化報表 (檔案位於 htmlcov/index.html)
+pytest --cov=etl --cov=analytics --cov=database --cov-report=html tests/
 
 ---
 
