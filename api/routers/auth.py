@@ -61,28 +61,21 @@ async def api_login(response: Response, payload: dict = Body(...)):
     # 2. Hash 驗證帳號鍵值規範 (user_<userid>)
     auth_user_key = resolve_auth_user_key(username)
 
-    # 3. 解析 Profile ID 與路徑白名單安全映射 (CWE-22 / CWE-73 Path Traversal Defense)
-    profile_id = resolve_profile_id(username)
+    # 3. 限定安全常數 Profile 映射 (CWE-22 / CWE-614 Strict Constant Allowlist)
     base_profiles_dir = os.path.abspath(const.PROFILES_DIR)
 
-    # 採用白名單與已知合法 Profile 映射，阻絕未受信任輸入進入檔案系統 API (Sink)
-    if profile_id == "example_public":
+    # 僅允許限定之安全常數 Profile 登入與設定 Session Cookie
+    if profile_id in ["example_public", "public"]:
         safe_profile_id = "example_public"
         safe_profile_dir = os.path.join(base_profiles_dir, "example_public")
-    elif profile_id == "user_main":
+    elif profile_id in ["user_main", "main"]:
         safe_profile_id = "user_main"
         safe_profile_dir = os.path.join(base_profiles_dir, "user_main")
     else:
-        # 動態掃描 profiles/ 目錄下實際存在的子目錄，構建受信任的白名單映射字典
-        existing_profiles = {
-            entry: os.path.join(base_profiles_dir, entry)
-            for entry in os.listdir(base_profiles_dir)
-            if os.path.isdir(os.path.join(base_profiles_dir, entry)) and not entry.startswith((".", "_"))
-        }
-        if profile_id not in existing_profiles:
-            raise HTTPException(status_code=404, detail=f"找不到對應的 Profile 設定目錄: {profile_id}")
-        safe_profile_id = profile_id
-        safe_profile_dir = existing_profiles[profile_id]
+        raise HTTPException(
+            status_code=403, 
+            detail="目前系統僅開放展示帳號 'example_public' 與本機主要帳號 'main' / 'user_main'"
+        )
 
     # 4. 僅允許內建展示帳號 (example_public / user_main) 於首次登入時自動初始化目錄
     if not os.path.exists(safe_profile_dir):
@@ -113,9 +106,9 @@ async def api_login(response: Response, payload: dict = Body(...)):
 
     return {
         "status": "ok",
-        "message": f"登入成功！已切換至 Profile: {profile_id}",
+        "message": f"登入成功！已切換至 Profile: {safe_profile_id}",
         "username": username,
-        "profile_id": profile_id
+        "profile_id": safe_profile_id
     }
 
 @router.get("/status")
