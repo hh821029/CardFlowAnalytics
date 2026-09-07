@@ -1,5 +1,12 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-07**
+   * **公開 Demo 隔離展示資料集、GitHub Pages 靜態部署與 Web 控制台實作 (Isolated Demo Showcase & GitHub Pages)**：
+     - **零污染架構**：於 `const.py` 擴充資料庫路徑之環境變數覆蓋支援（`TRANSACTIONS_DB_PATH`、`CONFIGS_DB_PATH`、`ANALYSIS_DB_PATH`），確保公開展示資料完全與正式庫隔離。
+     - **Demo 資料集產生器 (`prepare_demo_dataset.py`)**：一鍵調度 `example_public` 脫敏帳單，執行 ETL 清洗、SSOT 維度同步、RFM 客群分析與消費透視矩陣，產出獨立的 `TransactionsBills_demo.db`、`TransactionsConfigs_demo.db` 與 `TransactionsAnalysis_demo.db`。
+     - **靜態預烘焙匯出器 (`export_demo_static_json.py`)**：將 RFM 氣泡圖、金流桑基圖、月度趨勢、回饋池監控等 API 數據預烘焙導出至 `web/mock_data/` 靜態 JSON 檔案。
+     - **前端無伺服器降級橋接器 (`web/scripts/demo_data_bridge.js`)**：在 `index.html`、`analytics_dashboard.html`、`time_depend_plot.html`、`ranking.html` 等頁面注入透明代理，若在 GitHub Pages 或無後端環境下自動無縫改讀靜態 JSON。
+     - **GitHub Actions 自動部署工作流 (`.github/workflows/pages.yml`)**：推送到 `main` 分支時，自動執行 demo pipeline 與預烘焙，並自動將 `web/` 靜態站點發布至 GitHub Pages。
+     - 補齊 `profiles/example_public/profile.json`，完善 Profile 配置結構。
    * **GitHub Actions CI 測試失敗修復 (Refiner 浮點型別防御修復)**：
      - **根因定位**：CI 環境（Ubuntu + Python 3.11 + Pandas）在 `transform_data` 階段拋出 `AttributeError: 'float' object has no attribute 'strip'`，導致 `DataRefiner.process` 捕捉異常後退回未清洗的原始 `merged_df`，連帶造成 5 項依賴清洗後欄位（`category`、`normalized_merchant`、`payment_process`）的測試單元失敗。
      - **核心修復**：
