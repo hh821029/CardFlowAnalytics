@@ -266,8 +266,14 @@ def calculate_payment_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, A
     付款管道維度 RFM 分群計算 (以 payment_process 聚合)
     """
     df_clean = get_clean_df(df_raw)
+    if df_clean.empty:
+        return pd.DataFrame()
+
     pay_col = 'payment_process' if 'payment_process' in df_clean.columns else 'mobile_payment'
-    df_clean[pay_col] = df_clean[pay_col].fillna('實體卡/其他')
+    if pay_col not in df_clean.columns:
+        df_clean[pay_col] = '實體卡/其他'
+    else:
+        df_clean[pay_col] = df_clean[pay_col].fillna('實體卡/其他')
     
     final_df = calculate_multi_window_rfm(df_clean, pay_col, windows_config)
     
@@ -344,8 +350,13 @@ def calculate_card_rfm(df_raw: pd.DataFrame, windows_config: List[Dict[str, Any]
     輸出欄位包含 status (active/cancelled) 與 segment 並列於前置欄位
     """
     df_clean = get_clean_df(df_raw)
+    if df_clean.empty or 'card_type' not in df_clean.columns:
+        return pd.DataFrame()
+
     card_mask = df_clean['card_type'].notna() & (df_clean['card_type'] != '')
     df_clean = cast(pd.DataFrame, df_clean[card_mask].copy())
+    if df_clean.empty:
+        return pd.DataFrame()
     
     final_df = calculate_multi_window_rfm(df_clean, ['bank_name', 'card_type'], windows_config)
     

@@ -14,6 +14,12 @@
      - 同時滿足消費透視矩陣 (Spending Matrix)：Tier 1 主流支付保底補 0 顯示、Tier 2 通路錢包動態呈現、保險費用 (富邦人壽) 固定置底與銀行費用精確排除。
      - 兼顧並相容既有銀行解析契約測試，全套回歸測試（138 項測試）100% 全數綠燈。
      - 更新 `.gitignore` 排除 `**/ingested_files.json`，確保環境狀態隔離。
+   * **RFM 客群價值模型核心測試套件實作 (`tests/test_rfm_modules.py`)**：
+     - 新增 `tests/test_rfm_modules.py`（17 項測試）：涵蓋基礎 RFM 計算與 Rank 百分比排名、多時間視窗聯集與 9999/0 預設值補齊。
+     - 商家維度五大客群（Core、Churned、Rising、Active、Dormant）100% 命中且類別眾數與維度表 fallback 補齊正確。
+     - 覆蓋消費類別、支付管道與信用卡多維度 RFM 聚合、持卡狀態（active/cancelled）關聯與客單價整數化計算。
+     - 健全防禦性機制：修復 `analytics/rfm/modules.py` 中 `calculate_payment_rfm` 與 `calculate_card_rfm` 在面對空 DataFrame 或缺失特定欄位時的潛在 `KeyError` 缺陷。
+     - 全套測試套件由 138 項擴充至 155 項，100% 全數通過（35.92s）。
 
 * **2026-09-04**
    * **ETL 程式碼整理3**：
