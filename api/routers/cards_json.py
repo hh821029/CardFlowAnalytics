@@ -41,8 +41,8 @@ async def api_get_card_products():
         products = df.to_dict(orient="records")
         return {"status": "ok", "products": products}
     except Exception as e:
-        logger.error(f"❌ 讀取卡片產品維度表失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"讀取卡片產品失敗: {e}")
+        logger.error(f"❌ 讀取卡片產品維度表失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="讀取卡片產品維度表失敗，請稍後再試")
 
 @router.get("/json")
 async def api_get_user_cards_json():
@@ -60,20 +60,18 @@ async def api_get_user_cards_json():
                 data = [data] if isinstance(data, dict) else []
             return {"status": "ok", "cards": data, "file_path": json_path}
     except Exception as e:
-        logger.error(f"❌ 讀取 JSON 失敗 ({json_path}): {e}")
-        raise HTTPException(status_code=500, detail=f"讀取卡片 JSON 失敗: {e}")
+        logger.error(f"❌ 讀取 JSON 失敗 ({json_path}): {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="讀取卡片配置失敗，請稍後再試")
 
 @router.post("/json")
-async def api_save_user_cards_json(
-    cards: Any = Body(...),
-    sync_db: bool = Query(True, description="是否自動同步更新至資料庫")
-):
+async def api_save_user_cards_json(payload: dict = Body(...), sync_db: bool = True):
     """
-    更新整包卡片 JSON 檔案 (採用 Atomic Write 安全寫入)
-    可自動觸發 DB 同步
+    更新當前 Profile 之下 bridge_user_cards.json，並依參數同步至 DB (dim_cards)
+    支援原子性寫入 (Atomic Write) 防止檔案半寫入損毀
     """
+    cards = payload.get("cards", [])
     if not isinstance(cards, list):
-        raise HTTPException(status_code=400, detail="卡片資料格式錯誤，最外層必須為 JSON Array 陣列 [ ... ]")
+        raise HTTPException(status_code=400, detail="傳入資料格式錯誤，cards 必須為陣列清單")
 
     # 校驗銀行代碼 (bank_no)
     valid_banks = const.get_all_banks()
@@ -88,14 +86,15 @@ async def api_save_user_cards_json(
                 )
 
     json_path = get_cards_json_path()
+    os.makedirs(os.path.dirname(json_path), exist_ok=True)
     tmp_path = f"{json_path}.tmp"
 
     try:
-        # 1. 寫入臨時檔
+        # 1. 寫入暫存檔
         with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(cards, f, ensure_ascii=False, indent=4)
+            json.dump(cards, f, ensure_ascii=False, indent=2)
 
-        # 2. 原子替換
+        # 2. 原子性更名
         os.replace(tmp_path, json_path)
         logger.info(f"💾 成功原子寫入卡片 JSON ({json_path})，共 {len(cards)} 筆卡片產品。")
 
@@ -107,7 +106,7 @@ async def api_save_user_cards_json(
                 db_synced = True
                 logger.info("✅ 已自動觸發 DB 卡片維度表同步。")
             except Exception as sync_err:
-                logger.warning(f"⚠️ 卡片 JSON 儲存成功，但同步至 DB 時發生錯誤: {sync_err}")
+                logger.warning(f"⚠️ 卡片 JSON 儲存成功，但同步至 DB 時發生錯誤: {sync_err}", exc_info=True)
 
         return {
             "status": "ok",
@@ -123,5 +122,5 @@ async def api_save_user_cards_json(
                 os.remove(tmp_path)
             except Exception:
                 pass
-        logger.error(f"❌ 寫入卡片 JSON 失敗: {e}")
-        raise HTTPException(status_code=500, detail=f"儲存卡片 JSON 失敗: {e}")
+        logger.error(f"❌ 寫入卡片 JSON 失敗: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="儲存卡片配置失敗，請稍後再試")

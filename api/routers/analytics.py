@@ -67,9 +67,10 @@ async def stream_csharp_rewards_calculation(
                 if sync_rewards_data_mart():
                     yield "data: 💾 [Data Mart] 回饋計算摘要已成功寫入 TransactionsAnalysis.db ([rewards_monthly_summary], [rewards_pool_utilization])\n\n"
             except Exception as dm_err:
-                logger.warning(f"⚠️ 自動同步回饋至 Data Mart 失敗: {dm_err}")
+                logger.warning(f"⚠️ 自動同步回饋至 Data Mart 失敗: {dm_err}", exc_info=True)
         except Exception as e:
-            yield f"data: ❌ [C# 引擎連線失敗] 無法連線至 C# RewardEngine 服務 ({CSHARP_REWARDS_API_URL}): {e}\n\n"
+            logger.error(f"❌ [C# 引擎連線失敗] 無法連線至 C# RewardEngine 服務 ({CSHARP_REWARDS_API_URL}): {e}", exc_info=True)
+            yield f"data: ❌ [C# 引擎連線失敗] 無法連線至 C# RewardEngine 服務，請確認引擎服務是否已正常啟動。\n\n"
 
 
 def _parse_filter_lists(
@@ -269,8 +270,8 @@ async def get_monthly_trend(
         data = build_monthly_trend_payload(df)
         return JSONResponse(content={"success": True, "data": data})
     except Exception as e:
-        logger.error(f"❌ 查詢月度趨勢失敗: {e}")
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+        logger.error(f"❌ 查詢月度趨勢失敗: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"success": False, "error": "查詢月度趨勢數據失敗，請稍後再試"})
 
 
 @data_router.get("/sankey")
@@ -286,7 +287,7 @@ async def get_sankey_flow_data(
     categories: Optional[str] = None,
     sub_categories: Optional[str] = None,
     include_merchants: bool = False,
-    demo_mode: Optional[str] = "true"
+    demo_mode: Optional[Union[str, bool]] = False
 ):
     """查詢金流桑基圖 (Sankey Flow) nodes 與 links 結構 (支援四層級與 DEMO 脫敏白名單模式)"""
     try:
@@ -301,8 +302,8 @@ async def get_sankey_flow_data(
         flow_data = build_sankey_flow(df, include_merchants=include_merchants, demo_mode=is_demo)
         return JSONResponse(content={"success": True, "data": flow_data})
     except Exception as e:
-        logger.error(f"❌ 查詢桑基圖數據失敗: {e}")
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+        logger.error(f"❌ 查詢桑基圖數據失敗: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"success": False, "error": "查詢桑基圖數據失敗，請稍後再試"})
 
 
 @data_router.get("/rfm-chart")
@@ -321,8 +322,8 @@ async def get_rfm_chart_data(
         )
         return JSONResponse(content={"success": True, "data": data})
     except Exception as e:
-        logger.error(f"❌ 查詢 RFM 圖表數據失敗: {e}")
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+        logger.error(f"❌ 查詢 RFM 圖表數據失敗: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"success": False, "error": "查詢 RFM 數據失敗，請稍後再試"})
 
 
 @data_router.get("/dimension-volatility")
@@ -349,7 +350,7 @@ async def get_dimension_volatility_data(
         return _safe_json_response({"success": True, "data": data})
     except Exception as e:
         logger.error(f"❌ 查詢維度消費波動數據失敗: {e}", exc_info=True)
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+        return JSONResponse(status_code=500, content={"success": False, "error": "查詢消費波動數據失敗，請稍後再試"})
 
 
 
@@ -375,5 +376,4 @@ async def get_rewards_summary_data():
         return _safe_json_response({"success": True, "data": data})
     except Exception as e:
         logger.error(f"❌ 查詢回饋彙總數據失敗: {e}", exc_info=True)
-        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
-
+        return JSONResponse(status_code=500, content={"success": False, "error": "查詢回饋彙總數據失敗，請稍後再試"})

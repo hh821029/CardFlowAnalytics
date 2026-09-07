@@ -1,5 +1,8 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-07**
+   * **CodeQL 程式碼安全掃描漏洞修復 (Information Exposure Through Exception)**：
+     - **防護強化**：全面盤點 `api/routers/analytics.py`、`api/routers/cards_json.py` 與 `api/routers/configs.py`，修復 CodeQL 警告的 `Information exposure through an exception` (CWE-209)。
+     - **日誌與回應脫敏 (Log & Sanitize)**：底層詳細錯誤與呼叫堆疊改以 `logger.error(..., exc_info=True)` 留存於本地日誌，所有對外 HTTP / SSE 錯誤回應一律脫敏，替換為標準通用錯誤描述，杜絕伺服器內部結構與例外資訊暴露風險。
    * **公開 Demo 隔離展示資料集、GitHub Pages 靜態部署與 Web 控制台實作 (Isolated Demo Showcase & GitHub Pages)**：
      - **零污染架構**：於 `const.py` 擴充資料庫路徑之環境變數覆蓋支援（`TRANSACTIONS_DB_PATH`、`CONFIGS_DB_PATH`、`ANALYSIS_DB_PATH`），確保公開展示資料完全與正式庫隔離。
      - **Demo 資料集產生器 (`prepare_demo_dataset.py`)**：一鍵調度 `example_public` 脫敏帳單，執行 ETL 清洗、SSOT 維度同步、RFM 客群分析與消費透視矩陣，產出獨立的 `TransactionsBills_demo.db`、`TransactionsConfigs_demo.db` 與 `TransactionsAnalysis_demo.db`。

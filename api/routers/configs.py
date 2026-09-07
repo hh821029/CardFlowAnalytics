@@ -64,5 +64,6 @@ async def api_get_analyzable_data():
         data = ConfigFilter.get_analyzable_data()
         return data
     except Exception as e:
-        logger.error(f"❌ 讀取可分析資料失敗: {e}")
-        return {"error": str(e), "banks": [], "cards": [], "payment_processes": []}
+        logger.error(f"❌ 讀取可分析資料失敗: {e}", exc_info=True)
+        return {"error": "讀取可分析維度資料失敗，請稍後再試", "banks": [], "cards": [], "payment_processes": []}
+
