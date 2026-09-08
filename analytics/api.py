@@ -41,8 +41,10 @@ RFM_WINDOWS = const.TimeWindow.to_legacy_list()
 MATRIX_WINDOWS = const.TimeWindow.to_list()
 
 
-def _save_to_data_mart(tables: Dict[str, pd.DataFrame], db_path: str = const.ANALYSIS_DB_PATH) -> None:
+def _save_to_data_mart(tables: Dict[str, pd.DataFrame], db_path: Optional[str] = None) -> None:
     """將分析結果結構化寫入 TransactionsAnalysis.db 資料庫"""
+    if db_path is None:
+        db_path = const.ANALYSIS_DB_PATH
     try:
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         with sqlite3.connect(db_path, timeout=30.0) as conn:

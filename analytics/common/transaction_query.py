@@ -111,9 +111,10 @@ def _resolve_bank_names(bank_inputs: List[str]) -> List[str]:
     bank_map = {}
     for b in all_banks:
         b_id = str(b.get('bank_id', '')).strip().lower()
+        b_no = str(b.get('bank_no', '')).strip()
         b_name = str(b.get('bank_name', '')).strip()
         b_mapping = str(b.get('bills_mapping_name', '')).strip()
-        names = {b_id, b_name, b_mapping}.union(set(b.get('keywords', [])))
+        names = {b_id, b_no, b_name, b_mapping}.union(set(b.get('keywords', [])))
         valid_names = {n for n in names if n and n.lower() != 'none' and n.lower() != 'nan'}
         for n in valid_names:
             bank_map[n.lower()] = valid_names

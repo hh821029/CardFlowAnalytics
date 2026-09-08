@@ -1,4 +1,20 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-09-08**
+   * **分析基礎管線與動態查詢測試單元補強 (Analytics Base Pipeline & Transaction Query Test Suites)**：
+     - **分析管線與 Facade 測試實作 (`tests/test_analytics_pipeline.py`，共 14 項測試)**：
+       - `validate_analytics_schema`：覆蓋視圖存在性、欄位完整性比對、`merchant` 與 `merchant_name` 雙向別名相容容錯、以及資料庫例外降級。
+       - `prepare_analytics_dataset`：覆蓋動態條件提取與全歷史提取之參數分派路由、空資料防禦、日期與金額型態強轉、`normalized_merchant` 多階 Fallback、主分類預設排除（未分類/銀行費用）與自訂覆蓋、以及次分類含「無次分類」時對空字串/None/NaN 之安全匹配。
+       - `BaseAnalyticsPipeline`：驗證基礎分析生命週期類別之實體化、過濾參數傳遞與資料準備。
+       - `run_analytics`：驗證 Facade 總調度（空資料提前中止、RFM 客群、Spending Matrix、多維度月度分組、桑基圖流向、CSV 報表匯出與 Data Mart 資料超市入庫）。
+       - `sync_rewards_data_mart` & `get_rewards_summary_mart_data`：覆蓋 C# 回饋明細解析、交易去重累加、實質回饋率計算、卡片與回饋池點數單位判定，以及 Data Mart 讀取時對 NaN / Inf 數值之全域脫敏過濾。
+     - **動態查詢器與邊界矩陣測試實作 (`tests/test_transaction_query.py`，共 14 項測試)**：
+       - `_resolve_bank_names`：擴充支援 `bank_no`（銀行 3 碼代號）解析至別名集合，覆蓋未知銀行 fallback 與大小寫容錯。
+       - `get_transactions`：覆蓋視圖查詢、時間視窗轉換、動態基準日（`anchor_date`）提取、`rfm_transactions` 缺失時自動降級查詢 `all_transactions` 原始表並排除非日常消費、以及雙重失敗時安全返回空 DataFrame。
+       - `query_transactions_modular`：覆蓋動態 SQL 生成、參數化佔位符防禦、時間區間篩選、5 種支付管道邊界矩陣（含直刷/非直刷/空清單/None）、消費地篩選（國內/國外/複合條件/特定國別代碼）、以及視圖缺失時自動平滑降級至 `all_transactions`。
+     - **變更風險清冊更新 (`docs/Change_Risk_Anti_Patterns.md`)**：
+       - 將「A. 分析基礎管線與查詢 (`analytics/`)」移至已受測試保護之模組清單，並將 Action Items 7 與 8 標記為已完成。
+       - 全套測試套件由 184 項擴充至 212 項（共 19 個測試模組），100% 全數綠燈通過。
+
 * **2026-09-07**
    * **全面修復 CodeQL 程式碼安全掃描警告 (CodeQL Security Hardening & Sanitization)**：
      - **Cookie 污點阻斷 (CWE-614)**：於 `api/routers/auth.py` 改採白名單安全變數 `safe_profile_id` 賦值 Cookie，切斷來自使用者輸入的污點傳播流。
