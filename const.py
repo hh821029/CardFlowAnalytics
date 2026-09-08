@@ -541,7 +541,7 @@ class TimeWindow(Enum):
         將任意前端傳入的時間視窗字串 (包含 THIS_YEAR, LAST_CALENDAR_YEAR, 1Y, 3M, 6M, 2Y, LAST_YEAR 等)
         解析為精確的 (start_date, end_date)
         """
-        if not time_window_str or time_window_str.upper() in ('LIFETIME', 'ALL', '全歷史', '全時段', 'NONE'):
+        if not time_window_str or time_window_str.upper() in ('LIFETIME', 'LIFE', 'ALL', '全歷史', '全時段', 'NONE'):
             return None, None
 
         tw = time_window_str.strip().upper()

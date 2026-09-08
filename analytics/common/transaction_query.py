@@ -181,7 +181,7 @@ def query_transactions_modular(
         if calc_end:
             conditions.append("t.transaction_date <= :end_date")
             params["end_date"] = calc_end
-        if not calc_start and not calc_end and time_window.upper() not in ('LIFETIME', 'ALL', '全歷史', '全時段'):
+        if not calc_start and not calc_end and time_window.upper() not in ('LIFETIME', 'LIFE', 'ALL', '全歷史', '全時段'):
             logger.warning(f"⚠️ 傳入未知的時間視窗名稱: {time_window}，將略過預設時間篩選。")
     else:
         if start_date:

@@ -11,9 +11,21 @@
        - `_resolve_bank_names`：擴充支援 `bank_no`（銀行 3 碼代號）解析至別名集合，覆蓋未知銀行 fallback 與大小寫容錯。
        - `get_transactions`：覆蓋視圖查詢、時間視窗轉換、動態基準日（`anchor_date`）提取、`rfm_transactions` 缺失時自動降級查詢 `all_transactions` 原始表並排除非日常消費、以及雙重失敗時安全返回空 DataFrame。
        - `query_transactions_modular`：覆蓋動態 SQL 生成、參數化佔位符防禦、時間區間篩選、5 種支付管道邊界矩陣（含直刷/非直刷/空清單/None）、消費地篩選（國內/國外/複合條件/特定國別代碼）、以及視圖缺失時自動平滑降級至 `all_transactions`。
-     - **變更風險清冊更新 (`docs/Change_Risk_Anti_Patterns.md`)**：
-       - 將「A. 分析基礎管線與查詢 (`analytics/`)」移至已受測試保護之模組清單，並將 Action Items 7 與 8 標記為已完成。
-       - 全套測試套件由 184 項擴充至 212 項（共 19 個測試模組），100% 全數綠燈通過。
+
+   * **前端介面、無伺服器降級腳本與展示測試資料測試單元實作 (Front-end Scripts & Mock Data Test Suite)**：
+     - **展示資料與前端腳本測試實作 (`tests/test_web_frontend_scripts.py`，共 14 項測試)**：
+       - `TestMockDataContracts`：完整校驗 `web/mock_data/` 下 6 大展示檔案（`rfm_chart.json`、`dimension_volatility.json`、`monthly_trend.json`、`sankey_flow.json`、`rewards_summary.json`、`analyzable_data.json`）之存在性、非空與結構契約，嚴格排查並杜絕未序列化之 `NaN` 或 `Infinity`。
+       - `TestDemoDataBridge`：檢驗 `API_MOCK_MAP` 涵蓋之 9 大端點正規表達式比對與對應實體檔案存在性；透過 Node.js 跨平台驗證網域名稱精確比對（嚴格允許 `github.io` 與 `*.github.io`，精確阻斷釣魚網域如 `attacker-github.io`）。
+       - `TestConsoleRunnerLogic`：透過 Node.js 驗證控制台日誌渲染關鍵字分類（INFO/WARNING/ERROR/成功/完畢）與 CSS 樣式映射。
+       - `TestCardsManagerMappings`：透過 Node.js 驗證卡片面板之 3 碼銀行代碼轉中文名稱解析（`bankMap`）與卡片產品映射（`cardProductsMap`）。
+       - `TestDemoExportPipeline`：驗證 `export_demo_static_json.py` 預烘焙匯出工具之端到端穩定執行與檔案覆寫冪等性。
+     - **跨平台輸出編碼防呆優化**：
+       - 於 `prepare_demo_dataset.py` 與 `export_demo_static_json.py` 入口處加入 `sys.stdout.reconfigure(encoding='utf-8')` 防呆，杜絕 Windows 終端印出 Emoji 時引發 `cp950` UnicodeEncodeError。
+       - 於 `const.py` 與 `analytics/common/transaction_query.py` 之時間視窗判定加入 `'LIFE'` 全歷史別名相容。
+     - **專案全風險清冊清空與覆蓋率達標 (`docs/Change_Risk_Anti_Patterns.md`)**：
+       - 高變更風險清冊（CRAP > 30）全數清空並完成防護，Action Items 1~9 全數完成標記 ✅。
+       - 全套測試套件由 184 項擴充至 226 項（共 20 個測試模組），100% 全數綠燈通過。
+
 
 * **2026-09-07**
    * **全面修復 CodeQL 程式碼安全掃描警告 (CodeQL Security Hardening & Sanitization)**：

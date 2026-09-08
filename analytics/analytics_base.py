@@ -27,14 +27,15 @@ def prepare_analytics_dataset(
     end_date: Optional[str] = None,
     location: Optional[Union[str, List[str]]] = None,
     categories: Optional[List[str]] = None,
-    sub_categories: Optional[List[str]] = None
+    sub_categories: Optional[List[str]] = None,
+    db_path: Optional[str] = None
 ) -> pd.DataFrame:
     """
     通用前置資料管線：執行 Schema 驗證、依條件提取交易資料、型態強轉、欄位修復與分類篩選。
     回傳清洗後可直接進入模型運算的 DataFrame。若無資料則回傳空的 DataFrame。
     """
     # 1. 執行前置 Schema 檢查
-    is_valid_schema, missing_cols = validate_analytics_schema()
+    is_valid_schema, missing_cols = validate_analytics_schema(db_path=db_path) if db_path else validate_analytics_schema()
     if not is_valid_schema:
         logger.warning(f"⚠️ [Analytics Base] Schema 檢查未完全通過，缺少欄位: {missing_cols}")
 
@@ -42,7 +43,7 @@ def prepare_analytics_dataset(
     df_raw: pd.DataFrame
     if any([banks, cards, payments, time_window, start_date, end_date, location]) or not include_direct_payment:
         logger.info("⚙️ [Analytics Base] 偵測到篩選參數，採用動態條件提取交易資料...")
-        df_raw = query_transactions_modular(
+        query_kwargs = dict(
             banks=banks,
             cards=cards,
             payments=payments,
@@ -52,8 +53,14 @@ def prepare_analytics_dataset(
             end_date=end_date,
             location=location
         )
+        if db_path:
+            query_kwargs['db_path'] = db_path
+        df_raw = query_transactions_modular(**query_kwargs)
     else:
-        df_raw = get_transactions(window=const.TimeWindow.LIFETIME)
+        if db_path:
+            df_raw = get_transactions(window=const.TimeWindow.LIFETIME, db_path=db_path)
+        else:
+            df_raw = get_transactions(window=const.TimeWindow.LIFETIME)
 
     if df_raw is None or df_raw.empty:
         logger.warning("❌ [Analytics Base] 提取之交易資料庫為空。")

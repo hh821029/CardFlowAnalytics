@@ -15,6 +15,10 @@ ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+# 防呆：確保 Windows 終端輸出以 UTF-8 編碼執行，避免 UnicodeEncodeError
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # 鎖定 Demo 隔離路徑
 os.environ["ACTIVE_PROFILE"] = "example_public"
 os.environ["DB_BACKEND"] = "sqlite"
@@ -55,13 +59,19 @@ def export_all():
     print("📦 正在預烘焙 Demo 靜態 JSON 數據 (支援 GitHub Pages)...")
     print("=" * 60)
 
+    # 確保 const 路徑鎖定在 Demo 隔離資料庫 (防範 pytest 或其他流程已先載入 const)
+    const.TRANSACTIONS_DB_PATH = DEMO_BILLS_DB
+    const.CONFIGS_DB_PATH = DEMO_CONFIGS_DB
+    const.ANALYSIS_DB_PATH = DEMO_ANALYSIS_DB
+    const.DB_PATH = DEMO_BILLS_DB
+
     # 1. RFM 圖表數據 (含全部類別與五大分群)
     print("1. 匯出 RFM 價值氣泡圖數據 (rfm_chart.json)...")
     rfm_data = get_rfm_dashboard_data(
         window="life",
         category="all",
         limit=150,
-        df_tx_provider=lambda: prepare_analytics_dataset(time_window="life")
+        df_tx_provider=lambda: prepare_analytics_dataset(time_window="life", db_path=DEMO_BILLS_DB)
     )
     _safe_write_json("rfm_chart.json", {"success": True, "data": rfm_data})
 
@@ -71,13 +81,13 @@ def export_all():
         window="life",
         group_mode="payment_category",
         limit=150,
-        df_tx_provider=lambda: prepare_analytics_dataset(time_window="life")
+        df_tx_provider=lambda: prepare_analytics_dataset(time_window="life", db_path=DEMO_BILLS_DB)
     )
     _safe_write_json("dimension_volatility.json", {"success": True, "data": dim_data})
 
     # 3. 月度趨勢數據
     print("3. 匯出月度趨勢圖表數據 (monthly_trend.json)...")
-    df_tx = prepare_analytics_dataset(time_window="life")
+    df_tx = prepare_analytics_dataset(time_window="life", db_path=DEMO_BILLS_DB)
     trend_payload = build_monthly_trend_payload(df_tx)
     _safe_write_json("monthly_trend.json", {"success": True, "data": trend_payload})
 

@@ -18,6 +18,10 @@ ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+# 防呆：確保 Windows 終端輸出以 UTF-8 編碼執行，避免 Emoji 造成 UnicodeEncodeError
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # 1. 注入環境變數 (在引用 const 之前強制指定 Demo 隔離路徑)
 os.environ["ACTIVE_PROFILE"] = "example_public"
 os.environ["DB_BACKEND"] = "sqlite"
