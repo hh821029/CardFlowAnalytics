@@ -1,10 +1,10 @@
 # 💳 CardFlow Analytics (信用卡金流分析系統)
 
 ![CI Status](https://github.com/hh821029/CardFlowAnalytics/actions/workflows/ci.yml/badge.svg)
-![Test Coverage](https://img.shields.io/badge/Coverage-94%25-brightgreen?style=flat-square&logo=pytest)
-![Tests](https://img.shields.io/badge/Tests-184%20passed-success?style=flat-square)
+![Test Coverage](https://img.shields.io/badge/Coverage-95%25-brightgreen?style=flat-square&logo=pytest)
+![Tests](https://img.shields.io/badge/Tests-226%20passed-success?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square&logo=python)
-![.NET](https://img.shields.io/badge/.NET-8.0-purple?style=flat-square&logo=dotnet)
+![.NET](https://img.shields.io/badge/.NET-10.0-purple?style=flat-square&logo=dotnet)
 
 
 ## 📖 專案背景 (Project Context)
@@ -39,51 +39,36 @@
 ---
 
 ### 系統架構與資料流程 (System Architecture)
-    本專案採用服務化架構 (Service-Oriented Architecture)，透過 ETL流程將原始帳單轉換為結構化資料，並結合維度配置進行 RFM 分析與回饋計算。
+本專案採用服務化架構 (Service-Oriented Architecture)，將帳單解析、維度對照、資料倉儲與分析應用徹底解耦：
 
-```mermaid
-
-graph TB
-    subgraph service
-        subgraph configs["維度配置 (Dimension Tables)"]
-            E_dim_parsers["帳單資料配置規則"]
-            E_dim_card_source["卡片維度表<br/>"]
-            E_dim_merchant_source["商家維度表<br/>"]
-            E_dim_thirdpay_source["支付維度表<br/>"]
-            E_dim_reward_rule_source["回饋規則設定表<br/>"]
-            end
-                
-        subgraph DB_service ["帳單資料庫化(ETL)"]
-            E_Bill_source["帳單原始資料<br/>(CSV、PDF、XLS、XLSX等)"] --> ETL_Logic["ETL處理邏輯<br/>(Regex/清洗/整合)"]
-            E_dim_parsers-.-> ETL_Logic
-            ETL_Logic --> E_DB["帳單資料庫(SQlite)"]
-            end
-
-        subgraph RFM_analysis ["RFM分析"]
-            E_DB -->RFM_Logic["RFM分析提取<br/>(邏輯規則分群)<br/>"]
-            RFM_Logic --> E_RFM["多視角RFM報表<br/>(商家、電子支付、信用卡)"]
-            end		
-
-        subgraph Reward_Calculation ["回饋計算"]
-            E_DB -->Reward_Engine["引入一般消費定義<br/>活動回饋條件設定<br/>"]
-            Reward_Engine --> E_Reward["回饋計算結果"]
-            E_RFM --> E_Reward_Analysis["回饋計算分析"]
-            E_Reward --> E_Reward_Analysis  
-            end
-            
-        E_dim_merchant_source -.->|"提供名詞對照與正規化"| ETL_Logic
-        E_dim_thirdpay_source -.->|"提供名詞對照與正規化"| ETL_Logic   
-        E_dim_card_source -.->|"關聯卡號與銀行"| ETL_Logic
-        E_dim_card_source -.->|"提供結帳日/回饋主體"| Reward_Engine   
-        E_dim_reward_rule_source -.->|"定義百分比/排除條件"|Reward_Engine
-        end
-
-                
-    subgraph API_view["應用程式介面"]
-        E_API["Web Console/API"]
-        E_API -->|"觸發服務<br/>"| service
-
-        end
+```
+[ 1. 輸入層 (Inputs) ]
+  ├── 原始帳單：CSV / PDF / HTML / XLSX
+  └── 維度配置：configs/ (商家對照、支付管道、卡片維度、回饋規則)
+           │
+           ▼
+[ 2. 洗滌核心 (ETL Pipeline) ]
+  ├── 正規表示式擷取 (Regex Parser)
+  ├── 支付前綴拆分 ([支付]－[平台]－[商家])
+  ├── 商家名稱正規化 (Merchant Normalization)
+  └── 交易指紋雜湊去重 (Deduplication)
+           │
+           ▼
+[ 3. 資料倉儲 (Storage Layer) ]
+  ├── bills.db      : 帳單原始與清洗後交易明細 (SSOT)
+  └── analysis.db   : 聚合特徵、指標快照與設定檔
+           │
+     ┌─────┴─────┐
+     ▼           ▼
+[ 4A. RFM 客群分析模型 ]     [ 4B. C# 瀑布式回饋計算引擎 ]
+  • 商家/支付/卡片分群矩陣      • 條件優先級排序 (Priority)
+  • 流失風險與黏著度量化        • 區間相交與截斷 (Early Break)
+     │           │
+     └─────┬─────┘
+           ▼
+[ 5. 應用展示層 (Presentation) ]
+  ├── 互動式 Web 儀表板 (動態 Sankey 資金流向、趨勢分析)
+  └── CLI 控制台 / 脫敏展示模式 (Demo Mode)
 
 ```
 
@@ -102,7 +87,11 @@ graph TB
 # 專案目錄結構與模組架構說明 (File Structure & Architecture)
 
 ## 📌 一、專案全域目錄樹 (Directory Tree)
-```text
+> 完整檔案架構與各模組職責詳細說明請參閱 📄 [專案檔案結構說明文件 (docs/file_structure.md)](docs/file_structure.md)。
+<details>
+<summary><b>📂 點擊展開查看專案全域目錄樹 (Click to expand)</b></summary>
+
+```
 .
 My-Credit-Card-ETL/
 │
@@ -155,8 +144,11 @@ My-Credit-Card-ETL/
 │   └── RewardEngine.Api/       # C# Minimal API (Port 5000)
 │
 └── docs/                       # [專案文件] 開發日誌、架構規劃與檔案結構說明
-
 ```
+
+</details>
+
+
 ## 🏛️ 二、分層架構與職責劃分 (Architecture Layers)
 依據職責將目錄分類為 6 大層級，並說明呼叫方向：
 1. **進入點層 (Entrypoints)**：`main.py` (CLI), `api/server.py` (Web API)
@@ -199,27 +191,19 @@ My-Credit-Card-ETL/
 pytest --cov=etl --cov=analytics --cov=database --cov=profiles tests/
 # 2. 產出互動式 HTML 視覺化報表 (檔案位於 htmlcov/index.html)
 pytest --cov=etl --cov=analytics --cov=database --cov-report=html tests/
-
+```
 ---
 
 ## 🚀 未來演進與重構計畫 (Future Roadmap)
-隨著管線支援的銀行與信用卡數量增加，初期的「分散式維度設定檔」（將帳單解析規則、卡片資訊、回饋條件分別存放）已逐漸產生維護上的冗餘。為此，下一階段的系統架構將進行以下重構：
-
-*   瀑布式回饋引擎調整：
-    *   重新思考回饋計算引擎的規則分類JOIN方式，並在基本的瀑布式回饋引擎上改良。
-
-*   RFM分析跟消費矩陣的視覺化跟分析結果入庫(預計採用SQLite放在database目錄下)：
-    *   提供RFM分析結果的視覺化。
-    *   提供消費矩陣的視覺化。
-
-*   前端網頁改善：
-    *   卡片邏輯跟銀行邏輯連動：勾選銀行邏輯時會一起勾選對應的卡片和回饋邏輯。
-
-*   模擬資料設置：
-    *   透過公開的模擬資料來模擬市場上主流卡片的回饋分析。
-
-*   Legacy code整理：
-    *   確認舊有的Legacy code的作用目的，若有新的code已經實作了相同的功能，則移除舊有的code。
+隨著專案完成資料庫三層架構分離、公開展示環境 (GitHub Pages) 部署與全自動化測試套件補強，系統已具備高度穩定的資料管線。下一階段的核心演進方向如下：
+* **Legacy Code 整理與淘汰 (Technical Debt Cleanup)**：
+  - 全面審視根目錄舊版暫存檔與歷史調度腳本，依據規範正式淘汰無效向後相容邏輯，降低專案認知負擔。
+* **多情境 Profile 模擬與卡片配置評估 (Multi-Scenario Simulation)**：
+  - 基於 `profiles/` 雙層架構，擴充不同情境（如家庭共同支出、海外差旅、小資無腦刷）的模擬資料集與消費分析。
+* **智慧用卡決策與回饋最佳化 (Reward Decision Advisor)**：
+  - 結合 C# 回饋引擎與回饋池上限監控，針對特定通路自動計算並推薦「當下最優刷卡策略」與剩餘額度預警。
+* **支援更多銀行帳單格式 (Bank Parsers Expansion)**：
+  - 持續擴充新銀行帳單解析能力（如台新銀行、台北富邦等格式樣本導入與 Parser 契約測試）。
 
 
 ### 專案成效
@@ -228,12 +212,14 @@ pytest --cov=etl --cov=analytics --cov=database --cov-report=html tests/
     * (目前已減少2張卡，視狀況可能還要再減少一張卡片，整體消費回饋率從2%~3%提升到3.5%~5%)
 * 可以透過模擬帳單跟模擬持卡狀況，來評估與選擇最適合的信用卡組合。
 
-### 支援銀行擴充
+### 可使用的銀行
 - [x] **玉山銀行**：已完整支援 (含 e.Point 折抵處理、多卡號歸戶邏輯)
 - [x] **國泰世華**：已完整支援 (含 Cube 卡多卡號歸戶邏輯)
 - [x] **中國信託**：已完整支援 
 - [x] **華南銀行**：已完整支援 (含 html格式解析、多卡號歸戶邏輯)
 - [x] **永豐銀行**：已完整支援
+
+
 - [ ] **台新銀行**：徵求格式樣本
 - [ ] **台北富邦**：徵求格式樣本
 
