@@ -60,10 +60,39 @@ def export_all():
     print("=" * 60)
 
     # 確保 const 路徑鎖定在 Demo 隔離資料庫 (防範 pytest 或其他流程已先載入 const)
+    os.environ["ACTIVE_PROFILE"] = "example_public"
+    os.environ["DB_BACKEND"] = "sqlite"
+    os.environ["TRANSACTIONS_DB_PATH"] = DEMO_BILLS_DB
+    os.environ["CONFIGS_DB_PATH"] = DEMO_CONFIGS_DB
+    os.environ["ANALYSIS_DB_PATH"] = DEMO_ANALYSIS_DB
+
+    const.ACTIVE_PROFILE_NAME = "example_public"
+    const.ACTIVE_PROFILE_DIR = os.path.join(const.PROFILES_DIR, "example_public")
+    const.PROFILE_CONFIG_DIR = os.path.join(const.ACTIVE_PROFILE_DIR, "configs")
+    const.PROFILE_DATA_DIR = os.path.join(const.ACTIVE_PROFILE_DIR, "data")
+    const.PROFILE_JSON_PATH = os.path.join(const.ACTIVE_PROFILE_DIR, "profile.json")
     const.TRANSACTIONS_DB_PATH = DEMO_BILLS_DB
     const.CONFIGS_DB_PATH = DEMO_CONFIGS_DB
     const.ANALYSIS_DB_PATH = DEMO_ANALYSIS_DB
     const.DB_PATH = DEMO_BILLS_DB
+    const.DEFAULT_DB_BACKEND = "sqlite"
+
+    # 防呆檢查：若 Demo 資料庫未就緒，自動觸發準備精靈
+    needs_prep = not os.path.exists(DEMO_BILLS_DB) or os.path.getsize(DEMO_BILLS_DB) == 0
+    if not needs_prep:
+        try:
+            import sqlite3
+            with sqlite3.connect(DEMO_BILLS_DB) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT count(*) FROM rfm_transactions")
+                if cur.fetchone()[0] == 0:
+                    needs_prep = True
+        except Exception:
+            needs_prep = True
+
+    if needs_prep:
+        from prepare_demo_dataset import prepare_demo_dataset
+        prepare_demo_dataset()
 
     # 1. RFM 圖表數據 (含全部類別與五大分群)
     print("1. 匯出 RFM 價值氣泡圖數據 (rfm_chart.json)...")

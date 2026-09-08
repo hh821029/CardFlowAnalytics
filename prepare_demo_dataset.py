@@ -49,6 +49,24 @@ logger = logging.getLogger("DemoDatasetPreparer")
 
 
 def prepare_demo_dataset():
+    # 確保環境變數與 const 常數屬性同步鎖定 (防範 pytest 或其他流程已預先載入 const)
+    os.environ["ACTIVE_PROFILE"] = "example_public"
+    os.environ["DB_BACKEND"] = "sqlite"
+    os.environ["TRANSACTIONS_DB_PATH"] = DEMO_BILLS_DB
+    os.environ["CONFIGS_DB_PATH"] = DEMO_CONFIGS_DB
+    os.environ["ANALYSIS_DB_PATH"] = DEMO_ANALYSIS_DB
+
+    const.ACTIVE_PROFILE_NAME = "example_public"
+    const.ACTIVE_PROFILE_DIR = os.path.join(const.PROFILES_DIR, "example_public")
+    const.PROFILE_CONFIG_DIR = os.path.join(const.ACTIVE_PROFILE_DIR, "configs")
+    const.PROFILE_DATA_DIR = os.path.join(const.ACTIVE_PROFILE_DIR, "data")
+    const.PROFILE_JSON_PATH = os.path.join(const.ACTIVE_PROFILE_DIR, "profile.json")
+    const.TRANSACTIONS_DB_PATH = DEMO_BILLS_DB
+    const.CONFIGS_DB_PATH = DEMO_CONFIGS_DB
+    const.ANALYSIS_DB_PATH = DEMO_ANALYSIS_DB
+    const.DB_PATH = DEMO_BILLS_DB
+    const.DEFAULT_DB_BACKEND = "sqlite"
+
     print("=" * 65)
     print("🛡️  【CardFlow Analytics】Demo 公開展示資料集一鍵準備精靈")
     print("=" * 65)

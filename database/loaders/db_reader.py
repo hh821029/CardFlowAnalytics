@@ -52,8 +52,8 @@ class DBReader:
         backend = os.getenv('DB_BACKEND', getattr(const, 'DEFAULT_DB_BACKEND', 'postgres')).strip().lower()
         sqlite_db_path = db_path or const.DB_PATH
 
-        # 1. 嘗試 PostgreSQL 讀取 (若 backend 為 postgres)
-        if backend == 'postgres' and HAS_SQLALCHEMY:
+        # 1. 嘗試 PostgreSQL 讀取 (若 backend 為 postgres 且未指定特定 SQLite 檔案路徑)
+        if backend == 'postgres' and HAS_SQLALCHEMY and db_path is None:
             engine = cls.get_engine()
             if engine:
                 try:

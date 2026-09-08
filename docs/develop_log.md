@@ -25,6 +25,13 @@
      - **專案全風險清冊清空與覆蓋率達標 (`docs/Change_Risk_Anti_Patterns.md`)**：
        - 高變更風險清冊（CRAP > 30）全數清空並完成防護，Action Items 1~9 全數完成標記 ✅。
        - 全套測試套件由 184 項擴充至 226 項（共 20 個測試模組），100% 全數綠燈通過。
+     - **GitHub Actions CI 測試失敗修復 (Demo 資料庫動態同步常數隔離)**：
+       - **根因定位**：CI 環境在運行 `pytest` 時，早於 `tests/test_web_frontend_scripts.py` 執行的其他測試模組已預先載入 `const.py`，導致 `prepare_demo_dataset.py` 中於模組層設定之環境變數（`TRANSACTIONS_DB_PATH` 等）無法同步更新已快取載入之 `const` 常數屬性（`const.DB_PATH` 仍指向上游預設 `database/TransactionsBills.db` 而非 `TransactionsBills_demo.db`），使得 ETL 洗滌入庫與分析超市未正確寫入 Demo 資料庫，最終導致 `export_all()` 預烘焙時導出空資料（`total_amount == 0.0` 與空桑基圖節點）。
+       - **核心修復**：
+         1. `prepare_demo_dataset.py`：於函式入口處明確動態賦值同步 `const` 之路徑與 profile 屬性（`const.TRANSACTIONS_DB_PATH`、`const.CONFIGS_DB_PATH`、`const.ANALYSIS_DB_PATH`、`const.DB_PATH`、`const.PROFILE_DATA_DIR` 等），徹底杜絕 pytest 預先快取載入常數問題。
+         2. `export_demo_static_json.py`：加入相同之 `const` 動態屬性同步與 `DEMO_BILLS_DB` 有效性前置檢查，若資料表未就緒則自動調用準備精靈。
+         3. `database/loaders/db_reader.py`：於 `read_sql` 增加 `db_path is None` 防禦判定，確保呼叫端明確指定特定 SQLite 檔案路徑時，絕不誤走 PostgreSQL 查詢邏輯。
+         4. `tests/test_web_frontend_scripts.py`：強化 `ensure_mock_data_exists` fixture，檢驗 `rfm_transactions` 資料表筆數大於 0，確保 CI 環境在乾淨無 .db 檔狀態下亦能自動完成端到端資料準備並 100% 綠燈通過。
 
 
 * **2026-09-07**

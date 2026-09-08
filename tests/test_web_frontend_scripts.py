@@ -30,7 +30,19 @@ class TestMockDataContracts:
     def ensure_mock_data_exists(self):
         """確保測試前 mock_data 已被生成且資料齊全"""
         demo_bills = os.path.join(ROOT_DIR, "database", "TransactionsBills_demo.db")
-        if not os.path.exists(demo_bills):
+        needs_prep = not os.path.exists(demo_bills) or os.path.getsize(demo_bills) == 0
+        if not needs_prep:
+            try:
+                import sqlite3
+                with sqlite3.connect(demo_bills) as conn:
+                    cur = conn.cursor()
+                    cur.execute("SELECT count(*) FROM rfm_transactions")
+                    if cur.fetchone()[0] == 0:
+                        needs_prep = True
+            except Exception:
+                needs_prep = True
+
+        if needs_prep:
             from prepare_demo_dataset import prepare_demo_dataset
             prepare_demo_dataset()
         from export_demo_static_json import export_all
