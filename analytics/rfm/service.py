@@ -217,13 +217,14 @@ def get_rfm_dashboard_data(
     window: Optional[str] = "life",
     category: Optional[str] = None,
     limit: int = 200,
-    df_tx_provider: Optional[Callable[[], pd.DataFrame]] = None
+    df_tx_provider: Optional[Callable[[], pd.DataFrame]] = None,
+    analysis_db_path: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     查詢 RFM 視覺化儀表板完整數據 (客單價 vs 標準差氣泡圖、客群分佈統計、四象限分類、Top 3 商家、信用卡置頂排序)
     """
     prefix = f"{window}_" if window and window != "life" else "life_"
-    db_path = const.ANALYSIS_DB_PATH
+    db_path = analysis_db_path or const.ANALYSIS_DB_PATH
     df_merchants = pd.DataFrame()
     df_cards = pd.DataFrame()
 
@@ -239,7 +240,7 @@ def get_rfm_dashboard_data(
         except Exception as e:
             logger.warning(f"⚠️ 從 DB 讀取 RFM 失敗: {e}")
 
-    # Fallback 讀取 CSV
+    # Fallback 1: 讀取 CSV
     if df_merchants.empty:
         csv_path = os.path.join(const.OUTPUT_DIR, 'rfm', 'merchant_rfm.csv')
         if os.path.exists(csv_path):
@@ -249,6 +250,18 @@ def get_rfm_dashboard_data(
         card_csv_path = os.path.join(const.OUTPUT_DIR, 'rfm', 'card_rfm.csv')
         if os.path.exists(card_csv_path):
             df_cards = pd.read_csv(card_csv_path, encoding='utf-8')
+
+    # Fallback 2: 若 DB 與 CSV 均無資料，但提供了 df_tx_provider，則即時運算 RFM
+    if df_merchants.empty and df_tx_provider is not None:
+        try:
+            df_tx_temp = df_tx_provider()
+            if df_tx_temp is not None and not df_tx_temp.empty:
+                from .modules import calculate_merchant_rfm, calculate_card_rfm
+                df_merchants = calculate_merchant_rfm(df_tx_temp, const.TimeWindow.to_legacy_list())
+                if df_cards.empty:
+                    df_cards = calculate_card_rfm(df_tx_temp, const.TimeWindow.to_legacy_list())
+        except Exception as rfm_err:
+            logger.warning(f"⚠️ 即時計算 RFM 失敗: {rfm_err}")
 
     if df_merchants.empty:
         return {

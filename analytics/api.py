@@ -67,7 +67,9 @@ def run_analytics(
     end_date: Optional[str] = None,
     location: Optional[Union[str, List[str]]] = None,
     categories: Optional[List[str]] = None,
-    sub_categories: Optional[List[str]] = None
+    sub_categories: Optional[List[str]] = None,
+    db_path: Optional[str] = None,
+    analysis_db_path: Optional[str] = None
 ) -> None:
     """
     執行全方位 Analytics 分析 (包含 RFM 客群分群、Spending Matrix 交叉透視、月度多維度聚合、金流桑基圖與 Data Mart 入庫)
@@ -85,7 +87,8 @@ def run_analytics(
         end_date=end_date,
         location=location,
         categories=categories,
-        sub_categories=sub_categories
+        sub_categories=sub_categories,
+        db_path=db_path
     )
 
     if df_raw.empty:
@@ -147,7 +150,7 @@ def run_analytics(
         'matrix_monthly_detail': df_monthly_card_category,
         'sankey_flow_links': df_sankey_links
     }
-    _save_to_data_mart(mart_tables)
+    _save_to_data_mart(mart_tables, db_path=analysis_db_path)
 
     logger.info("🎉 [Analytics Pipeline] 全方位消費分析執行完畢！")
 

@@ -96,7 +96,7 @@ def prepare_demo_dataset():
 
     # Step 4: 執行全方位 RFM 客群分析與消費透視矩陣，寫入 TransactionsAnalysis_demo.db
     logger.info("📈 [Step 4/4] 執行 RFM 模型與消費矩陣分析，寫入 TransactionsAnalysis_demo.db...")
-    run_analytics()
+    run_analytics(db_path=DEMO_BILLS_DB, analysis_db_path=DEMO_ANALYSIS_DB)
     logger.info("✅ RFM 客群與消費矩陣分析完成！")
 
     # Step 4.1: 自動產生回饋彙總模擬資料至 Data Mart (支援 Web 端回饋儀表板)

@@ -31,7 +31,9 @@
          1. `prepare_demo_dataset.py`：於函式入口處明確動態賦值同步 `const` 之路徑與 profile 屬性（`const.TRANSACTIONS_DB_PATH`、`const.CONFIGS_DB_PATH`、`const.ANALYSIS_DB_PATH`、`const.DB_PATH`、`const.PROFILE_DATA_DIR` 等），徹底杜絕 pytest 預先快取載入常數問題。
          2. `export_demo_static_json.py`：加入相同之 `const` 動態屬性同步與 `DEMO_BILLS_DB` 有效性前置檢查，若資料表未就緒則自動調用準備精靈。
          3. `database/loaders/db_reader.py`：於 `read_sql` 增加 `db_path is None` 防禦判定，確保呼叫端明確指定特定 SQLite 檔案路徑時，絕不誤走 PostgreSQL 查詢邏輯。
-         4. `tests/test_web_frontend_scripts.py`：強化 `ensure_mock_data_exists` fixture，檢驗 `rfm_transactions` 資料表筆數大於 0，確保 CI 環境在乾淨無 .db 檔狀態下亦能自動完成端到端資料準備並 100% 綠燈通過。
+         4. `tests/test_web_frontend_scripts.py`：強化 `ensure_mock_data_exists` fixture，同時檢查 `TransactionsBills_demo.db` 與 `TransactionsAnalysis_demo.db` 資料表筆數大於 0，確保 CI 環境在乾淨無 .db 檔狀態下亦能自動完成端到端資料準備並 100% 綠燈通過。
+         5. `analytics/api.py` & `prepare_demo_dataset.py`：`run_analytics` 擴充支援 `db_path` 與 `analysis_db_path` 明確參數化傳遞，確保分析超市資料直接寫入指定的目標分析資料庫（`TransactionsAnalysis_demo.db`）。
+         6. `analytics/rfm/service.py`：`get_rfm_dashboard_data` 擴充支援 `analysis_db_path` 參數，並新增二級平滑降級機制（Fallback 2）——當分析庫與 CSV 均無商家統計且呼叫端傳入 `df_tx_provider` 時，自動調用 `calculate_merchant_rfm` 進行即時動態運算，達成 100% 自愈與零斷裂。
 
 
 * **2026-09-07**

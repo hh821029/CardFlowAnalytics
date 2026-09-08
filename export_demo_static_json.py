@@ -78,13 +78,21 @@ def export_all():
     const.DEFAULT_DB_BACKEND = "sqlite"
 
     # 防呆檢查：若 Demo 資料庫未就緒，自動觸發準備精靈
-    needs_prep = not os.path.exists(DEMO_BILLS_DB) or os.path.getsize(DEMO_BILLS_DB) == 0
+    needs_prep = (
+        not os.path.exists(DEMO_BILLS_DB) or os.path.getsize(DEMO_BILLS_DB) == 0 or
+        not os.path.exists(DEMO_ANALYSIS_DB) or os.path.getsize(DEMO_ANALYSIS_DB) == 0
+    )
     if not needs_prep:
         try:
             import sqlite3
             with sqlite3.connect(DEMO_BILLS_DB) as conn:
                 cur = conn.cursor()
                 cur.execute("SELECT count(*) FROM rfm_transactions")
+                if cur.fetchone()[0] == 0:
+                    needs_prep = True
+            with sqlite3.connect(DEMO_ANALYSIS_DB) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT count(*) FROM rfm_merchants")
                 if cur.fetchone()[0] == 0:
                     needs_prep = True
         except Exception:
@@ -100,7 +108,8 @@ def export_all():
         window="life",
         category="all",
         limit=150,
-        df_tx_provider=lambda: prepare_analytics_dataset(time_window="life", db_path=DEMO_BILLS_DB)
+        df_tx_provider=lambda: prepare_analytics_dataset(time_window="life", db_path=DEMO_BILLS_DB),
+        analysis_db_path=DEMO_ANALYSIS_DB
     )
     _safe_write_json("rfm_chart.json", {"success": True, "data": rfm_data})
 
