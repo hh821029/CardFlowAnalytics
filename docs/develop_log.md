@@ -1,4 +1,24 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-09-09**
+   * **時間視窗變數宣告與字串解析 SSOT 統一及 Docker 警告根因修復 (TimeWindow SSOT Unification & Docker Warning Resolution)**：
+     - **Docker Warning 根因定位**：
+       - `WARNING - ⚠️ 傳入未知的時間視窗名稱: life，將略過預設時間篩選。` 出現之原因：`docker-compose.yml` 中 `python-api` 服務之 `volumes` 僅掛載了 `profiles`、`output`、`errorlog`、`database`、`web`，並未將 `analytics/`、`api/`、`const.py` 等後端程式碼掛載為實時 Volume。因此若未執行 `docker compose up -d --build`，容器內仍會執行未補齊 `'LIFE'` 別名之舊映像檔。
+       - 此外，底層存在「時間視窗參數命名（`time_window` vs `window`）」與「資料型別（字串代碼如 `'life'`、`'30d'` vs Enum 如 `TimeWindow.LIFETIME`）」不一致之技術債，導致各模組需各自判斷 fallback。
+     - **TimeWindow 核心 SSOT 強化 (`const.py`)**：
+       - 擴充 `const.TimeWindow.is_lifetime(val)`：集中統一判斷 `None`、`''`、`'life'`、`'lifetime'`、`'all'`、`'全歷史'` 與 `TimeWindow.LIFETIME`。
+       - 擴充 `const.TimeWindow.parse(val)`：支援字串代碼、繁中別名、滾動天數（`30d`, `90d`, `180d`, `365d`, `730d`, `1m`, `3m`, `6m`, `1y`, `2y`）、曆年名稱與 Enum 本身之無損安全解析。
+       - 擴充 `const.TimeWindow.get_prefix(val)` 與 `get_key_suffix(val)`：全域標準化欄位前綴（如 `life_`、`30d_`、`this_year_`），杜絕各處重複手寫判定。
+       - 強化 `const.TimeWindow.resolve_range`：同時支援 Enum 物件與字串傳入，全面避免物件無 `.upper()` 屬性之例外。
+     - **分析提取管線安全優化**：
+       - `analytics/common/transaction_query.py`：`get_transactions` 支援傳入字串（如 `"life"`, `"30d"`）或 `TimeWindow` Enum；修復日誌處原先存取 `window.name` 在字串傳入時拋出 `AttributeError` 導致非預期降級至 `all_transactions` 的重大問題，改採安全解析之 `window_label`；`query_transactions_modular` 引入 `is_lifetime` 判斷，全歷史條件下跳過 `max(transaction_date)` 查詢與日期條件比對，徹底阻斷未知時間視窗誤判。
+       - `const.py`：在 `TimeWindow` Enum 補齊 `window_name` 屬性（對齊中文描述 `desc`）。
+       - `analytics/analytics_base.py`：`prepare_analytics_dataset` 引入 `is_lifetime` 辨識，僅傳入 `"life"` 全歷史且無維度篩選時直接分派至高效之 `get_transactions(window=const.TimeWindow.LIFETIME)`，降低資料庫開銷。
+       - `analytics/rfm/service.py`：`get_rfm_dashboard_data` 改採 `const.TimeWindow.get_prefix(window)`，取代脆弱的純字串比對。
+       - `api/routers/analytics.py`：`/rfm-chart` 與 `/dimension-volatility` 端點同時支援 `window` 與 `time_window` 雙向相容傳參，消除宣告與呼叫端參數命名歧異。
+     - **測試套件擴充與防護**：
+       - `tests/test_analytics_features.py`：擴充 `test_time_window_resolution`，完整涵蓋 `is_lifetime`、`parse`、`get_prefix`、`get_key_suffix` 與各類別名。
+       - `tests/test_transaction_query.py`：擴充 `test_query_transactions_modular_time_window`，驗證 `"life"` 全歷史傳入與 `get_transactions` 字串型態相容性。
+
 * **2026-09-08**
    * **分析基礎管線與動態查詢測試單元補強 (Analytics Base Pipeline & Transaction Query Test Suites)**：
      - **分析管線與 Facade 測試實作 (`tests/test_analytics_pipeline.py`，共 14 項測試)**：

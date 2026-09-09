@@ -225,10 +225,49 @@ def test_time_window_resolution():
     assert start_1y == "2025-08-26"
     assert end_1y == "2026-08-26"
 
-    # 4. 全歷史 (LIFETIME)
+    # 4. 全歷史 (LIFETIME / life / all / 全歷史)
     start_life, end_life = const.TimeWindow.resolve_range("LIFETIME", anchor)
     assert start_life is None
     assert end_life is None
+    assert const.TimeWindow.resolve_range("life", anchor) == (None, None)
+    assert const.TimeWindow.resolve_range(const.TimeWindow.LIFETIME, anchor) == (None, None)
+
+    # 5. 驗證 is_lifetime
+    assert const.TimeWindow.is_lifetime("life") is True
+    assert const.TimeWindow.is_lifetime("LIFETIME") is True
+    assert const.TimeWindow.is_lifetime("all") is True
+    assert const.TimeWindow.is_lifetime("全歷史") is True
+    assert const.TimeWindow.is_lifetime(const.TimeWindow.LIFETIME) is True
+    assert const.TimeWindow.is_lifetime(None) is True
+    assert const.TimeWindow.is_lifetime("") is True
+    assert const.TimeWindow.is_lifetime("30d") is False
+    assert const.TimeWindow.is_lifetime(const.TimeWindow.LAST_MONTH) is False
+
+    # 6. 驗證 parse
+    assert const.TimeWindow.parse("life") == const.TimeWindow.LIFETIME
+    assert const.TimeWindow.parse("30d") == const.TimeWindow.LAST_MONTH
+    assert const.TimeWindow.parse("1m") == const.TimeWindow.LAST_MONTH
+    assert const.TimeWindow.parse("365d") == const.TimeWindow.LAST_YEAR
+    assert const.TimeWindow.parse("this_year") == const.TimeWindow.THIS_YEAR
+    assert const.TimeWindow.parse("prev_year") == const.TimeWindow.LAST_CALENDAR_YEAR
+    assert const.TimeWindow.parse(const.TimeWindow.LAST_2_YEARS) == const.TimeWindow.LAST_2_YEARS
+    assert const.TimeWindow.parse("UNKNOWN_WINDOW") is None
+
+    # 7. 驗證 get_prefix 與 get_key_suffix
+    assert const.TimeWindow.get_prefix("life") == "life_"
+    assert const.TimeWindow.get_prefix("LIFETIME") == "life_"
+    assert const.TimeWindow.get_prefix("30d") == "30d_"
+    assert const.TimeWindow.get_prefix("30D") == "30d_"
+    assert const.TimeWindow.get_prefix("this_year") == "this_year_"
+    assert const.TimeWindow.get_prefix(None) == "life_"
+    assert const.TimeWindow.get_key_suffix("30d") == "30d"
+    assert const.TimeWindow.get_key_suffix("life") == "life"
+    assert const.TimeWindow.get_key_suffix(None) == "life"
+
+    # 8. 驗證 window_name 屬性
+    assert const.TimeWindow.LIFETIME.window_name == "全歷史"
+    assert const.TimeWindow.LAST_YEAR.window_name == "近一年"
+    assert const.TimeWindow.LAST_MONTH.window_name == "近一個月"
 
 
 def test_dimension_volatility_stats(sample_tx_df):

@@ -4,7 +4,7 @@ import os
 import yaml
 from enum import Enum
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any, NamedTuple, Literal
+from typing import Optional, List, Dict, Any, NamedTuple, Literal, Union
 from dotenv import load_dotenv
 
 
@@ -496,6 +496,10 @@ class TimeWindow(Enum):
         return self.value[1]
 
     @property
+    def window_name(self) -> str:
+        return self.value[1]
+
+    @property
     def key_suffix(self) -> str:
         return self.value[2]
 
@@ -536,44 +540,85 @@ class TimeWindow(Enum):
         return start
 
     @classmethod
-    def resolve_range(cls, time_window_str: Optional[str], anchor_date: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+    def is_lifetime(cls, val: Any) -> bool:
         """
-        將任意前端傳入的時間視窗字串 (包含 THIS_YEAR, LAST_CALENDAR_YEAR, 1Y, 3M, 6M, 2Y, LAST_YEAR 等)
+        判定傳入值是否代表全歷史 (包含 None, '', 'life', 'lifetime', 'all', '全歷史', TimeWindow.LIFETIME 等)。
+        """
+        if val is None:
+            return True
+        if isinstance(val, cls):
+            return val == cls.LIFETIME
+        s = str(val).strip().upper()
+        return s in ('', 'NONE', 'LIFETIME', 'LIFE', 'ALL', '全歷史', '全時段', 'NULL')
+
+    @classmethod
+    def parse(cls, val: Any) -> Optional['TimeWindow']:
+        """
+        將任意字串、代碼或 Enum 物件解析為標準 TimeWindow 成員。
+        若為未知或無法識別之字串，回傳 None。
+        """
+        if val is None:
+            return None
+        if isinstance(val, cls):
+            return val
+        s = str(val).strip().upper()
+        if not s:
+            return None
+        # 1. 直接匹配 Enum member 名稱
+        if s in cls.__members__:
+            return cls[s]
+        # 2. 全歷史別名
+        if s in ('LIFETIME', 'LIFE', 'ALL', '全歷史', '全時段'):
+            return cls.LIFETIME
+        # 3. 曆年：今年
+        if s in ('THIS_YEAR', 'THIS_CALENDAR_YEAR', '今年', 'YTD'):
+            return cls.THIS_YEAR
+        # 4. 曆年：去年
+        if s in ('LAST_CALENDAR_YEAR', 'PREV_YEAR', 'PREVIOUS_YEAR', '去年', 'LAST_YEAR_CALENDAR'):
+            return cls.LAST_CALENDAR_YEAR
+        # 5. 滾動區間代碼 (月份/天數代碼)
+        alias_map = {
+            '1M': cls.LAST_MONTH, '30D': cls.LAST_MONTH, 'LAST_MONTH': cls.LAST_MONTH, '近一個月': cls.LAST_MONTH,
+            '3M': cls.LAST_QUARTER, '90D': cls.LAST_QUARTER, 'LAST_QUARTER': cls.LAST_QUARTER, '近一季': cls.LAST_QUARTER,
+            '6M': cls.LAST_HALF_YEAR, '180D': cls.LAST_HALF_YEAR, 'LAST_HALF_YEAR': cls.LAST_HALF_YEAR, '近半年': cls.LAST_HALF_YEAR,
+            '1Y': cls.LAST_YEAR, '365D': cls.LAST_YEAR, 'LAST_YEAR': cls.LAST_YEAR, '近一年': cls.LAST_YEAR,
+            '2Y': cls.LAST_2_YEARS, '730D': cls.LAST_2_YEARS, 'LAST_2_YEARS': cls.LAST_2_YEARS, '近兩年': cls.LAST_2_YEARS,
+        }
+        if s in alias_map:
+            return alias_map[s]
+        # 6. 比對 key_suffix 與 desc
+        for member in cls:
+            if s == member.key_suffix.upper() or s == member.desc.upper():
+                return member
+        return None
+
+    @classmethod
+    def get_key_suffix(cls, val: Any) -> str:
+        """取得對應的 key_suffix (如 'life', '30d', 'this_year')，全歷史或未知預設為 'life'"""
+        parsed = cls.parse(val)
+        return parsed.key_suffix if parsed else 'life'
+
+    @classmethod
+    def get_prefix(cls, val: Any) -> str:
+        """取得對應的 prefix (如 'life_', '30d_', 'this_year_')，全歷史或未知預設為 'life_'"""
+        parsed = cls.parse(val)
+        return parsed.prefix if parsed else 'life_'
+
+    @classmethod
+    def resolve_range(cls, time_window_input: Optional[Union[str, 'TimeWindow']], anchor_date: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+        """
+        將任意前端傳入的時間視窗字串或 Enum 物件 (包含 THIS_YEAR, LAST_CALENDAR_YEAR, 1Y, 3M, 6M, 2Y, LAST_YEAR 等)
         解析為精確的 (start_date, end_date)
         """
-        if not time_window_str or time_window_str.upper() in ('LIFETIME', 'LIFE', 'ALL', '全歷史', '全時段', 'NONE'):
+        if cls.is_lifetime(time_window_input):
             return None, None
 
-        tw = time_window_str.strip().upper()
-        base_dt = datetime.strptime(anchor_date, "%Y-%m-%d") if anchor_date else datetime.today()
-        base_year = base_dt.year
-        end_anchor = anchor_date or base_dt.strftime("%Y-%m-%d")
+        if isinstance(time_window_input, cls):
+            return time_window_input.get_date_range(anchor_date)
 
-        # 1. 曆年：今年
-        if tw in ('THIS_YEAR', 'THIS_CALENDAR_YEAR', '今年', 'YTD'):
-            return f"{base_year}-01-01", end_anchor
-
-        # 2. 曆年：去年
-        if tw in ('LAST_CALENDAR_YEAR', 'PREV_YEAR', 'PREVIOUS_YEAR', '去年', 'LAST_YEAR_CALENDAR'):
-            return f"{base_year - 1}-01-01", f"{base_year - 1}-12-31"
-
-        # 3. 滾動區間 (月份/天數代碼)
-        rolling_map = {
-            '1M': 30, 'LAST_MONTH': 30, '30D': 30,
-            '3M': 90, 'LAST_QUARTER': 90, '90D': 90,
-            '6M': 180, 'LAST_HALF_YEAR': 180, '180D': 180,
-            '1Y': 365, 'LAST_YEAR': 365, '365D': 365,
-            '2Y': 730, 'LAST_2_YEARS': 730, '730D': 730
-        }
-
-        if tw in rolling_map:
-            days = rolling_map[tw]
-            start_dt = base_dt - timedelta(days=days)
-            return start_dt.strftime("%Y-%m-%d"), end_anchor
-
-        # 4. 嘗試 Enum 名稱匹配
-        if tw in cls.__members__:
-            return cls[tw].get_date_range(anchor_date)
+        parsed = cls.parse(time_window_input)
+        if parsed:
+            return parsed.get_date_range(anchor_date)
 
         return None, None
 

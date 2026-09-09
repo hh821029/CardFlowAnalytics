@@ -14,7 +14,7 @@ from database.loaders.db_reader import DBReader
 logger = logging.getLogger(__name__)
 
 def get_transactions(
-    window: const.TimeWindow = const.TimeWindow.LAST_YEAR,
+    window: Union[const.TimeWindow, str] = const.TimeWindow.LAST_YEAR,
     exclude_non_retail: bool = False,
     anchor_date: Optional[str] = None,
     db_path: str = const.DB_PATH
@@ -44,8 +44,14 @@ def get_transactions(
         f"'交易' AS {const.COL_TXN_TYPE}"
     ]
     
+    # 支援傳入字串型態 (如 "life", "30d", "LAST_YEAR") 或 TimeWindow Enum
+    if isinstance(window, str):
+        window_enum = const.TimeWindow.parse(window) or (const.TimeWindow.LIFETIME if const.TimeWindow.is_lifetime(window) else const.TimeWindow.LAST_YEAR)
+    else:
+        window_enum = window
+
     # 動態獲取最新交易日作為 anchor_date
-    if not anchor_date and window != const.TimeWindow.LIFETIME:
+    if not anchor_date and window_enum != const.TimeWindow.LIFETIME:
         try:
             df_max = DBReader.read_sql("SELECT max(transaction_date) AS max_date FROM rfm_transactions", db_path=db_path)
             if not df_max.empty and pd.notna(df_max['max_date'].iloc[0]):
@@ -53,7 +59,7 @@ def get_transactions(
         except Exception as e:
             logger.debug(f"無法取得 max transaction_date: {e}")
 
-    start_date_val, end_date_val = window.get_date_range(anchor_date)
+    start_date_val, end_date_val = window_enum.get_date_range(anchor_date)
     if start_date_val:
         conditions.append("t.transaction_date >= :start_date")
         params["start_date"] = start_date_val
@@ -65,9 +71,11 @@ def get_transactions(
     if conditions:
         sql += " WHERE " + " AND ".join(conditions)
         
+    window_label = window_enum.desc if isinstance(window_enum, const.TimeWindow) else str(window)
+
     try:
         df = DBReader.read_sql(sql, params=params, parse_dates=[const.COL_TXN_DATE], db_path=db_path)
-        logger.info(f"📥 [DB 提取 (rfm_transactions)] 成功載入 {len(df)} 筆交易資料 (時間視窗: {window.name}, 基準日: {anchor_date})")
+        logger.info(f"📥 [DB 提取 (rfm_transactions)] 成功載入 {len(df)} 筆交易資料 (時間視窗: {window_label}, 基準日: {anchor_date})")
         return df
     except Exception as e:
         logger.warning(f"⚠️ 讀取 rfm_transactions 視圖失敗 ({e})，降級嘗試從 all_transactions 原始表讀取...")
@@ -96,7 +104,7 @@ def get_transactions(
                 fallback_params["end_date"] = end_date_val
             fallback_sql = f"SELECT {', '.join(fallback_parts)} FROM all_transactions WHERE " + " AND ".join(fallback_conditions)
             df_fallback = DBReader.read_sql(fallback_sql, params=fallback_params, parse_dates=[const.COL_TXN_DATE], db_path=db_path)
-            logger.info(f"📥 [DB 提取 (all_transactions 降級)] 成功載入 {len(df_fallback)} 筆交易資料。")
+            logger.info(f"📥 [DB 提取 (all_transactions 降級)] 成功載入 {len(df_fallback)} 筆交易資料 (時間視窗: {window_label})。")
             return df_fallback
         except Exception as e2:
             logger.error(f"❌ 無法讀取 all_transactions: {e2}")
@@ -164,8 +172,10 @@ def query_transactions_modular(
         f"'交易' AS {const.COL_TXN_TYPE}"
     ]
 
+    is_life = const.TimeWindow.is_lifetime(time_window)
+
     anchor_date = None
-    if time_window or (not start_date and not end_date):
+    if (time_window and not is_life) or (not start_date and not end_date and not is_life):
         try:
             df_max = DBReader.read_sql("SELECT max(transaction_date) AS max_date FROM rfm_transactions", db_path=db_path)
             if not df_max.empty and pd.notna(df_max['max_date'].iloc[0]):
@@ -181,7 +191,7 @@ def query_transactions_modular(
         if calc_end:
             conditions.append("t.transaction_date <= :end_date")
             params["end_date"] = calc_end
-        if not calc_start and not calc_end and time_window.upper() not in ('LIFETIME', 'LIFE', 'ALL', '全歷史', '全時段'):
+        if not calc_start and not calc_end and not is_life:
             logger.warning(f"⚠️ 傳入未知的時間視窗名稱: {time_window}，將略過預設時間篩選。")
     else:
         if start_date:
