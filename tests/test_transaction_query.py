@@ -208,12 +208,26 @@ def test_query_transactions_modular_date_filters(mock_db_with_rfm):
 
 
 def test_query_transactions_modular_time_window(mock_db_with_rfm):
-    """傳入 time_window 參數自動計算區間"""
-    df = query_transactions_modular(
+    """傳入 time_window 參數自動計算區間 (包含 UNKNOWN 與 life)"""
+    # 1. 未知時間視窗 (平滑略過預設時間篩選)
+    df_unknown = query_transactions_modular(
         time_window="UNKNOWN_WINDOW",
         db_path=mock_db_with_rfm
     )
-    assert not df.empty
+    assert not df_unknown.empty
+
+    # 2. 全歷史 life 傳入
+    df_life = query_transactions_modular(
+        time_window="life",
+        db_path=mock_db_with_rfm
+    )
+    assert not df_life.empty
+
+    # 3. get_transactions 傳入字串相容性
+    df_str_life = get_transactions(window="life", db_path=mock_db_with_rfm)
+    assert not df_str_life.empty
+    df_str_month = get_transactions(window="30d", db_path=mock_db_with_rfm)
+    assert isinstance(df_str_month, pd.DataFrame)
 
 
 def test_query_transactions_modular_bank_and_card_filter(mock_db_with_rfm):

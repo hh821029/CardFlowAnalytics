@@ -223,7 +223,7 @@ def get_rfm_dashboard_data(
     """
     查詢 RFM 視覺化儀表板完整數據 (客單價 vs 標準差氣泡圖、客群分佈統計、四象限分類、Top 3 商家、信用卡置頂排序)
     """
-    prefix = f"{window}_" if window and window != "life" else "life_"
+    prefix = const.TimeWindow.get_prefix(window)
     db_path = analysis_db_path or const.ANALYSIS_DB_PATH
     df_merchants = pd.DataFrame()
     df_cards = pd.DataFrame()

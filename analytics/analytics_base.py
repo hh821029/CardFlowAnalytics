@@ -41,7 +41,10 @@ def prepare_analytics_dataset(
 
     # 2. 資料提取 (動態條件篩選 vs 全歷史)
     df_raw: pd.DataFrame
-    if any([banks, cards, payments, time_window, start_date, end_date, location]) or not include_direct_payment:
+    has_custom_time = bool((time_window and not const.TimeWindow.is_lifetime(time_window)) or start_date or end_date)
+    has_dimension_filter = bool(any([banks, cards, payments, location]) or not include_direct_payment)
+
+    if has_custom_time or has_dimension_filter:
         logger.info("⚙️ [Analytics Base] 偵測到篩選參數，採用動態條件提取交易資料...")
         query_kwargs = dict(
             banks=banks,

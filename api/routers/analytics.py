@@ -309,16 +309,18 @@ async def get_sankey_flow_data(
 @data_router.get("/rfm-chart")
 async def get_rfm_chart_data(
     window: Optional[str] = "life",
+    time_window: Optional[str] = None,
     category: Optional[str] = None,
     limit: int = 200
 ):
     """查詢 RFM 視覺化圖表資料 (客單價 vs 標準差氣泡圖、客群分佈統計、信用卡置頂排序)"""
+    eff_window = time_window if time_window is not None else (window or "life")
     try:
         data = get_rfm_dashboard_data(
-            window=window,
+            window=eff_window,
             category=category,
             limit=limit,
-            df_tx_provider=lambda: _extract_dataset_from_query(time_window=window)
+            df_tx_provider=lambda: _extract_dataset_from_query(time_window=eff_window)
         )
         return JSONResponse(content={"success": True, "data": data})
     except Exception as e:
@@ -330,6 +332,7 @@ async def get_rfm_chart_data(
 @data_router.get("/payment-volatility")
 async def get_dimension_volatility_data(
     window: Optional[str] = "life",
+    time_window: Optional[str] = None,
     group_mode: str = "payment_category",
     payment: Optional[str] = None,
     category: Optional[str] = None,
@@ -337,15 +340,16 @@ async def get_dimension_volatility_data(
     limit: int = 200
 ):
     """查詢 Sankey 6 大流向維度消費波動氣泡圖數據 (支援行動支付、消費類別、信用卡等交叉分組)"""
+    eff_window = time_window if time_window is not None else (window or "life")
     try:
         data = get_dimension_volatility_bubble_data(
-            window=window,
+            window=eff_window,
             group_mode=group_mode,
             payment=payment,
             category=category,
             card=card,
             limit=limit,
-            df_tx_provider=lambda: _extract_dataset_from_query(time_window=window)
+            df_tx_provider=lambda: _extract_dataset_from_query(time_window=eff_window)
         )
         return _safe_json_response({"success": True, "data": data})
     except Exception as e:
