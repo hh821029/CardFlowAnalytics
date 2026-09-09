@@ -31,6 +31,21 @@
        - `tests/test_analytics_features.py`：擴充 `test_time_window_resolution`，完整涵蓋 `is_lifetime`、`parse`、`get_prefix`、`get_key_suffix` 與各類別名。
        - `tests/test_transaction_query.py`：擴充 `test_query_transactions_modular_time_window`，驗證 `"life"` 全歷史傳入與 `get_transactions` 字串型態相容性。
 
+   * **儀表板探索面板維度篩選器放樣重構與按鈕立體視覺強化 (Analytics Dashboard Layout Refactoring & Button Visual Elevation)**：
+     - **維度按鈕放樣語言統一與高度階層化 (`web/analytics_dashboard.html`, `web/styles/dashboard.css`)**：
+       - **結構純化與高度節約**：重構「RFM 客群與消費波動互動探索面板」之第一維度（RFM 客群價值，5 個按鈕）與第二維度（消費波動型態象限，4 個按鈕）。將按鈕內部統一為「左側專屬色點 + 簡稱標籤」與「右側純數字計數（細垂直線分隔）」之左右對齊結構；去除舊版冗餘的「● 顯示中」徽章與外括號，大幅節省頁面垂直空間（減少高度逾 25px）。
+       - **客群標籤精簡**：第一維度文字精簡為純粹之「核心」、「潛力」、「一般」、「流失」、「沉睡」；第二維度統一為「固定大額」、「大額偶發」、「微額日常」、「長尾混合」。
+       - **主次階層感建立**：依據視覺引導原則，將第一維度按鈕高度設定為 `48px`（字級 14px 粗體、數字 18px），第二維度按鈕設定為 `36px`（字級 12px、數字 14px），確保主層級（客群價值）與次層級（波動型態）具有清晰的視覺階層對比。
+     - **金流維度探索面板整合與兩行式工具列重塑 (`web/analytics_dashboard.html`)**：
+       - **面板 Container 整合**：將「📱 金流維度消費波動氣泡圖 (Sankey 流向探索)」之觀察維度篩選列、第一維度按鈕與第二維度按鈕完整納入同一個灰底容器內，以細微透光水平線（`border-top: 1px solid rgba(255, 255, 255, 0.06)`）層次化劃分，使金流面板與上方商家面板具備完全一致之放樣語言。
+       - **工具列兩行式放樣**：依據規劃重構為清晰的雙行結構：
+         - 第一行：`🔀 觀察維度：[下拉式選單] ｜ 🔄 讀取 ｜ ✨ 全部重設/全選`
+         - 第二行：`📱 支付管道：[下拉式選單] ｜ 🏷️ 消費類別：[下拉式選單] ｜ (💳 信用卡別)`（支援聯動動態顯示）。
+     - **已選狀態立體化與明度對比加強 (`web/styles/dashboard.css`)**：
+       - **加粗框線**：`.active` 按鈕框線加粗至 `2px solid var(--badge-color)`，醒目傳達客群與型態之主題色彩。
+       - **高對比深藍漸層**：選中態背景採用微光深藍漸層 `linear-gradient(180deg, rgba(30, 48, 77, 0.95) 0%, rgba(20, 32, 54, 0.95) 100%)`，大幅強化背景明度對比，與未選中態（`opacity: 0.35`、置灰、虛線外框）形成極度鮮明的反差。
+       - **多層次深度陰影**：疊加專屬色外發光（`box-shadow: 0 0 16px`）、立體下沉投影（`0 6px 18px rgba(0, 0, 0, 0.65)`）與內邊框高光（`inset 0 1px 1px`），打造具備深度感與實體點擊質感的控制介面。
+
 * **2026-09-08**
    * **分析基礎管線與動態查詢測試單元補強 (Analytics Base Pipeline & Transaction Query Test Suites)**：
      - **分析管線與 Facade 測試實作 (`tests/test_analytics_pipeline.py`，共 14 項測試)**：
