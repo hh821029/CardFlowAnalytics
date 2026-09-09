@@ -80,36 +80,46 @@
                             個客群</span>
                     </div>
                     <div class="kpi-row">
-                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmCore" data-seg="核心商家 (Core)"
-                            onclick="toggleRfmSegment('核心商家 (Core)')">
-                            <div class="kpi-lbl">核心商家 (Core)</div>
-                            <div id="segCore" class="kpi-val" style="color: #38bdf8;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
-                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmRising" data-seg="潛力商家 (Rising)"
-                            onclick="toggleRfmSegment('潛力商家 (Rising)')">
-                            <div class="kpi-lbl">潛力商家 (Rising)</div>
-                            <div id="segRising" class="kpi-val" style="color: #c084fc;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
-                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmActive" data-seg="一般活躍 (Active)"
-                            onclick="toggleRfmSegment('一般活躍 (Active)')">
-                            <div class="kpi-lbl">一般活躍 (Active)</div>
-                            <div id="segActive" class="kpi-val" style="color: #34d399;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
-                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmChurned" data-seg="流失高價值 (Churned)"
-                            onclick="toggleRfmSegment('流失高價值 (Churned)')">
-                            <div class="kpi-lbl">流失高價值 (Churned)</div>
-                            <div id="segChurned" class="kpi-val" style="color: #f87171;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
-                        <div class="kpi-card rfm-toggle-btn active" id="btnRfmDormant" data-seg="沉睡 (Dormant)"
-                            onclick="toggleRfmSegment('沉睡 (Dormant)')">
-                            <div class="kpi-lbl">沉睡 (Dormant)</div>
-                            <div id="segDormant" class="kpi-val" style="color: #94a3b8;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
+                        <button class="rfm-toggle-btn active" id="btnRfmCore" data-seg="核心商家 (Core)"
+                            onclick="toggleRfmSegment('核心商家 (Core)')" style="--badge-color: #38bdf8;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #38bdf8;"></span>
+                                <span>核心</span>
+                            </span>
+                            <span id="segCore" class="rfm-count" style="color: #38bdf8;">-</span>
+                        </button>
+                        <button class="rfm-toggle-btn active" id="btnRfmRising" data-seg="潛力商家 (Rising)"
+                            onclick="toggleRfmSegment('潛力商家 (Rising)')" style="--badge-color: #c084fc;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #c084fc;"></span>
+                                <span>潛力</span>
+                            </span>
+                            <span id="segRising" class="rfm-count" style="color: #c084fc;">-</span>
+                        </button>
+                        <button class="rfm-toggle-btn active" id="btnRfmActive" data-seg="一般活躍 (Active)"
+                            onclick="toggleRfmSegment('一般活躍 (Active)')" style="--badge-color: #34d399;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #34d399;"></span>
+                                <span>一般</span>
+                            </span>
+                            <span id="segActive" class="rfm-count" style="color: #34d399;">-</span>
+                        </button>
+                        <button class="rfm-toggle-btn active" id="btnRfmChurned" data-seg="流失高價值 (Churned)"
+                            onclick="toggleRfmSegment('流失高價值 (Churned)')" style="--badge-color: #f87171;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #f87171;"></span>
+                                <span>流失</span>
+                            </span>
+                            <span id="segChurned" class="rfm-count" style="color: #f87171;">-</span>
+                        </button>
+                        <button class="rfm-toggle-btn active" id="btnRfmDormant" data-seg="沉睡 (Dormant)"
+                            onclick="toggleRfmSegment('沉睡 (Dormant)')" style="--badge-color: #94a3b8;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #94a3b8;"></span>
+                                <span>沉睡</span>
+                            </span>
+                            <span id="segDormant" class="rfm-count" style="color: #94a3b8;">-</span>
+                        </button>
                     </div>
                 </div>
 
@@ -125,27 +135,35 @@
                     <div class="vol-row">
                         <button class="vol-toggle-btn active" id="btnVolFixed" data-vol="固定大額"
                             onclick="toggleVolSegment('固定大額')" style="--badge-color: #38bdf8;">
-                            <span class="vol-dot" style="background-color: #38bdf8;"></span>
-                            <strong>固定大額型 (藍)</strong>
-                            <span id="volCountFixed" class="vol-count">(-)</span>
+                            <span class="vol-main">
+                                <span class="vol-dot" style="background-color: #38bdf8;"></span>
+                                <span>固定大額</span>
+                            </span>
+                            <span id="volCountFixed" class="vol-count">-</span>
                         </button>
                         <button class="vol-toggle-btn active" id="btnVolSpike" data-vol="大額偶發"
                             onclick="toggleVolSegment('大額偶發')" style="--badge-color: #f87171;">
-                            <span class="vol-dot" style="background-color: #f87171;"></span>
-                            <strong>大額偶發型 (紅)</strong>
-                            <span id="volCountSpike" class="vol-count">(-)</span>
+                            <span class="vol-main">
+                                <span class="vol-dot" style="background-color: #f87171;"></span>
+                                <span>大額偶發</span>
+                            </span>
+                            <span id="volCountSpike" class="vol-count">-</span>
                         </button>
                         <button class="vol-toggle-btn active" id="btnVolMicro" data-vol="微額日常"
                             onclick="toggleVolSegment('微額日常')" style="--badge-color: #34d399;">
-                            <span class="vol-dot" style="background-color: #34d399;"></span>
-                            <strong>微額日常型 (綠)</strong>
-                            <span id="volCountMicro" class="vol-count">(-)</span>
+                            <span class="vol-main">
+                                <span class="vol-dot" style="background-color: #34d399;"></span>
+                                <span>微額日常</span>
+                            </span>
+                            <span id="volCountMicro" class="vol-count">-</span>
                         </button>
                         <button class="vol-toggle-btn active" id="btnVolElastic" data-vol="長尾混合"
                             onclick="toggleVolSegment('長尾混合')" style="--badge-color: #c084fc;">
-                            <span class="vol-dot" style="background-color: #c084fc;"></span>
-                            <strong>長尾混合型 (紫)</strong>
-                            <span id="volCountElastic" class="vol-count">(-)</span>
+                            <span class="vol-main">
+                                <span class="vol-dot" style="background-color: #c084fc;"></span>
+                                <span>長尾混合</span>
+                            </span>
+                            <span id="volCountElastic" class="vol-count">-</span>
                         </button>
                     </div>
                 </div>
@@ -178,7 +196,8 @@
                 <!-- 第一行：標題靠左，維度與顯示筆數靠右 (防止折行跑位) -->
                 <div class="chart-header" style="flex-wrap: nowrap; margin-bottom: 4px;">
                     <div class="chart-title" style="white-space: nowrap;">📱 金流維度消費波動氣泡圖 (Sankey 流向探索)</div>
-                    <div style="font-size: 12px; color: var(--accent-blue); font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; margin-left: auto;">
+                    <div
+                        style="font-size: 12px; color: var(--accent-blue); font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; margin-left: auto;">
                         <span id="dimBubbleFilterLabel">目前維度：行動支付 ✕ 消費類別 (通路場景)</span> ｜
                         <span id="dimBubbleDisplayedCount" style="color: #38bdf8; font-weight: 600;">顯示 - 分組</span>
                     </div>
@@ -189,7 +208,8 @@
                 </div>
 
                 <!-- 工具與篩選列 -->
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                <div
+                    style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
                     <label style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">🔀 觀察維度：</label>
                     <select id="dimGroupModeSelect" onchange="onDimGroupModeChange()"
                         style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(56, 189, 248, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none; font-weight: 500;">
@@ -213,7 +233,8 @@
                         <option value="all">🌐 全部類別</option>
                     </select>
 
-                    <label id="lblDimCard" style="font-size: 13px; color: var(--text-secondary); display: none;">💳 信用卡別：</label>
+                    <label id="lblDimCard" style="font-size: 13px; color: var(--text-secondary); display: none;">💳
+                        信用卡別：</label>
                     <select id="dimCardSelect" onchange="onDimFilterChange()"
                         style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none; display: none;">
                         <option value="all">🌐 全部卡片</option>
@@ -228,74 +249,98 @@
 
                 <!-- 操作面板第一列：RFM 分組客群價值（5 個可點擊卡片） -->
                 <div style="margin-bottom: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">👑 第一維度：RFM 分組客群價值（點擊卡片切換顯示）</span>
-                        <span id="dimRfmFilterActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 5/5 個客群</span>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">👑 第一維度：RFM
+                            分組客群價值（點擊卡片切換顯示）</span>
+                        <span id="dimRfmFilterActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 5/5
+                            個客群</span>
                     </div>
                     <div class="kpi-row">
-                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmCore" data-seg="核心 (Core)"
-                            onclick="toggleDimRfmSegment('核心 (Core)')">
-                            <div class="kpi-lbl">核心分組 (Core)</div>
-                            <div id="dimSegCore" class="kpi-val" style="color: #38bdf8;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
-                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmRising" data-seg="潛力 (Rising)"
-                            onclick="toggleDimRfmSegment('潛力 (Rising)')">
-                            <div class="kpi-lbl">潛力分組 (Rising)</div>
-                            <div id="dimSegRising" class="kpi-val" style="color: #c084fc;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
-                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmActive" data-seg="一般活躍 (Active)"
-                            onclick="toggleDimRfmSegment('一般活躍 (Active)')">
-                            <div class="kpi-lbl">一般活躍 (Active)</div>
-                            <div id="dimSegActive" class="kpi-val" style="color: #34d399;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
-                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmChurned" data-seg="流失高價值 (Churned)"
-                            onclick="toggleDimRfmSegment('流失高價值 (Churned)')">
-                            <div class="kpi-lbl">流失高價值 (Churned)</div>
-                            <div id="dimSegChurned" class="kpi-val" style="color: #f87171;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
-                        <div class="kpi-card dim-rfm-toggle-btn active" id="btnDimRfmDormant" data-seg="沉睡 (Dormant)"
-                            onclick="toggleDimRfmSegment('沉睡 (Dormant)')">
-                            <div class="kpi-lbl">沉睡分組 (Dormant)</div>
-                            <div id="dimSegDormant" class="kpi-val" style="color: #94a3b8;">-</div>
-                            <div class="kpi-status-badge">● 顯示中</div>
-                        </div>
+                        <button class="dim-rfm-toggle-btn active" id="btnDimRfmCore" data-seg="核心 (Core)"
+                            onclick="toggleDimRfmSegment('核心 (Core)')" style="--badge-color: #38bdf8;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #38bdf8;"></span>
+                                <span>核心</span>
+                            </span>
+                            <span id="dimSegCore" class="rfm-count" style="color: #38bdf8;">-</span>
+                        </button>
+                        <button class="dim-rfm-toggle-btn active" id="btnDimRfmRising" data-seg="潛力 (Rising)"
+                            onclick="toggleDimRfmSegment('潛力 (Rising)')" style="--badge-color: #c084fc;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #c084fc;"></span>
+                                <span>潛力</span>
+                            </span>
+                            <span id="dimSegRising" class="rfm-count" style="color: #c084fc;">-</span>
+                        </button>
+                        <button class="dim-rfm-toggle-btn active" id="btnDimRfmActive" data-seg="一般活躍 (Active)"
+                            onclick="toggleDimRfmSegment('一般活躍 (Active)')" style="--badge-color: #34d399;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #34d399;"></span>
+                                <span>一般</span>
+                            </span>
+                            <span id="dimSegActive" class="rfm-count" style="color: #34d399;">-</span>
+                        </button>
+                        <button class="dim-rfm-toggle-btn active" id="btnDimRfmChurned" data-seg="流失高價值 (Churned)"
+                            onclick="toggleDimRfmSegment('流失高價值 (Churned)')" style="--badge-color: #f87171;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #f87171;"></span>
+                                <span>流失</span>
+                            </span>
+                            <span id="dimSegChurned" class="rfm-count" style="color: #f87171;">-</span>
+                        </button>
+                        <button class="dim-rfm-toggle-btn active" id="btnDimRfmDormant" data-seg="沉睡 (Dormant)"
+                            onclick="toggleDimRfmSegment('沉睡 (Dormant)')" style="--badge-color: #94a3b8;">
+                            <span class="rfm-main">
+                                <span class="rfm-dot" style="background-color: #94a3b8;"></span>
+                                <span>沉睡</span>
+                            </span>
+                            <span id="dimSegDormant" class="rfm-count" style="color: #94a3b8;">-</span>
+                        </button>
                     </div>
                 </div>
 
                 <!-- 操作面板第二列：消費波動型態象限（4 個可點擊按鈕） -->
                 <div style="padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06); margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📊 第二維度：消費波動型態象限（點擊按鈕切換顯示）</span>
-                        <span id="dimVolActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 4/4 種型態</span>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 600; color: #cbd5e1;">📊
+                            第二維度：消費波動型態象限（點擊按鈕切換顯示）</span>
+                        <span id="dimVolActiveCount" style="font-size: 11px; color: var(--accent-blue);">已選 4/4
+                            種型態</span>
                     </div>
                     <div class="vol-row">
                         <button class="vol-toggle-btn active" id="btnDimVolFixed" data-vol="固定大額"
                             onclick="toggleDimVolSegment('固定大額')" style="--badge-color: #38bdf8;">
-                            <span class="vol-dot" style="background-color: #38bdf8;"></span>
-                            <strong>固定大額型 (藍)</strong>
-                            <span id="dimVolCountFixed" class="vol-count">(-)</span>
+                            <span class="vol-main">
+                                <span class="vol-dot" style="background-color: #38bdf8;"></span>
+                                <span>固定大額</span>
+                            </span>
+                            <span id="dimVolCountFixed" class="vol-count">-</span>
                         </button>
                         <button class="vol-toggle-btn active" id="btnDimVolSpike" data-vol="大額偶發"
                             onclick="toggleDimVolSegment('大額偶發')" style="--badge-color: #f87171;">
-                            <span class="vol-dot" style="background-color: #f87171;"></span>
-                            <strong>大額偶發型 (紅)</strong>
-                            <span id="dimVolCountSpike" class="vol-count">(-)</span>
+                            <span class="vol-main">
+                                <span class="vol-dot" style="background-color: #f87171;"></span>
+                                <span>大額偶發</span>
+                            </span>
+                            <span id="dimVolCountSpike" class="vol-count">-</span>
                         </button>
                         <button class="vol-toggle-btn active" id="btnDimVolMicro" data-vol="微額日常"
                             onclick="toggleDimVolSegment('微額日常')" style="--badge-color: #34d399;">
-                            <span class="vol-dot" style="background-color: #34d399;"></span>
-                            <strong>微額日常型 (綠)</strong>
-                            <span id="dimVolCountMicro" class="vol-count">(-)</span>
+                            <span class="vol-main">
+                                <span class="vol-dot" style="background-color: #34d399;"></span>
+                                <span>微額日常</span>
+                            </span>
+                            <span id="dimVolCountMicro" class="vol-count">-</span>
                         </button>
                         <button class="vol-toggle-btn active" id="btnDimVolElastic" data-vol="長尾混合"
                             onclick="toggleDimVolSegment('長尾混合')" style="--badge-color: #c084fc;">
-                            <span class="vol-dot" style="background-color: #c084fc;"></span>
-                            <strong>長尾混合型 (紫)</strong>
-                            <span id="dimVolCountElastic" class="vol-count">(-)</span>
+                            <span class="vol-main">
+                                <span class="vol-dot" style="background-color: #c084fc;"></span>
+                                <span>長尾混合</span>
+                            </span>
+                            <span id="dimVolCountElastic" class="vol-count">-</span>
                         </button>
                     </div>
                 </div>
@@ -609,13 +654,13 @@
                 });
 
                 const elFixed = document.getElementById('volCountFixed');
-                if (elFixed) elFixed.textContent = `(${fixedCount})`;
+                if (elFixed) elFixed.textContent = fixedCount;
                 const elSpike = document.getElementById('volCountSpike');
-                if (elSpike) elSpike.textContent = `(${spikeCount})`;
+                if (elSpike) elSpike.textContent = spikeCount;
                 const elMicro = document.getElementById('volCountMicro');
-                if (elMicro) elMicro.textContent = `(${microCount})`;
+                if (elMicro) elMicro.textContent = microCount;
                 const elElastic = document.getElementById('volCountElastic');
-                if (elElastic) elElastic.textContent = `(${elasticCount})`;
+                if (elElastic) elElastic.textContent = elasticCount;
 
                 updateFilterButtonStyles();
 
@@ -636,7 +681,7 @@
                             const curY = Number(val[1]);
 
                             // 方案 4：檢測相同/極相近座標（客單價與標準差差異 < 0.5）
-                            const overlaps = currentRfmBubbleData.filter(d => 
+                            const overlaps = currentRfmBubbleData.filter(d =>
                                 Math.abs(Number(d[0]) - curX) < 0.5 && Math.abs(Number(d[1]) - curY) < 0.5
                             );
 
@@ -982,13 +1027,13 @@
                 allDimGroupsCache = groups || [];
                 const vc = volatility_counts || {};
                 const elFixed = document.getElementById('dimVolCountFixed');
-                if (elFixed) elFixed.textContent = `(${vc['固定大額'] || 0})`;
+                if (elFixed) elFixed.textContent = vc['固定大額'] || 0;
                 const elSpike = document.getElementById('dimVolCountSpike');
-                if (elSpike) elSpike.textContent = `(${vc['大額偶發'] || 0})`;
+                if (elSpike) elSpike.textContent = vc['大額偶發'] || 0;
                 const elMicro = document.getElementById('dimVolCountMicro');
-                if (elMicro) elMicro.textContent = `(${vc['微額日常'] || 0})`;
+                if (elMicro) elMicro.textContent = vc['微額日常'] || 0;
                 const elElastic = document.getElementById('dimVolCountElastic');
-                if (elElastic) elElastic.textContent = `(${vc['長尾混合'] || 0})`;
+                if (elElastic) elElastic.textContent = vc['長尾混合'] || 0;
 
                 updateDimFilterButtonStyles();
 
@@ -1010,7 +1055,7 @@
                             const curY = Number(val[1]);
 
                             // 方案 4：檢測相同/極相近座標（客單價與標準差差異 < 0.5）
-                            const overlaps = currentDimBubbleData.filter(d => 
+                            const overlaps = currentDimBubbleData.filter(d =>
                                 Math.abs(Number(d[0]) - curX) < 0.5 && Math.abs(Number(d[1]) - curY) < 0.5
                             );
 
