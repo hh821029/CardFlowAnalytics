@@ -35,7 +35,7 @@ def prepare_analytics_dataset(
     回傳清洗後可直接進入模型運算的 DataFrame。若無資料則回傳空的 DataFrame。
     """
     # 1. 執行前置 Schema 檢查
-    is_valid_schema, missing_cols = validate_analytics_schema(db_path=db_path) if db_path else validate_analytics_schema()
+    is_valid_schema, missing_cols = validate_analytics_schema(db_path=db_path)
     if not is_valid_schema:
         logger.warning(f"⚠️ [Analytics Base] Schema 檢查未完全通過，缺少欄位: {missing_cols}")
 

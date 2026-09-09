@@ -17,7 +17,7 @@ def get_transactions(
     window: Union[const.TimeWindow, str] = const.TimeWindow.LAST_YEAR,
     exclude_non_retail: bool = False,
     anchor_date: Optional[str] = None,
-    db_path: str = const.DB_PATH
+    db_path: Optional[str] = None
 ) -> pd.DataFrame:
     """
     通用交易資料讀取服務 (預設讀取已整合全維度資訊之 rfm_transactions 視圖，相容 SQLite / PostgreSQL)
@@ -151,7 +151,6 @@ def query_transactions_modular(
     """
     動態 SQL 條件查詢服務 (直接查詢預先構建好之 rfm_transactions 視圖，相容 SQLite / PostgreSQL)
     """
-    if db_path is None: db_path = const.DB_PATH
     conditions: List[str] = ["t.transaction_type NOT IN ('繳款', '各項費用', '退刷', '紅利折抵')"]
     params: Dict[str, Any] = {}
     

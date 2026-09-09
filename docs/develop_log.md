@@ -1,5 +1,17 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-09**
+   * **Docker PostgreSQL 讀取路由校正與分析 Schema 探測日誌降級 (Docker PostgreSQL Routing & Schema Probe Error Fix)**：
+     - **Docker Error 根因定位**：
+       - 使用者於 Docker 環境遇到報錯：`ERROR - ❌ [Analytics Schema] 無法讀取 rfm_transactions 視圖: Execution failed on sql 'SELECT * FROM rfm_transactions LIMIT 0': no such table: rfm_transactions`。
+       - **根因分析**：先前為了防範 CI 測試誤連 PostgreSQL，於 `database/loaders/db_reader.py` 加入了 `if backend == 'postgres' and HAS_SQLALCHEMY and db_path is None:` 判定；但由於 `analytics/__init__.py` 之 `validate_analytics_schema` 預設參數為 `db_path: str = DB_PATH`，以及 `transaction_query.py` 中預設 `const.DB_PATH`，導致呼叫端傳入之 `db_path` 為具體路徑字串而非 `None`。因此在 Docker 環境中（`DB_BACKEND=postgres`），系統錯誤略過已成功寫入資料的 PostgreSQL (`credit_card_db`)，反而降級連線至尚未建立該視圖的本機 SQLite，進而拋出 `no such table: rfm_transactions`。
+       - 此外，`validate_analytics_schema` 本身為探測性結構校驗函式（回傳 boolean 與缺失清單以觸發後續的 `all_transactions` 降級），在捕捉例外時不應直接拋出恐慌性的 `logger.error`。
+     - **核心架構修復**：
+       - `database/loaders/db_reader.py`：重構 `read_sql` 之目標判定邏輯，定義 `is_default_target`（涵蓋 `db_path is None`、`const.DB_PATH` 與 `const.TRANSACTIONS_DB_PATH`）。在 `backend == 'postgres'` 時正確導向至 PostgreSQL 執行主查詢；僅當呼叫端明確指定獨立自訂的 SQLite 測試/展示檔案時，才繞過 PostgreSQL。
+       - `analytics/__init__.py`：將 `validate_analytics_schema` 的預設參數調整為 `db_path: Optional[str] = None`；並將資料表不存在之例外日誌由 `logger.error` 調整為 `logger.warning`，符合容錯探測與平滑降級之設計哲學。
+       - `analytics/common/transaction_query.py`：將 `get_transactions` 與 `query_transactions_modular` 之預設 `db_path` 統一為 `Optional[str] = None`，移除強行賦值 `const.DB_PATH` 之硬編碼，將路徑分派權責完全交還 `DBReader`。
+       - `analytics/analytics_base.py`：簡化 `prepare_analytics_dataset` 中對 `validate_analytics_schema` 之呼叫，消除不必要的三元運算子。
+       - `tests/test_database_loaders.py`：補強 `test_read_sql_postgres_fallback_to_sqlite`，完整校驗未帶 `db_path` 與明確指定 `db_path` 時，PostgreSQL 連線失敗自動降級讀取 SQLite 之雙重行為。
+
    * **時間視窗變數宣告與字串解析 SSOT 統一及 Docker 警告根因修復 (TimeWindow SSOT Unification & Docker Warning Resolution)**：
      - **Docker Warning 根因定位**：
        - `WARNING - ⚠️ 傳入未知的時間視窗名稱: life，將略過預設時間篩選。` 出現之原因：`docker-compose.yml` 中 `python-api` 服務之 `volumes` 僅掛載了 `profiles`、`output`、`errorlog`、`database`、`web`，並未將 `analytics/`、`api/`、`const.py` 等後端程式碼掛載為實時 Volume。因此若未執行 `docker compose up -d --build`，容器內仍會執行未補齊 `'LIFE'` 別名之舊映像檔。

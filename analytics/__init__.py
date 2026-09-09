@@ -6,7 +6,7 @@ Analytics 分析核心模組
 """
 import os
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import pandas as pd
 import const
 from etl.utils import StandardColumns
@@ -32,7 +32,7 @@ for _dir in [BASE_OUTPUT_DIR, MATRIX_OUTPUT_DIR, RFM_OUTPUT_DIR]:
 # ==========================================
 EXPECTED_RFM_COLUMNS: List[str] = StandardColumns.RFM_TRANSACTIONS
 
-def validate_analytics_schema(db_path: str = DB_PATH) -> Tuple[bool, List[str]]:
+def validate_analytics_schema(db_path: Optional[str] = None) -> Tuple[bool, List[str]]:
     """
     檢查資料庫中是否存在 rfm_transactions 視圖/資料表，並驗證其欄位是否符合 StandardColumns.RFM_TRANSACTIONS。
     
@@ -56,7 +56,7 @@ def validate_analytics_schema(db_path: str = DB_PATH) -> Tuple[bool, List[str]]:
         logger.debug("✅ [Analytics Schema] rfm_transactions 視圖存在且欄位驗證通過。")
         return True, []
     except Exception as e:
-        logger.error(f"❌ [Analytics Schema] 無法讀取 rfm_transactions 視圖: {e}")
+        logger.warning(f"⚠️ [Analytics Schema] 無法讀取 rfm_transactions 視圖: {e}")
         return False, EXPECTED_RFM_COLUMNS
 
 __all__ = [

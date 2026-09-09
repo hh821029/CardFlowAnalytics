@@ -242,12 +242,16 @@ class TestDBReader:
     def test_read_sql_postgres_fallback_to_sqlite(self, populated_sqlite_db, monkeypatch):
         """測試當設定為 postgres 但連線失敗時，自動降級至 SQLite 讀取"""
         monkeypatch.setenv('DB_BACKEND', 'postgres')
+        monkeypatch.setattr(const, 'DB_PATH', populated_sqlite_db)
         
         # 模擬 get_engine 回傳 None 或拋出例外
         with patch.object(DBReader, 'get_engine', return_value=None):
             df = DBReader.read_sql("SELECT * FROM mock_txns", db_path=populated_sqlite_db)
             assert len(df) == 2
             assert set(df['id']) == {'t1', 't2'}
+
+            df_default = DBReader.read_sql("SELECT * FROM mock_txns")
+            assert len(df_default) == 2
 
 
 class TestPostgresLoaderSpec:
