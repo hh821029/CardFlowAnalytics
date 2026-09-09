@@ -173,9 +173,9 @@
 
         .rfm-toggle-btn.active,
         .dim-rfm-toggle-btn.active {
-            border-color: var(--badge-color, #38bdf8);
-            background: rgba(30, 41, 59, 0.85);
-            box-shadow: 0 0 14px rgba(56, 189, 248, 0.15);
+            border: 2px solid var(--badge-color, #38bdf8);
+            background: linear-gradient(180deg, rgba(30, 48, 77, 0.95) 0%, rgba(20, 32, 54, 0.95) 100%);
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.28), 0 6px 18px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.15);
         }
 
         .rfm-toggle-btn:not(.active),
@@ -243,9 +243,9 @@
         }
 
         .vol-toggle-btn.active {
-            border-color: var(--badge-color, #38bdf8);
-            background: rgba(30, 41, 59, 0.85);
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+            border: 2px solid var(--badge-color, #38bdf8);
+            background: linear-gradient(180deg, rgba(30, 48, 77, 0.95) 0%, rgba(20, 32, 54, 0.95) 100%);
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.25), 0 5px 14px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.15);
         }
 
         .vol-toggle-btn:not(.active) {
