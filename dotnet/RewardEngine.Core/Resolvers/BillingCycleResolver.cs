@@ -15,8 +15,8 @@ public class BillingCycleResolver
         var groups = records
             .Where(r => r.EffectiveClosingDate.HasValue)
             .GroupBy(r => (
-                Bank: r.BankName.Trim().ToLowerInvariant(),
-                Card: (r.CardType ?? "").Trim().ToLowerInvariant()
+                Bank: (r.BankNo ?? r.BankName ?? "").Trim().ToLowerInvariant(),
+                Card: (r.CardId ?? r.CardType ?? "").Trim().ToLowerInvariant()
             ));
 
         foreach (var group in groups)
@@ -43,7 +43,9 @@ public class BillingCycleResolver
 
                 _intervals.Add(new BillingCycleInterval
                 {
+                    BankNo = curr.BankNo,
                     BankName = curr.BankName,
+                    CardId = curr.CardId,
                     CardType = curr.CardType,
                     StatementMonth = curr.StatementMonth,
                     IntervalStart = start,
@@ -53,24 +55,34 @@ public class BillingCycleResolver
         }
     }
 
-    public BillingCycleInterval? ResolveInterval(string bankName, string? cardType, DateOnly transactionDate)
+    public BillingCycleInterval? ResolveInterval(string bankNo, string? cardId, DateOnly transactionDate)
     {
-        var normBank = bankName.Trim().ToLowerInvariant();
-        var normCard = (cardType ?? "").Trim().ToLowerInvariant();
+        var normBank = (bankNo ?? "").Trim().ToLowerInvariant();
+        var normCard = (cardId ?? "").Trim().ToLowerInvariant();
 
-        // 1. 優先比對特定卡別 (bankName + cardType)
-        var match = _intervals.FirstOrDefault(i =>
-            i.BankName.Equals(normBank, StringComparison.OrdinalIgnoreCase) &&
-            !string.IsNullOrEmpty(i.CardType) &&
-            i.CardType.Equals(normCard, StringComparison.OrdinalIgnoreCase) &&
-            transactionDate >= i.IntervalStart && transactionDate <= i.IntervalEnd);
+        // 1. 優先比對特定卡別 (bankNo + cardId，兼顧 BankName / CardType 容錯)
+        if (!string.IsNullOrEmpty(normCard))
+        {
+            var match = _intervals.FirstOrDefault(i =>
+                MatchBank(i, normBank) &&
+                MatchCard(i, normCard) &&
+                transactionDate >= i.IntervalStart && transactionDate <= i.IntervalEnd);
 
-        if (match != null) return match;
+            if (match != null) return match;
+        }
 
-        // 2. 次優先比對銀行通用預設 (CardType 為空)
+        // 2. 次優先比對銀行通用預設 (CardId/CardType 為空)
         return _intervals.FirstOrDefault(i =>
-            i.BankName.Equals(normBank, StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrEmpty(i.CardType) &&
+            MatchBank(i, normBank) &&
+            string.IsNullOrEmpty(i.CardId) && string.IsNullOrEmpty(i.CardType) &&
             transactionDate >= i.IntervalStart && transactionDate <= i.IntervalEnd);
     }
+
+    private static bool MatchBank(BillingCycleInterval i, string normBank) =>
+        (!string.IsNullOrEmpty(i.BankNo) && i.BankNo.Trim().ToLowerInvariant() == normBank) ||
+        (!string.IsNullOrEmpty(i.BankName) && i.BankName.Trim().ToLowerInvariant() == normBank);
+
+    private static bool MatchCard(BillingCycleInterval i, string normCard) =>
+        (!string.IsNullOrEmpty(i.CardId) && i.CardId.Trim().ToLowerInvariant() == normCard) ||
+        (!string.IsNullOrEmpty(i.CardType) && i.CardType.Trim().ToLowerInvariant() == normCard);
 }

@@ -11,8 +11,10 @@ public class BillingHistoryRecordMap : ClassMap<BillingHistoryRecord>
 {
     public BillingHistoryRecordMap()
     {
-        Map(m => m.BankName).Name("bank_name");
-        Map(m => m.CardType).Name("card_type");
+        Map(m => m.BankNo).Name("bank_no").Optional();
+        Map(m => m.BankName).Name("bank_name").Optional();
+        Map(m => m.CardId).Name("card_id").Optional();
+        Map(m => m.CardType).Name("card_type").Optional();
         Map(m => m.StatementMonth).Name("statement_month");
 
         Map(m => m.ClosingDate).Name("closing_date").TypeConverterOption.Format("yyyy-MM-dd");

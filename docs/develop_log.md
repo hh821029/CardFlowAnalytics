@@ -1,6 +1,25 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-15**
-   * **C# 端回饋引擎 3NF 重構與雙軌備援精簡實作 (C# Reward Engine 3NF Refactoring & Simplification - Part 3)**：
+    * **策略層 3NF 深度收斂、MonthlySelectionStrategy 徹底移除與 0 警告達成 (Strategy Layer 3NF Purification & Zero Warning Achievement)**：
+      - **徹底移除 `MonthlySelectionStrategy` 相關死代碼**：
+        - 依專案「原則性禁止向後相容」規範，因 Unicard 等每月權益切換已整併進 `dim_card_rewards_campaigns.csv` 走活動規則，徹底刪除 `MonthlySelectionStrategy.cs`、`MonthlyBenefitSelection.cs`、`MonthlyBenefitSelectionMap.cs` 與 `MonthlySelectionTests.cs`。
+        - 自 `RewardResolver.cs` 移除 `_monthlySelection` 與 Stage 4 月結權益過濾區塊。
+        - 自 `PostgresRuleLoader`、`CsvRuleLoader`、`RealScenarioBuilder`、`PublicScenarioBuilder` 與 `RewardsApiService` 清理所有 monthly selection 載入與傳遞邏輯。
+      - **每日權益切換 3NF 代碼比對改造 (`DailySelectionStrategy.cs`)**：
+        - 建構子改為接收 3NF 代碼（`targetBankNo` 與 `targetCardId`）。
+        - 適用性檢查 `IsApplicable` 改為直接比對強型別代碼 `txn.BankNo` 與 `txn.CardId`，**徹底根除 CS8602 編譯警告**。
+        - `RewardsApiService.cs` 對齊國泰 Cube（`"013"`, `"cathay_cube"`）與台新 Richart（`"812"`, `"taishin_richart"`）。
+      - **帳單週期與回饋循環追蹤器 3NF 化 (`BillingCycleResolver.cs` & `RewardCycleTracker.cs`)**：
+        - `BillingHistoryRecord`、`BillingCycleInterval` 與 `BillingHistoryRecordMap` 補齊 `BankNo` 與 `CardId`（相容舊格式）。
+        - `BillingCycleResolver.ResolveInterval` 方法簽名對齊 `(string bankNo, string? cardId, DateOnly transactionDate)`。
+        - `RewardCycleTracker.cs` 呼叫 `billingResolver?.ResolveInterval(txn.BankNo, txn.CardId, txn.PostingDate)`，**徹底根除 CS8604 編譯警告**。
+        - 循環 Key 全域收斂為 3NF 代碼（`$"MONTH_{txn.BankNo}_{txn.CardId}_..."` 與 `$"BILLING_{txn.BankNo}_{cardKey}_..."`）。
+      - **全套回歸測試與 0 警告達成**：
+        - C# 端 `dotnet test`：**0 警告、0 失敗、32 項測試 100% PASS**（耗時 124 ms）。
+        - Python 端 `pytest`：**250 項測試 100% 綠燈通過**（耗時 8.28s）。
+        - `issues/issues20260914.md` 最下方追加補充總結章節。
+
+    * **C# 端回饋引擎 3NF 重構與雙軌備援精簡實作 (C# Reward Engine 3NF Refactoring & Simplification - Part 3)**：
      - **核心模型 3NF 收斂 (`dotnet/RewardEngine.Core/Models/`)**：
        - `RewardTransaction.cs`：將 `BankNo` 與 `CardId` 改為強型別強制欄位（`public required string BankNo` / `public required string CardId`）；將已棄用之 `BankName` 與 `CardType` 降級為可選展示欄位；**徹底刪除 `MobilePayment` 屬性**，全域統一為 `PaymentProcess`（`IsMobilePayment => !string.IsNullOrEmpty(PaymentProcess)`）。
        - `CardRewardProgram.cs`：移除 `BankName` 與 `CardType` 的 `required` 限制，回歸可選展示用途，核心方案過濾不再依賴中文名稱。

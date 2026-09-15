@@ -133,20 +133,22 @@ public sealed class RewardsApiService
                 IBenefitSelectionStrategy? dailySelection = null;
                 var dailyStrategies = new List<IBenefitSelectionStrategy>();
 
-                var distinctCardTypes = transactions
-                    .Select(t => t.CardType)
+                var distinctCardIds = transactions
+                    .Select(t => t.CardId)
                     .Where(c => !string.IsNullOrWhiteSpace(c))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-                bool hasCube = distinctCardTypes.Any(c => c.Contains("Cube", StringComparison.OrdinalIgnoreCase));
-                bool hasRichart = distinctCardTypes.Any(c => c.Contains("Richart", StringComparison.OrdinalIgnoreCase));
+                bool hasCube = distinctCardIds.Contains("cathay_cube") ||
+                               transactions.Any(t => t.CardType?.Contains("Cube", StringComparison.OrdinalIgnoreCase) == true);
+                bool hasRichart = distinctCardIds.Contains("taishin_richart") ||
+                                  transactions.Any(t => t.CardType?.Contains("Richart", StringComparison.OrdinalIgnoreCase) == true);
 
                 if (hasCube)
                 {
                     var cubeData = PostgresRuleLoader.LoadDailySelections(pgConnStr, "bridge_cube_selections");
                     if (cubeData.Count > 0)
                     {
-                        dailyStrategies.Add(new DailySelectionStrategy(cubeData, targetBankName: "cube", targetCardType: "Cube卡"));
+                        dailyStrategies.Add(new DailySelectionStrategy(cubeData, targetBankNo: "013", targetCardId: "cathay_cube"));
                         channel.Writer.TryWrite($"data: ℹ️ 偵測到 Cube卡 交易，已載入國泰 CUBE 每日切換記錄 ({cubeData.Count} 筆)\n\n");
                     }
                 }
@@ -156,7 +158,7 @@ public sealed class RewardsApiService
                     var richartData = PostgresRuleLoader.LoadDailySelections(pgConnStr, "bridge_richart_selections");
                     if (richartData.Count > 0)
                     {
-                        dailyStrategies.Add(new DailySelectionStrategy(richartData, targetBankName: "taishin", targetCardType: "Richart卡"));
+                        dailyStrategies.Add(new DailySelectionStrategy(richartData, targetBankNo: "812", targetCardId: "taishin_richart"));
                         channel.Writer.TryWrite($"data: ℹ️ 偵測到 Richart卡 交易，已載入台新 Richart 每日切換記錄 ({richartData.Count} 筆)\n\n");
                     }
                 }
@@ -177,7 +179,6 @@ public sealed class RewardsApiService
                     pools: pools,
                     linkedLists: linkedLists,
                     dailySelection: dailySelection,
-                    monthlySelection: null,
                     cycleTracker: cycleTracker);
 
                 var resolvedItems = new List<(RewardTransaction Txn, ResolvedReward Result)>();

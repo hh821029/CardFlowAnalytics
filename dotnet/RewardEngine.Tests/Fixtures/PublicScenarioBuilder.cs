@@ -153,22 +153,6 @@ public static class ScenarioBuilder
         Note = note
     };
 
-    // ---------- MonthlyBenefitSelection (Unicard 型) ----------
-
-    public static MonthlyBenefitSelection MonthlySelection(
-        string rulesRewardProgram,
-        string campaignRewardProgram,
-        DateOnly startDate,
-        DateOnly endDate,
-        DateOnly maxPostingDate) => new()
-    {
-        RulesRewardProgram = rulesRewardProgram,
-        CampaignRewardProgram = campaignRewardProgram,
-        StartDate = startDate,
-        EndDate = endDate,
-        MaxPostingDate = maxPostingDate
-    };
-
     // ---------- RewardTransaction ----------
 
     public static RewardTransaction Transaction(

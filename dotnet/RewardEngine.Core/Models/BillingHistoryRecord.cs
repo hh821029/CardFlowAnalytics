@@ -6,7 +6,9 @@ namespace RewardEngine.Core.Models;
 /// </summary>
 public record BillingHistoryRecord
 {
-    public required string BankName { get; init; }
+    public string? BankNo { get; init; }
+    public string? BankName { get; init; }
+    public string? CardId { get; init; }
     public string? CardType { get; init; }                    // 空白代表適用該銀行的預設結帳日
     public required string StatementMonth { get; init; }       // 如 "2025-01" 或 "2025-01-01"
     public DateOnly? ClosingDate { get; init; }               // 預定結帳日

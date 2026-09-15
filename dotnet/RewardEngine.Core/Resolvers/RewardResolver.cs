@@ -8,7 +8,6 @@ public sealed class RewardResolver
     private readonly IReadOnlyList<MerchantRewardPool> _pools;
     private readonly IReadOnlyList<RewardLinkedList> _linkedLists;
     private readonly IBenefitSelectionStrategy? _dailySelection;
-    private readonly IBenefitSelectionStrategy? _monthlySelection;
     private readonly RewardCycleTracker? _cycleTracker;
     private readonly Dictionary<string, List<MerchantRewardPool>> _rewardPoolsLookup;
 
@@ -20,14 +19,12 @@ public sealed class RewardResolver
         IReadOnlyList<MerchantRewardPool> pools,
         IReadOnlyList<RewardLinkedList> linkedLists,
         IBenefitSelectionStrategy? dailySelection = null,
-        IBenefitSelectionStrategy? monthlySelection = null,
         RewardCycleTracker? cycleTracker = null)
     {
         _programs = programs;
         _pools = pools;
         _linkedLists = linkedLists;
         _dailySelection = dailySelection;
-        _monthlySelection = monthlySelection;
         _cycleTracker = cycleTracker;
 
         var poolDict = pools.ToDictionary(p => p.MerchantRewardPoolsId, p => p, StringComparer.OrdinalIgnoreCase);
@@ -104,42 +101,7 @@ public sealed class RewardResolver
             }
         }
 
-        // Stage 4：月結權益選擇篩選（如 Unicard 月結切換）
-        if (_monthlySelection is MonthlySelectionStrategy mss)
-        {
-            var activeSelections = mss.GetActiveSelections(txn);
-            if (activeSelections.Count > 0)
-            {
-                var selectedCampaignPrograms = activeSelections
-                    .Select(s => s.CampaignRewardProgram)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                var targetSelectionRules = activeSelections
-                    .Select(s => s.RulesRewardProgram)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                var beforeCount = candidateResolutions.Count;
-                candidateResolutions = candidateResolutions
-                    .Where(r =>
-                    {
-                        var campProg = r.Program.RewardProgram;
-                        if (targetSelectionRules.Contains(campProg))
-                        {
-                            return selectedCampaignPrograms.Contains(campProg);
-                        }
-                        return true;
-                    })
-                    .ToList();
-
-                trace.Add($"[S4-月結篩選] 選擇:{string.Join(",", selectedCampaignPrograms)} | 過濾前:{beforeCount}筆 → 後:{candidateResolutions.Count}筆");
-            }
-            else
-            {
-                trace.Add("[S4-月結篩選] 無月結選擇區間命中，略過篩選");
-            }
-        }
-
-        // Stage 5：Waterfall 優先序排序與短路截斷（Priority 升冪，數字越小越優先）
+        // Stage 4：Waterfall 優先序排序與短路截斷（Priority 升冪，數字越小越優先）
         var applied = new List<ProgramRateResolution>();
         foreach (var res in candidateResolutions.OrderBy(r => r.Program.Priority))
         {

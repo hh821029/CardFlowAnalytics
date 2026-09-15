@@ -277,45 +277,6 @@ public static class PostgresRuleLoader
         return list;
     }
 
-    public static List<MonthlyBenefitSelection> LoadMonthlySelections(string connectionString)
-    {
-        if (!TableExists(connectionString, "bridge_unicard_selections"))
-            return [];
-
-        try
-        {
-            using var conn = new NpgsqlConnection(connectionString);
-            var sql = "SELECT * FROM bridge_unicard_selections";
-
-            var rows = conn.Query(sql);
-            var list = new List<MonthlyBenefitSelection>();
-
-            foreach (var r in rows)
-            {
-                var row = (IDictionary<string, object>)r;
-                var sDate = ParseDateOnly(GetVal(row, "start_date"));
-                var eDate = ParseDateOnly(GetVal(row, "end_date"));
-                var mDate = ParseDateOnly(GetVal(row, "max_posting_date"));
-                if (sDate.HasValue && eDate.HasValue && mDate.HasValue)
-                {
-                    list.Add(new MonthlyBenefitSelection
-                    {
-                        RulesRewardProgram = (GetVal(row, "rules_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
-                        CampaignRewardProgram = (GetVal(row, "campaign_reward_program") ?? GetVal(row, "reward_program"))?.ToString() ?? "",
-                        StartDate = sDate.Value,
-                        EndDate = eDate.Value,
-                        MaxPostingDate = mDate.Value
-                    });
-                }
-            }
-            return list;
-        }
-        catch
-        {
-            return [];
-        }
-    }
-
     public static List<BillingHistoryRecord> LoadBillingHistory(string connectionString)
     {
         if (!TableExists(connectionString, "dim_billing_history"))

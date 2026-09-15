@@ -18,7 +18,7 @@ public class RewardCycleTracker(BillingCycleResolver? billingResolver = null)
         return cycleType switch
         {
             "BILLING_CYCLE" => BuildBillingCycleKey(program, txn),
-            "CALENDAR_MONTH" => $"MONTH_{txn.BankName}_{txn.CardType}_{txn.TransactionDate:yyyy-MM}_{program.RewardProgram}",
+            "CALENDAR_MONTH" => $"MONTH_{txn.BankNo}_{txn.CardId}_{txn.TransactionDate:yyyy-MM}_{program.RewardProgram}",
             "CAMPAIGN_CYCLE" => $"CAMPAIGN_{program.RewardProgram}_{(program.StartDate?.ToString("yyyyMMdd") ?? "START")}_{(program.EndDate?.ToString("yyyyMMdd") ?? "END")}",
             _ => $"TXN_{txn.TransactionId}_{program.RewardProgram}" // TRANSACTION_DATE: 單筆獨立不跨筆累計
         };
@@ -27,10 +27,11 @@ public class RewardCycleTracker(BillingCycleResolver? billingResolver = null)
     private string BuildBillingCycleKey(CardRewardProgram program, RewardTransaction txn)
     {
         // BILLING_CYCLE：依據「入帳日 (PostingDate)」落入的帳單區間為準 (SSOT)
-        var interval = billingResolver?.ResolveInterval(txn.BankName, txn.CardType, txn.PostingDate);
+        var interval = billingResolver?.ResolveInterval(txn.BankNo, txn.CardId, txn.PostingDate);
 
         string monthKey = interval?.StatementMonth ?? txn.PostingDate.ToString("yyyy-MM");
-        return $"BILLING_{txn.BankName}_{(string.IsNullOrEmpty(txn.CardType) ? "DEFAULT" : txn.CardType)}_{monthKey}_{program.RewardProgram}";
+        string cardKey = string.IsNullOrEmpty(txn.CardId) ? (string.IsNullOrEmpty(txn.CardType) ? "DEFAULT" : txn.CardType) : txn.CardId;
+        return $"BILLING_{txn.BankNo}_{cardKey}_{monthKey}_{program.RewardProgram}";
     }
 
     public decimal GetAccumulated(string cycleKey)

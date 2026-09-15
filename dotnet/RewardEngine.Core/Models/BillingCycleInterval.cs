@@ -5,7 +5,9 @@ namespace RewardEngine.Core.Models;
 /// </summary>
 public record BillingCycleInterval
 {
-    public required string BankName { get; init; }
+    public string? BankNo { get; init; }
+    public string? BankName { get; init; }
+    public string? CardId { get; init; }
     public string? CardType { get; init; }
     public required string StatementMonth { get; init; }
     public required DateOnly IntervalStart { get; init; }

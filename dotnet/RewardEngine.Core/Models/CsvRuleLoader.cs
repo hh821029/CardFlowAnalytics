@@ -56,22 +56,6 @@ public static class CsvRuleLoader
         return csv.GetRecords<DailyBenefitSelection>().ToList();
     }
 
-    public static List<MonthlyBenefitSelection> LoadMonthlySelections(string csvPath)
-    {
-        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-        {
-            HasHeaderRecord = true,
-            MissingFieldFound = null,
-            HeaderValidated = null
-        };
-
-        using var reader = new StreamReader(csvPath, System.Text.Encoding.UTF8);
-        using var csv = new CsvReader(reader, config);
-
-        csv.Context.RegisterClassMap<MonthlyBenefitSelectionMap>();
-        return csv.GetRecords<MonthlyBenefitSelection>().ToList();
-    }
-
     public static List<BillingHistoryRecord> LoadBillingHistory(string csvPath)
     {
         var config = new CsvConfiguration(CultureInfo.InvariantCulture)

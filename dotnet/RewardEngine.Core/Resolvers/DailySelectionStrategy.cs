@@ -4,8 +4,8 @@ namespace RewardEngine.Core.Resolvers;
 
 public sealed class DailySelectionStrategy(
     IReadOnlyList<DailyBenefitSelection> selections,
-    string? targetBankName = null,
-    string? targetCardType = null) : IBenefitSelectionStrategy
+    string? targetBankNo = null,
+    string? targetCardId = null) : IBenefitSelectionStrategy
 {
     // 跨境交易：無論哪個時區組合（含換日線、iCloud 愛爾蘭 UTC+0 等），
     // 台灣發卡行記錄的消費日與持卡人當地日期最多差 ±1 天
@@ -14,24 +14,22 @@ public sealed class DailySelectionStrategy(
     // 行動支付（NFC/QR）：授權→請款批次→銀行入帳，已知延遲最多 2 天
     private const int MobilePaymentBufferDays = 2;
 
-    private static bool IsApplicable(RewardTransaction txn, string? bankName, string? cardType)
+    private static bool IsApplicable(RewardTransaction txn, string? bankNo, string? cardId)
     {
         // 若未指定目標發卡行/卡別（如單元測試直接測試策略），預設適用所有交易
-        if (string.IsNullOrEmpty(bankName) && string.IsNullOrEmpty(cardType))
+        if (string.IsNullOrEmpty(bankNo) && string.IsNullOrEmpty(cardId))
             return true;
 
-        if (!string.IsNullOrEmpty(bankName))
+        if (!string.IsNullOrEmpty(bankNo))
         {
-            bool isBankMatch = txn.BankName.Equals(bankName, StringComparison.OrdinalIgnoreCase) ||
-                               (bankName.Equals("cube", StringComparison.OrdinalIgnoreCase) && (txn.BankName.Equals("cathay", StringComparison.OrdinalIgnoreCase) || txn.BankName.Contains("國泰")));
-            if (!isBankMatch) return false;
+            if (!txn.BankNo.Equals(bankNo, StringComparison.OrdinalIgnoreCase))
+                return false;
         }
 
-        if (!string.IsNullOrEmpty(cardType))
+        if (!string.IsNullOrEmpty(cardId))
         {
-            bool isCardMatch = txn.CardType.Equals(cardType, StringComparison.OrdinalIgnoreCase) ||
-                               txn.CardType.Contains(cardType, StringComparison.OrdinalIgnoreCase);
-            if (!isCardMatch) return false;
+            if (!txn.CardId.Equals(cardId, StringComparison.OrdinalIgnoreCase))
+                return false;
         }
 
         return true;
@@ -39,7 +37,7 @@ public sealed class DailySelectionStrategy(
 
     public BenefitResolutionResult ResolveActiveProgram(RewardTransaction transaction)
     {
-        if (!IsApplicable(transaction, targetBankName, targetCardType))
+        if (!IsApplicable(transaction, targetBankNo, targetCardId))
         {
             return new BenefitResolutionResult { ResolvedProgram = null, RequiresManualVerification = false };
         }
