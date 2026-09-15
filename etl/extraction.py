@@ -26,6 +26,7 @@ except ImportError:
     ConfigLoader = None
 
 from etl.utils import save_anomaly_report
+from etl.exceptions import UnmappedBankError, InvalidBillFormatError, MaliciousPayloadDetectedError
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,15 @@ CONFIG_DIR = const.CONFIG_DIR
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def get_bank_info(filename: Optional[str] = None) -> Optional[Dict[str, Any]]:
+def get_bank_info(filename: Optional[str] = None, strict: bool = False) -> Optional[Dict[str, Any]]:
     """
     透過 dim_banks.yaml 比對檔名中的 bill_mapping_name 與 keywords
     回傳比對到的銀行資訊字典 (bank_id, bank_no, bank_name, bill_mapping_name)
+    若 strict=True 且查無銀行，則拋出 UnmappedBankError
     """
     if not filename:
+        if strict:
+            raise UnmappedBankError("", message="未提供檔名無法比對銀行代碼")
         return None
 
     try:
@@ -65,6 +69,9 @@ def get_bank_info(filename: Optional[str] = None) -> Optional[Dict[str, Any]]:
         for kw in keywords:
             if kw and kw.lower() in filename_lower:
                 return bank
+
+    if strict:
+        raise UnmappedBankError(filename)
     return None
 
 def get_parser(filename: Optional[str] = None):
@@ -147,12 +154,21 @@ def extract_raw_data(force: bool = True, input_dir: Optional[str] = None) -> Opt
         bills_mapping_name = bank_info.get('bills_mapping_name') if bank_info else None
         official_bank_name = bank_info.get('bank_name') if bank_info else None
         target_bank_name = bills_mapping_name or official_bank_name or bank_id
+        target_bank_no = bank_info.get('bank_no') if bank_info else None
+        if target_bank_no:
+            target_bank_no = str(target_bank_no).zfill(3)
         
         if parser:
             try:
                 logger.info(f"處理中: {filename} ...")
                 df = parser.parse(filepath)
                 if not df.empty:
+                    if const.COL_BANK_NO not in df.columns or df[const.COL_BANK_NO].isna().all() or (df[const.COL_BANK_NO] == '').all():
+                        if target_bank_no:
+                            df[const.COL_BANK_NO] = target_bank_no
+                    elif target_bank_no:
+                        df[const.COL_BANK_NO] = df[const.COL_BANK_NO].replace('', target_bank_no).fillna(target_bank_no)
+
                     if 'bank_name' not in df.columns or df['bank_name'].isna().all() or (df['bank_name'] == '').all():
                         df['bank_name'] = target_bank_name
                     else:
@@ -180,6 +196,28 @@ def extract_raw_data(force: bool = True, input_dir: Optional[str] = None) -> Opt
                             record_count=0,
                             status='SUCCESS'
                         )
+            except InvalidBillFormatError as e:
+                logger.warning(f"  ⚠️ [InvalidBillFormat] 略過格式錯位或空檔案 {filename}: {e}")
+                if registry_mgr and file_hash:
+                    registry_mgr.register_file(
+                        file_hash=file_hash,
+                        filename=filename,
+                        file_size=file_size,
+                        bank_id=bank_id,
+                        record_count=0,
+                        status='FAILED'
+                    )
+            except MaliciousPayloadDetectedError as e:
+                logger.error(f"  🚨 [SecurityBlock] 攔截並阻斷惡意帳單攻擊 {filename}: {e}")
+                if registry_mgr and file_hash:
+                    registry_mgr.register_file(
+                        file_hash=file_hash,
+                        filename=filename,
+                        file_size=file_size,
+                        bank_id=bank_id,
+                        record_count=0,
+                        status='FAILED'
+                    )
             except Exception as e:
                 logger.error(f"  ❌ 解析失敗 {filename}: {str(e)}")
                 if registry_mgr and file_hash:
@@ -192,7 +230,10 @@ def extract_raw_data(force: bool = True, input_dir: Optional[str] = None) -> Opt
                         status='FAILED'
                     )
         else:
-            logger.debug(f"  ⏭️ 跳過不支援或未定義 Parser 的檔案: {filename}")
+            if not bank_info and filename.lower().endswith(('.csv', '.xls', '.xlsx', '.pdf', '.html')):
+                logger.warning(f"  ⚠️ [UnmappedBank] 查無可映射銀行代碼: {filename}")
+            else:
+                logger.debug(f"  ⏭️ 跳過不支援或未定義 Parser 的檔案: {filename}")
 
     if not all_raw_dfs:
         logger.warning("🚫 本次執行未取得任何新有效資料（可能全部已解析或資料夾為空），流程結束。")

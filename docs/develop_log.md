@@ -1,4 +1,26 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-09-15**
+   * **帳單載入安全與 bank_no 動態賦值架構實作 (Bill Ingestion Security & bank_no Dynamic Injection - Part 1)**：
+     - **Parser bank_no 3 碼代號動態注入**：
+       - `etl/parsers/base.py`：於 `BaseBillParser.__init__` 強制將 `self.bank_no` 格式化為 3 碼補零字串；於 `_enforce_dtypes` 補強 `bank_no` 前導零防呆。
+       - `etl/parsers/cathay.py` (`CubeParser`)、`etl/parsers/esun.py` (`EsunParser`)、`etl/parsers/ctbc.py` (`CTBCParser`)、`etl/parsers/hncb.py` (`HNCBParser`)、`etl/parsers/sinopac.py` (`SinopacBillParser`)：於 `parse()` 輸出之 DataFrame 直接注入 `df[const.COL_BANK_NO] = self.bank_no`（`'013'`, `'808'`, `'822'`, `'008'`, `'807'`），杜絕中文名稱比對歧異。
+       - `etl/extraction.py`：於 `extract_raw_data()` 增設防禦性回填機制，若 DataFrame 缺少 `bank_no` 自動由 `bank_info` 補全；支援 `get_bank_info(strict=True)` 嚴格檢驗模式，批次解析捕捉異常並優雅跳過。
+     - **安全過濾器與防禦矩陣實作**：
+       - `etl/exceptions.py`：建立自訂例外 `UnmappedBankError`、`InvalidBillFormatError`、`MaliciousPayloadDetectedError`。
+       - `etl/sanitizer.py` (`BillSanitizer`)：
+         - **ReDoS 防護**：文字長度超過 255 字元強制截斷。
+         - **控制字元過濾**：清除 Null Byte (`\x00`) 與異常 ASCII 控制字元。
+         - **致命代碼/SQL 注入阻斷**：匹配 `__import__`、`eval(`、`<script>`、`DROP TABLE`、`DELETE FROM` 時拋出 `MaliciousPayloadDetectedError`。
+         - **DDE 公式注入消毒**：開頭為 `=`, `@`, `+`, `-` 且具指令調用特徵時自動加上 `'` 跳脫轉義。
+         - **合法消費防誤殺機制**：精準白名單放行 `Disney+`、`Google +1`、`Apple Care+`、`LINE@官方店家`、`FB@廣告投放`、`-120` 退款、`連加＊一般商品` 等日常邊界特店。
+       - `etl/parsers/base.py`：於 `read_csv_smart` 與 `read_html_smart` 檢核 0 位元組空檔案與 Header 遺失；於 `_finalize_normalization` 整合全域安全消毒。
+     - **測資目錄實體隔離與單元測試**：
+       - 建立 `tests/fixtures/bills/error_cases/` 與 `tests/fixtures/bills/security/` 獨立測資目錄，絕不混入展示與正式資料目錄。
+       - `.gitignore`：加入 `!tests/fixtures/**` 確保測試 mock 檔案納入版本控管。
+       - `tests/test_etl_security.py`：實作 20 項安全單元測試，完整覆蓋 4 大邊界矩陣與 5 大 Parser `bank_no` 注入驗證。
+       - `tests/test_bank_parsers_contract.py`：將 `const.COL_BANK_NO` 納入跨銀行必備欄位契約驗證。
+       - 全專案 246 項 pytest 測試 100% 綠燈通過。
+
 * **2026-09-09**
    * **Docker PostgreSQL 讀取路由校正與分析 Schema 探測日誌降級 (Docker PostgreSQL Routing & Schema Probe Error Fix)**：
      - **Docker Error 根因定位**：

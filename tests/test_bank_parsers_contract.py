@@ -17,7 +17,8 @@ REQUIRED_COLUMNS = [
     const.COL_MERCHANT,
     const.COL_CARD_NO,
     const.COL_PAY_AMOUNT,
-    const.COL_BANK_NAME
+    const.COL_BANK_NAME,
+    const.COL_BANK_NO
 ]
 
 @pytest.fixture(scope="module")
@@ -74,6 +75,10 @@ class TestCrossBankParsersContract:
         # 4. 驗證銀行名稱不可為空
         assert (df[const.COL_BANK_NAME].dropna() != '').all(), f"❌ {bank_key} 銀行名稱不可有空值"
 
+        # 5. 驗證銀行代碼 bank_no 存在且為 3 碼字串
+        assert (df[const.COL_BANK_NO].dropna() != '').all(), f"❌ {bank_key} 銀行代碼不可有空值"
+        assert df[const.COL_BANK_NO].astype(str).str.len().eq(3).all(), f"❌ {bank_key} 銀行代碼長度必須為 3 碼"
+
     def test_sinopac_parser_standard_contract(self, mock_sinopac_pdf):
         """驗證永豐 PDF 解析器亦符合相同標準契約"""
         parser = SinopacBillParser(bank_id_or_keyword="sinopac")
@@ -87,6 +92,8 @@ class TestCrossBankParsersContract:
         assert pd.api.types.is_datetime64_any_dtype(df[const.COL_TXN_DATE])
         assert pd.api.types.is_float_dtype(df[const.COL_PAY_AMOUNT])
         assert (df[const.COL_BANK_NAME].dropna() != '').all()
+        assert (df[const.COL_BANK_NO].dropna() != '').all()
+        assert df[const.COL_BANK_NO].astype(str).str.len().eq(3).all()
 
 
 class TestBankSpecificFeatures:

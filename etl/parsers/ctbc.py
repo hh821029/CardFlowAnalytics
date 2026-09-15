@@ -35,6 +35,7 @@ class CTBCParser(BaseCsvParser):
             df = df_sliced.rename(columns=self.mapping)
         else:
             df = pd.DataFrame(df_sliced).rename(columns=self.mapping)
+        df[const.COL_BANK_NO] = str(self.bank_no).zfill(3) if self.bank_no else '822'
         df[const.COL_BANK_NAME] = self.bank_name
 
         df[const.COL_PAY_AMOUNT] = self._clean_amount(df, const.COL_PAY_AMOUNT)

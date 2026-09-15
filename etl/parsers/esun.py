@@ -46,6 +46,7 @@ class EsunParser(BaseCsvParser):
             df = df_sliced.rename(columns=self.mapping)
         else:
             df = pd.DataFrame(df_sliced).rename(columns=self.mapping)
+        df[const.COL_BANK_NO] = str(self.bank_no).zfill(3) if self.bank_no else '808'
         df[const.COL_BANK_NAME] = self.bank_name
 
         # 3. [新增] 全域空白清洗 (White Space Cleanup)

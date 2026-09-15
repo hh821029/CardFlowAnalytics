@@ -46,6 +46,7 @@ class HNCBParser(BaseHtmlParser):
             df = df_sliced.rename(columns=self.mapping)
         else:
             df = pd.DataFrame(df_sliced).rename(columns=self.mapping)
+        df[const.COL_BANK_NO] = str(self.bank_no).zfill(3) if self.bank_no else '008'
         df[const.COL_BANK_NAME] = self.bank_name
 
         # 3. 卡號提取邏輯 (_extract_card_info)

@@ -8,6 +8,8 @@ import const
 from bs4 import BeautifulSoup
 import lxml 
 from typing import Any, List, Optional
+from etl.sanitizer import BillSanitizer
+from etl.exceptions import InvalidBillFormatError, MaliciousPayloadDetectedError
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +78,10 @@ class BaseBillParser:
             self.bank = const.get_bank_by_keyword(bank_id_or_keyword)
             if self.bank:
                 self.bank_id = self.bank.get('bank_id', '')
-                self.bank_no = self.bank.get('bank_no', '')
+                raw_bank_no = self.bank.get('bank_no', '')
+                self.bank_no = str(raw_bank_no).zfill(3) if raw_bank_no else ''
                 self.bank_name = self.bank.get('bills_mapping_name', self.bank.get('bank_name', ''))
-                logger.info(f"✅ 已載入銀行配置：{self.bank_name} ({self.bank_id})")
+                logger.info(f"✅ 已載入銀行配置：{self.bank_name} ({self.bank_id}, {self.bank_no})")
             else:
                 logger.warning(f"⚠️ 無法識別的銀行標誌: {bank_id_or_keyword}")
 
@@ -138,6 +141,12 @@ class BaseBillParser:
             elif dtype == 'date':
                 if not pd.api.types.is_datetime64_any_dtype(df[col_name]):
                      df[col_name] = pd.to_datetime(df[col_name], format='mixed', errors='coerce')
+        
+        # 額外確保 bank_no 欄位為標準 3 碼代號字串
+        if const.COL_BANK_NO in df.columns:
+            df[const.COL_BANK_NO] = df[const.COL_BANK_NO].apply(
+                lambda x: str(x).zfill(3) if pd.notna(x) and str(x).strip() and str(x).lower() not in ['none', 'nan'] else x
+            )
         return df
     
     def _finalize_normalization(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -175,6 +184,9 @@ class BaseBillParser:
         # 3. 處理 Location (國別標準化: TWN -> TW)
         if const.COL_LOCATION in df.columns:
             df[const.COL_LOCATION] = df[const.COL_LOCATION].apply(lambda x: const.Location.normalize(x))
+
+        # 4. 全域安全掃描與消毒 (BillSanitizer: 防範 DDE、代碼/SQL 注入與 ReDoS)
+        df = BillSanitizer.sanitize_dataframe(df)
 
         return df
 
@@ -257,6 +269,9 @@ class BaseCsvParser(BaseBillParser):
         super().__init__(bank_id_or_keyword=bank_id_or_keyword, **kwargs)
 
     def read_csv_smart(self, filepath: str, encoding: str, header_keyword: str, stop_at_keyword: Optional[str] = None) -> pd.DataFrame:
+        if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+            raise InvalidBillFormatError(filepath, reason="檔案為 0 位元組空檔案")
+
         content_buffer = []
         found_header = False
         try:
@@ -271,10 +286,16 @@ class BaseCsvParser(BaseBillParser):
                 if stop_at_keyword and stop_at_keyword in line:
                     break
                 content_buffer.append(line)
+
+            if header_keyword and not found_header:
+                raise InvalidBillFormatError(filepath, reason=f"檔案缺少關鍵 Header '{header_keyword}'")
+
             if found_header and content_buffer:
                 return pd.read_csv(io.StringIO("".join(content_buffer)), on_bad_lines='skip', dtype=str)
             else:
                 return pd.read_csv(filepath, encoding=encoding, header=0, on_bad_lines='skip', dtype=str)
+        except (InvalidBillFormatError, MaliciousPayloadDetectedError):
+            raise
         except Exception as e:
             logger.error(f"❌ Smart Read 失敗 ({os.path.basename(filepath)}): {e}")
             return pd.DataFrame()
@@ -285,15 +306,22 @@ class BaseHtmlParser(BaseBillParser):
         super().__init__(bank_id_or_keyword=bank_id_or_keyword, **kwargs)
 
     def read_html_smart(self, filepath: str, encoding: str, header_keyword: str, stop_at_keyword: Optional[str] = None) -> pd.DataFrame:
+        if not os.path.exists(filepath) or os.path.getsize(filepath) == 0:
+            raise InvalidBillFormatError(filepath, reason="檔案為 0 位元組空檔案")
+
         try:
             with open(filepath, 'r', encoding=encoding, errors='replace') as f:
                 soup = BeautifulSoup(f, 'lxml')
-            header_node = soup.find(string=lambda t: t and header_keyword in t)
-            if not header_node: return pd.DataFrame()
-            target_table = header_node.find_parent('table')
-            if not target_table: return pd.DataFrame()
+            pattern = re.compile(re.escape(header_keyword))
+            header_node = soup.find(string=pattern)
+            if not header_node:
+                raise InvalidBillFormatError(filepath, reason=f"HTML 缺少關鍵 Header '{header_keyword}'")
+            target_table = header_node.find_parent('table') if hasattr(header_node, 'find_parent') else None
+            if not target_table:
+                raise InvalidBillFormatError(filepath, reason=f"HTML 表頭無所屬表格: '{header_keyword}'")
             dfs = pd.read_html(io.StringIO(str(target_table)), header=0)
-            if not dfs: return pd.DataFrame()
+            if not dfs or dfs[0].empty:
+                raise InvalidBillFormatError(filepath, reason="HTML 表格解析後無資料")
             df = dfs[0]
             df.columns = ["".join(f"{c}".split()) for c in df.columns]
             if stop_at_keyword:
@@ -303,6 +331,8 @@ class BaseHtmlParser(BaseBillParser):
                     if isinstance(sliced_df, pd.DataFrame):
                         df = sliced_df
             return df
+        except (InvalidBillFormatError, MaliciousPayloadDetectedError):
+            raise
         except Exception as e:
             logger.error(f"❌ Smart HTML Read 失敗 ({os.path.basename(filepath)}): {e}")
             return pd.DataFrame()

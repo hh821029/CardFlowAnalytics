@@ -37,6 +37,7 @@ profiles/common/
 !profiles/example_public/**
 !profiles/example_public/configs/*
 !profiles/example_public/data/*
+!tests/fixtures/**
 **/ingested_files.json
 !pyrightconfig.json
 Himitsu.py

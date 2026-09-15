@@ -101,6 +101,7 @@ class SinopacBillParser(BasePdfParser):
             # 轉成 DataFrame
             df = pd.DataFrame(all_clean_rows, columns=self.target_columns)
             # 加上銀行名稱標籤
+            df[const.COL_BANK_NO] = str(self.bank_no).zfill(3) if self.bank_no else '807'
             df[const.COL_BANK_NAME] = self.bank_name
 
             # 呼叫 BaseBillParser 的通用處理 (日期轉換與型態強制)
