@@ -1,5 +1,30 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-15**
+   * **Python 端 3NF 資料管線與 Schema 重構實作 (Python Pipeline & 3NF Schema Refactoring - Part 2)**：
+     - **維度設定檔 3NF 純化**：
+       - `profiles/common/configs/dim_card_rewards_base.csv` 與 `dim_card_rewards_campaigns.csv`：移除重複之 `bank_name` 與 `card_type`，消滅傳遞相依，僅保留外鍵 `bank_no` 與 `card_id`。
+       - `profiles/example_public/configs/dim_card_rewards_base.csv`：同步移除 `bank_name` 與 `card_type`。
+       - `profiles/loaders/db_columns_mapping.py`：自 `REWARD_PROGRAM_COL_MAPPING` 與 `REWARD_CAMPAIGN_COL_MAPPING` 移除對 `TC.BANK_NAME` 與 `TC.CARD_TYPE` 的引用。
+       - `dotnet/RewardEngine.Core/Models/CardRewardProgramMap.cs`：將 `BankName` 與 `CardType` 標記為 `.Optional()`，確保 C# CSV 讀取器平滑銜接 3NF 設定檔。
+     - **ETL 卡片補全與常數擴充**：
+       - `const.py`：宣告常數別名 `COL_CARD_ID = TransactionColumn.CARD_ID.col_name`。
+       - `etl/processors/card_classifier.py`：初始化 `COL_CARD_ID` 與 `COL_BANK_NO`；在比對到 `bridge_user_cards` 規則時安全指派 `card_id` 與補全 `bank_no`；強化 `bank_no` NaN 防禦判斷，使用 `pd.isna()` 防止 pandas NaN 判定漏洞。
+     - **實體表 3NF 化、後端 SSOT 統一與視圖層 (Views Layer) 建構**：
+       - `database/loaders/db_config.py`：新增 `resolve_db_backend()` 作為全域 SSOT，統一解析明確傳參、環境變數 `DB_BACKEND`、`const.DEFAULT_DB_BACKEND` 與預設 `'sqlite'`。
+       - `database/loaders/base_loader.py`、`sqlite_loader.py`、`postgres_loader.py`：為所有 Loader 注入 `backend` 屬性標籤（`'sqlite'` / `'postgres'`）。
+       - `database/loaders/db_factory.py`：工廠函式全面採用 `resolve_db_backend()`，杜絕未定義字串與例外降級歧異。
+       - `database/loaders/__init__.py`：導出 `resolve_db_backend`、`get_db_loader` 等核心載入介面。
+       - `etl/utils.py` (`StandardColumns`)：`ALL_TRANSACTIONS_MEMBERS` 移除 `TC.BANK_NAME` 與 `TC.CARD_TYPE`，納入 `TC.BANK_NO` 與 `TC.CARD_ID` 為 3NF 核心外鍵，維持精確 18 欄位；更新 `REWARDS_MEMBERS` 與 `RFM_MEMBERS` 包含 3NF 與維度關聯欄位。
+       - `database/loaders/views_manager.py` (`ViewsManager`)：
+         - 實作 `create_or_replace_views()`：動態建立 `rewards_transactions` 與 `rfm_transactions` SQL Views，透過 `LEFT JOIN dim_banks` 與 `LEFT JOIN dim_credit_card_products` 動態解析名稱，相容 SQLite 與 PostgreSQL。
+         - 實作 `create_indices()`：在 `all_transactions` 實體表建立 `(bank_no, card_id)` 與 `(transaction_date)` B-Tree 複合索引，支援傳入 `loader` 實例直接萃取目標後端與路徑。
+       - `etl/loading.py`：於 `load_data()` 入口第一時間透過 `resolve_db_backend()` 鎖定目標後端，入庫完成後自動傳遞 `loader` 至 `ViewsManager.create_indices(loader=loader)`，徹底根絕管線末端猜測或空值遺漏。
+     - **單元測試與雙軌驗證**：
+       - `tests/test_card_classifier.py`：補強 `card_id` 與 `bank_no` 補全精準比對斷言。
+       - `tests/test_etl_dispatch.py`：對齊 18 欄位 3NF 規範與 `bank_no` / `card_id` 斷言。
+       - `tests/test_views_and_3nf_schema.py`：新增 4 項測試驗證 3NF Schema、設定檔純化、複合索引建立與 SQL Views 動態 JOIN。
+       - Python 端 250 項 pytest 測試 100% 通過；C# 端 36 項 `dotnet test` 100% 通過。
+
    * **帳單載入安全與 bank_no 動態賦值架構實作 (Bill Ingestion Security & bank_no Dynamic Injection - Part 1)**：
      - **Parser bank_no 3 碼代號動態注入**：
        - `etl/parsers/base.py`：於 `BaseBillParser.__init__` 強制將 `self.bank_no` 格式化為 3 碼補零字串；於 `_enforce_dtypes` 補強 `bank_no` 前導零防呆。

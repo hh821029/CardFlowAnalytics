@@ -18,18 +18,18 @@ class StandardColumns:
     """
     TC = const.TransactionColumn
 
-    # 1. 核心交易事實表 (all_transactions)
+    # 1. 核心交易事實表 (all_transactions) - 遵循 3NF 正規化，以 bank_no 與 card_id 為外鍵
     ALL_TRANSACTIONS_MEMBERS = [
         TC.TXN_ID, TC.TXN_DATE, TC.POST_DATE, TC.CONV_DATE, TC.STAT_MON,
-        TC.BANK_NAME, TC.CARD_TYPE, TC.CARD_NO, TC.MERCHANT, TC.LOCATION, 
+        TC.BANK_NO, TC.CARD_ID, TC.CARD_NO, TC.MERCHANT, TC.LOCATION, 
         TC.TXN_TYPE, TC.PAYMENT_PROCESS, TC.EC_PLATFORM, TC.VPC_TYPE,
         TC.CURRENCY, TC.CURR_AMOUNT, TC.PAY_CURR, TC.PAY_AMOUNT
     ]
     ALL_TRANSACTIONS: List[str] = [m.col_name for m in ALL_TRANSACTIONS_MEMBERS]
 
-    # 2. RFM 分析專用表 (rfm_transactions)
+    # 2. RFM 分析專用表 / 視圖 (rfm_transactions)
     RFM_MEMBERS = [
-        TC.TXN_ID, TC.TXN_DATE, TC.BANK_NAME, TC.CARD_TYPE,
+        TC.TXN_ID, TC.TXN_DATE, TC.BANK_NO, TC.BANK_NAME, TC.CARD_ID, TC.CARD_TYPE,
         TC.MERCHANT, TC.LOCATION, TC.MERCHANT_DISPLAY, TC.VPC_TYPE, 
         TC.PAYMENT_PROCESS, TC.EC_PLATFORM, TC.NORMALIZED_MERCHANT,
         TC.PAY_CURR, TC.PAY_AMOUNT, TC.TXN_TYPE,
@@ -37,12 +37,13 @@ class StandardColumns:
     ]
     RFM_TRANSACTIONS: List[str] = [m.col_name for m in RFM_MEMBERS]
 
-    # 3. 回饋計算事實表 (rewards_transactions)
+    # 3. 回饋計算專用事實表 / 視圖 (rewards_transactions)
     REWARDS_MEMBERS = [
-        TC.TXN_ID, TC.TXN_DATE, TC.POST_DATE, TC.STAT_MON, TC.BANK_NAME,
-        TC.CARD_TYPE, TC.CARD_NO, TC.MERCHANT, TC.MERCHANT_DISPLAY,
+        TC.TXN_ID, TC.TXN_DATE, TC.POST_DATE, TC.STAT_MON, TC.BANK_NO, TC.BANK_NAME,
+        TC.CARD_ID, TC.CARD_TYPE, TC.CARD_NO, TC.VPC_NO, TC.VPC_TYPE,
+        TC.MERCHANT, TC.MERCHANT_DISPLAY, TC.LOCATION,
         TC.PAYMENT_PROCESS, TC.EC_PLATFORM, TC.NORMALIZED_MERCHANT,
-        TC.VPC_TYPE, TC.PAY_CURR, TC.PAY_AMOUNT, TC.TXN_TYPE
+        TC.CURRENCY, TC.CURR_AMOUNT, TC.PAY_CURR, TC.PAY_AMOUNT, TC.TXN_TYPE
     ]
     REWARDS_TRANSACTIONS: List[str] = [m.col_name for m in REWARDS_MEMBERS]
 

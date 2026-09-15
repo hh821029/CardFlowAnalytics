@@ -11,6 +11,7 @@ class BaseDBLoader(ABC):
     所有資料庫載入器 (SQLite, PostgreSQL) 的基礎類別。
     提供通用的 DataFrame 清理工具 (日期格式化、NaN/NaT 處理) 及統一的 load 介面。
     """
+    backend: str = 'sqlite'
 
     @abstractmethod
     def load(

@@ -107,3 +107,23 @@ def get_postgres_engine(connect_timeout: int = 5, force_new: bool = False):
         logger.warning(f"⚠️ 無法建立 PostgreSQL Engine (Target: {target_info}): 連線逾時或認證失敗")
         return None
 
+
+def resolve_db_backend(explicit_backend: Optional[str] = None) -> str:
+    """
+    [SSOT 資料庫後端解析器]
+    統一解析當前應使用的資料庫後端身分：
+    優先序：明確傳參 > 環境變數 DB_BACKEND > const.DEFAULT_DB_BACKEND > 'sqlite'
+    回傳值保證為小寫字串 ('sqlite' 或 'postgres')。
+    """
+    if explicit_backend and str(explicit_backend).strip():
+        backend = str(explicit_backend).strip().lower()
+    else:
+        backend = os.getenv('DB_BACKEND') or getattr(const, 'DEFAULT_DB_BACKEND', 'sqlite')
+        backend = str(backend).strip().lower()
+
+    if backend not in ['sqlite', 'postgres']:
+        logger.warning(f"⚠️ 未知的 DB 後端 [{backend}]，自動降級回傳 'sqlite'。")
+        return 'sqlite'
+    return backend
+
+

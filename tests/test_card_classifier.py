@@ -30,9 +30,17 @@ class TestCardClassifierMapping(unittest.TestCase):
         res = self.classifier.process(mock_txns)
         
         self.assertEqual(res.at[0, const.COL_CARD_TYPE], 'Cube卡')
+        self.assertEqual(res.at[0, const.COL_CARD_ID], 'cathay_cube')
+        self.assertEqual(res.at[0, const.COL_BANK_NO], '013')
         self.assertEqual(res.at[1, const.COL_CARD_TYPE], 'Uniopen聯名卡')
+        self.assertEqual(res.at[1, const.COL_CARD_ID], 'ctbc_uniopen')
+        self.assertEqual(res.at[1, const.COL_BANK_NO], '822')
         self.assertEqual(res.at[2, const.COL_CARD_TYPE], 'Unicard')
+        self.assertEqual(res.at[2, const.COL_CARD_ID], 'esun_unicard')
+        self.assertEqual(res.at[2, const.COL_BANK_NO], '808')
         self.assertEqual(res.at[3, const.COL_CARD_TYPE], '熊本熊雙幣卡(很友好)')
+        self.assertEqual(res.at[3, const.COL_CARD_ID], 'esun_kumamoto_dual')
+        self.assertEqual(res.at[3, const.COL_BANK_NO], '808')
 
     def test_physical_card_mapping_with_leading_zero(self):
         """測試卡號含前導零時（如 0711 vs 711），能否精確雙向相容比對"""

@@ -18,10 +18,14 @@ try:
     from database.loaders.db_factory import get_db_loader
     from database.loaders.sqlite_loader import SQLiteLoader
     from database.loaders.schema_enforcer import SchemaEnforcer
+    from database.loaders.views_manager import ViewsManager
+    from database.loaders.db_config import resolve_db_backend
 except ImportError:
     get_db_loader = None
     SQLiteLoader = None
     SchemaEnforcer = None
+    ViewsManager = None
+    resolve_db_backend = None
 
 
 from etl.utils import save_anomaly_report,STANDARD_COLUMNS,StandardColumns
@@ -326,6 +330,7 @@ def load_data(
 
     target_output_dir = output_dir or OUTPUT_DIR
     os.makedirs(target_output_dir, exist_ok=True)
+    effective_backend = resolve_db_backend(db_backend) if resolve_db_backend else (db_backend or 'sqlite').lower()
 
     try:
         # --- STEP 3: Filter & Sort (最終整理) ---
@@ -349,7 +354,7 @@ def load_data(
 
         # --- STEP 4: Load & 寫入資料庫 ---
         if get_db_loader is not None or SQLiteLoader is not None:
-            logger.info("📦 準備載入資料庫...")
+            logger.info(f"📦 準備載入資料庫 (目標後端: {effective_backend})...")
             
             # 1. 唯一鍵值生成與去重
             id_gen = TransactionIdGenerator(output_dir=target_output_dir)
@@ -357,7 +362,7 @@ def load_data(
 
             # 2. 取得 DB Loader
             if get_db_loader is not None:
-                loader = get_db_loader(db_backend=db_backend)
+                loader = get_db_loader(db_backend=effective_backend)
             elif SQLiteLoader is not None:
                 loader = SQLiteLoader(db_path=const.DB_PATH)
             else:
@@ -397,6 +402,13 @@ def load_data(
                     logger.error(f"❌ 寫入資料表 {tbl_name} 時發生錯誤: {tbl_err}")
                     save_anomaly_report(target_df, f"failed_load_{tbl_name}.csv", f"{tbl_name} 入庫失敗")
                     raise tbl_err
+
+            # 4. 建立 3NF 複合索引 (bank_no, card_id) 與 (transaction_date)
+            if ViewsManager is not None:
+                try:
+                    ViewsManager.create_indices(loader=loader)
+                except Exception as idx_err:
+                    logger.warning(f"⚠️ 建立 3NF 複合索引略過: {idx_err}")
 
         else:
             logger.warning("⚠️ 載入器缺失，略過資料庫寫入。")

@@ -43,6 +43,7 @@ class PostgresLoader(BaseDBLoader):
         database: Optional[str] = None,
         connection_string: Optional[str] = None
     ):
+        self.backend = 'postgres'
         self.host = host or getattr(const, 'PG_HOST', '127.0.0.1')
         if self.host == 'localhost' and not getattr(const, 'IS_IN_DOCKER', False):
             self.host = '127.0.0.1'

@@ -16,6 +16,7 @@ class SQLiteLoader(BaseDBLoader):
     維持 100% 舊有 SQLite 行為與相容性。
     """
     def __init__(self, db_path: Optional[str] = None):
+        self.backend = 'sqlite'
         self.db_path = db_path or const.DB_PATH
         if not self.db_path:
             raise ValueError("❌ SQLiteLoader db_path 未指定且 const.DB_PATH 無效。")

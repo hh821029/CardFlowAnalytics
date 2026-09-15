@@ -1,6 +1,7 @@
 # etl/processors/card_classifier.py
 import pandas as pd
 import logging
+import re
 from typing import Optional
 import const
 
@@ -61,8 +62,12 @@ class CardClassifier:
         # 初始化與標準化欄位
         df[const.COL_CARD_NO] = df[const.COL_CARD_NO].astype(str).str.strip().str.replace(r'\.0$', '', regex=True)
         
+        if const.COL_CARD_ID not in df.columns:
+            df[const.COL_CARD_ID] = ''
         if const.COL_CARD_TYPE not in df.columns:
             df[const.COL_CARD_TYPE] = ''
+        if const.COL_BANK_NO not in df.columns:
+            df[const.COL_BANK_NO] = ''
         if const.COL_VPC_TYPE not in df.columns:
             df[const.COL_VPC_TYPE] = ''
         if const.COL_PAYMENT_PROCESS not in df.columns:
@@ -126,10 +131,22 @@ class CardClassifier:
                         match_rule = matches.iloc[0]
 
             if match_rule is not None:
+                # 填入卡片唯一標識 card_id (3NF 核心外鍵)
+                val_card_id = match_rule.get('card_id')
+                if pd.notna(val_card_id) and str(val_card_id).strip() and str(val_card_id).lower() != 'nan':
+                    df.at[idx, const.COL_CARD_ID] = str(val_card_id).strip()
+
                 # 填入卡別
                 val_type = match_rule.get('card_type')
                 if pd.notna(val_type) and str(val_type).lower() != 'nan':
                     df.at[idx, const.COL_CARD_TYPE] = str(val_type).strip()
+
+                # 若 bank_no 缺失，可由規則補全
+                val_bank_no = match_rule.get('bank_no')
+                if pd.notna(val_bank_no) and str(val_bank_no).strip() and str(val_bank_no).lower() != 'nan':
+                    curr_bno = df.at[idx, const.COL_BANK_NO]
+                    if pd.isna(curr_bno) or not str(curr_bno).strip() or str(curr_bno).lower() == 'nan':
+                        df.at[idx, const.COL_BANK_NO] = str(val_bank_no).strip().zfill(3)
 
                 # 填入 vpc_type
                 val_vpc_type = match_rule.get('vpc_type')
@@ -144,13 +161,13 @@ class CardClassifier:
                     for _, g_row in self.gateways.iterrows():
                         pat = str(g_row.get('payment_process_pattern', '')).strip()
                         if pat:
-                            if pd.Series([v_type]).str.contains(pat, regex=True, na=False).iloc[0]:
+                            if re.search(pat, v_type, re.IGNORECASE):
                                 p_proc = str(g_row.get('payment_process', '')).strip()
                                 p_pref = str(g_row.get('process_prefix', '')).strip()
                                 if not df.at[idx, const.COL_PAYMENT_PROCESS]:
                                      df.at[idx, const.COL_PAYMENT_PROCESS] = p_proc
                                 if not is_account_record[idx] and p_pref and p_pref.lower() != 'nan':
-                                    df.at[idx, '_Temp_Prefix'] = p_pref
+                                     df.at[idx, '_Temp_Prefix'] = p_pref
                                 df.at[idx, const.COL_VPC_TYPE] = ''
                                 break
 

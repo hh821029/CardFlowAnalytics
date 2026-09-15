@@ -49,7 +49,7 @@ class TestETLDispatchAndSchema:
         
         required_18 = [
             'transaction_id', 'transaction_date', 'posting_date', 'conversion_date',
-            'statement_month', 'bank_name', 'card_type', 'card_no', 'merchant',
+            'statement_month', 'bank_no', 'card_id', 'card_no', 'merchant',
             'merchant_location', 'transaction_type', 'payment_process', 'ec_platform',
             'vpc_type', 'currency_type', 'currency_amount', 'payment_currency', 'payment_amount'
         ]
@@ -64,8 +64,8 @@ class TestETLDispatchAndSchema:
             'posting_date': '2024-10-03',
             'conversion_date': None,
             'statement_month': '2024-10',
-            'bank_name': '玉山銀行',
-            'card_type': 'Unicard',
+            'bank_no': '808',
+            'card_id': 'esun_unicard',
             'card_no': '5413',
             'merchant': 'PChome線上購物',
             'merchant_location': 'TW',
@@ -120,7 +120,9 @@ class TestETLDispatchAndSchema:
             'posting_date': '2024-10-03',
             'statement_month': '2024-10',
             'bank_name': '玉山商業銀行',
+            'bank_no': '808',
             'card_no': '5413',
+            'card_id': 'esun_unicard',
             'card_type': '玉山Unicard',
             'merchant': 'LINEPay-PChome線上購物',
             'merchant_display': 'LINE Pay－PChome線上購物',
@@ -143,21 +145,31 @@ class TestETLDispatchAndSchema:
         assert 'transaction_id' in df_with_id.columns
         assert len(df_with_id['transaction_id'].iloc[0]) == 32  # MD5 length
         mapper = DBColMapper()
-        # 2. 驗證 all_transactions (交易事實主表)
+        # 2. 驗證 all_transactions (交易事實主表 3NF：含 bank_no, card_id，移除 bank_name, card_type)
         all_df = mapper.map_all_transactions(df_with_id)
         assert not all_df.empty
         assert 'transaction_id' in all_df.columns
         assert 'transaction_date' in all_df.columns
         assert 'merchant_name' in all_df.columns  # 驗證 merchant -> merchant_name 更名成功
+        assert 'bank_no' in all_df.columns
+        assert 'card_id' in all_df.columns
+        assert 'bank_name' not in all_df.columns
+        assert 'card_type' not in all_df.columns
+
         # 3. 驗證 rfm_transactions (RFM 分析專用表)
         rfm_df = mapper.map_rfm_transactions(df_with_id)
         assert not rfm_df.empty
         assert 'transaction_id' in rfm_df.columns
         assert 'category' in rfm_df.columns
         assert 'payment_process' in rfm_df.columns
+        assert 'bank_no' in rfm_df.columns
+        assert 'card_id' in rfm_df.columns
+
         # 4. 驗證 rewards_transactions (回饋計算專用表)
         rewards_df = mapper.map_rewards_transactions(df_with_id)
         assert not rewards_df.empty
         assert 'transaction_id' in rewards_df.columns
         assert 'merchant_display' in rewards_df.columns
+        assert 'bank_no' in rewards_df.columns
+        assert 'card_id' in rewards_df.columns
         assert 'card_type' in rewards_df.columns
