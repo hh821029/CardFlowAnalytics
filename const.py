@@ -693,6 +693,7 @@ COL_PAY_CURR = TransactionColumn.PAY_CURR.col_name
 COL_BANK_NAME = TransactionColumn.BANK_NAME.col_name
 COL_BANK_NO = TransactionColumn.BANK_NO.col_name
 COL_CARD_NO = TransactionColumn.CARD_NO.col_name
+COL_CARD_ID = TransactionColumn.CARD_ID.col_name
 COL_CARD_TYPE = TransactionColumn.CARD_TYPE.col_name
 COL_IS_DUAL_CURRENCY = TransactionColumn.IS_DUAL_CURRENCY.col_name
 COL_FX_TYPE = TransactionColumn.FX_TYPE.col_name
