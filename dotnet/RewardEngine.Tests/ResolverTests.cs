@@ -263,7 +263,7 @@ public class ResolverTests
                 new MerchantRewardRule
                 {
                     NormalizedMerchant = ["統一超商"],
-                    CardType = ["Uniopen聯名卡"],
+                    CardId = ["ctbc_uniopen"],
                     BankNo = ["822"]
                 }
             ],
@@ -277,7 +277,7 @@ public class ResolverTests
             ]);
 
         var uniopenBase = ScenarioBuilder.BaseProgram("Uniopen一般消費", 1m,
-            rewardId: "ctbc_uniopen_base", bankNo: "822", bankName: "ctbc", cardType: "Uniopen聯名卡", priority: 987);
+            rewardId: "ctbc_uniopen_base", bankNo: "822", bankName: "ctbc", cardId: "ctbc_uniopen", cardType: "Uniopen聯名卡", priority: 987);
 
         var exclusionProg = ScenarioBuilder.BaseProgram("共通非一般消費", 0.0m,
             rewardId: "all_general_exclusion", bankNo: "ALL", bankName: "ALL", priority: 499, rewardCalBreak: true);
@@ -422,6 +422,7 @@ public class ResolverTests
             rewardId: "unicard_pickup",
             bankNo: "808",
             bankName: "玉山銀行",
+            cardId: "esun_unicard",
             cardType: "Unicard");
 
         var pool = ScenarioBuilder.Pool("POOL_ESUN_UNICARD_MERCHANT_POOL", "Unicard指定特約商店", rules:
@@ -431,9 +432,8 @@ public class ResolverTests
                 PaymentProcess = ["Line Pay", "悠遊付", "全支付", "全盈+PAY"],
                 EcPlatform = ["NONE"],
                 VpcType = ["NONE"],
-                CardType = ["Unicard"],
-                BankNo = ["808"],
-                BankName = ["玉山銀行"]
+                CardId = ["esun_unicard"],
+                BankNo = ["808"]
             }
         ]);
         var link = ScenarioBuilder.Link("unicard_pickup", "POOL_ESUN_UNICARD_MERCHANT_POOL");
@@ -442,7 +442,7 @@ public class ResolverTests
 
         // 交易特徵：全支付、實體卡 (vpc_type = "CARD")
         var txn = ScenarioBuilder.Transaction("T16", new DateOnly(2025, 5, 10), 1000m,
-            bankName: "玉山銀行", cardType: "Unicard", mobilePayment: "全支付", vpcType: "CARD");
+            bankNo: "808", bankName: "玉山銀行", cardId: "esun_unicard", cardType: "Unicard", mobilePayment: "全支付", vpcType: "CARD");
 
         var res = resolver.Resolve(txn);
         Assert.Equal(25m, res.TotalRewardAmount);  // 1000 * 2.5% = 25

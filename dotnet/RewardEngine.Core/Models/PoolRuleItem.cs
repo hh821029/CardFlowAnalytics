@@ -32,20 +32,13 @@ public record MerchantRewardRule
     [JsonConverter(typeof(SingleOrArrayJsonConverter))]
     public string[]? VpcType { get; init; }
 
-    //條件約束：卡片名稱
+    //條件約束：卡片名稱 (3NF 外鍵)
     [JsonConverter(typeof(SingleOrArrayJsonConverter))]
     public string[]? CardId { get; init; }
 
-    //條件約束：卡片類型
-    [JsonConverter(typeof(SingleOrArrayJsonConverter))]
-    public string[]? CardType { get; init; }
-
-    //條件約束：銀行代號+銀行名稱
+    //條件約束：銀行代號 (3NF 外鍵)
     [JsonConverter(typeof(SingleOrArrayJsonConverter))]
     public string[]? BankNo { get; init; }
-
-    [JsonConverter(typeof(SingleOrArrayJsonConverter))]
-    public string[]? BankName { get; init; }
 
     //回饋倍率提供：若不同特店有不同回饋倍率的話，由這裡提供該規則對應的個別回饋倍率
     public decimal? MerchantRate { get; init; }

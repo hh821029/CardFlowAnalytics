@@ -342,7 +342,7 @@ public sealed class RewardsApiService
                         Esc(txn.CardType),
                         Esc(txn.MerchantDisplay),
                         Esc(txn.NormalizedMerchant),
-                        Esc(txn.MobilePayment),
+                        Esc(txn.PaymentProcess),
                         txn.Amount.ToString("F1"),
                         Esc(prog.Program.RewardProgram),
                         Esc(prog.Program.RewardType),

@@ -13,9 +13,9 @@ public record CardRewardProgram
 {
     public required string RewardId { get; init; }
     public required string BankNo { get; init; }
-    public required string BankName { get; init; }
+    public string? BankName { get; init; }
     public required string CardId { get; init; }
-    public required string CardType { get; init; }
+    public string? CardType { get; init; }
     public required string RewardProgram { get; init; }           // base_/campaign_reward_program
     public required int Priority { get; init; }                   // base_/campaign_priority
     public required bool RewardCalBreak { get; init; }           // base_/campaign_reward_cal_break

@@ -1,5 +1,25 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-15**
+   * **C# 端回饋引擎 3NF 重構與雙軌備援精簡實作 (C# Reward Engine 3NF Refactoring & Simplification - Part 3)**：
+     - **核心模型 3NF 收斂 (`dotnet/RewardEngine.Core/Models/`)**：
+       - `RewardTransaction.cs`：將 `BankNo` 與 `CardId` 改為強型別強制欄位（`public required string BankNo` / `public required string CardId`）；將已棄用之 `BankName` 與 `CardType` 降級為可選展示欄位；**徹底刪除 `MobilePayment` 屬性**，全域統一為 `PaymentProcess`（`IsMobilePayment => !string.IsNullOrEmpty(PaymentProcess)`）。
+       - `CardRewardProgram.cs`：移除 `BankName` 與 `CardType` 的 `required` 限制，回歸可選展示用途，核心方案過濾不再依賴中文名稱。
+       - `PoolRuleItem.cs` (`MerchantRewardRule`)：**徹底刪除 `BankName` 與 `CardType` 陣列**，特店規則條件僅保留 3NF 外鍵 `BankNo` 與 `CardId`。
+     - **資料載入器純化 (`dotnet/RewardEngine.Core/Loaders/`)**：
+       - `PostgresTransactionReader.cs`：自 `rewards_transactions` 視圖直接讀取 `bank_no`、`card_id`、`payment_process`；`Load()` 查詢介面完整支援 `bankNo` 與 `cardId` 參數篩選；修正 `IsDbNull` 欄位判斷以符合 3NF 必填契約。
+       - `PostgresRuleLoader.cs`：確保以 `bank_no` 與 `card_id` 構建方案與回饋池物件。
+     - **比對核心全面瘦身與雙軌備援刪除 (`dotnet/RewardEngine.Core/Resolvers/RewardResolver.cs`)**：
+       - **Stage 1 方案過濾**：徹底消除中文字串模糊搜尋與雙軌備援，改為純粹 3NF 代碼比對（`p.BankNo == "ALL" || p.BankNo == txn.BankNo`、`p.CardId == "ALL" || p.CardId == txn.CardId`）。
+       - **Stage 2 特店規則檢驗 (`MatchesPoolRule`)**：徹底刪除拿代碼與中文名稱混雜比對的補丁代碼（`MatchesBankOrCard(rule.BankNo, txn.BankName)` 與 `rule.CardType` 等備援邏輯），確保回饋池條件直接對齊 `rule.BankNo` 與 `rule.CardId`。
+     - **API 服務與測試套件對齊**：
+       - `RewardsApiService.cs`：CSV 輸出欄位由 `MobilePayment` 更新為 `PaymentProcess`。
+       - `PublicScenarioBuilder.cs`：更新測試輔助方法簽名與預設值，支援 `bankName`/`cardType` 自動解析至標準 3NF 測試代碼（`808`, `822`, `013`, `esun_unicard`, `ctbc_uniopen`, `cathay_cube`），對齊 `DailySelection` 與 `PaymentProcess`。
+       - `ResolverTests.cs`：將 `MerchantRewardRule` 測試案例中對 `CardType` 與 `BankName` 的指定更新為 `CardId` 與 `BankNo`。
+     - **全套回歸測試驗證**：
+       - C# 端 36 項 `dotnet test` 100% 通過（耗時 71ms）。
+       - Python 端 250 項 `pytest` 100% 綠燈通過（耗時 31.95s）。
+       - issues 清單 `issues/issues20260914.md` 第六大段 Part 3 全數標記完成。
+
    * **Python 端 3NF 資料管線與 Schema 重構實作 (Python Pipeline & 3NF Schema Refactoring - Part 2)**：
      - **維度設定檔 3NF 純化**：
        - `profiles/common/configs/dim_card_rewards_base.csv` 與 `dim_card_rewards_campaigns.csv`：移除重複之 `bank_name` 與 `card_type`，消滅傳遞相依，僅保留外鍵 `bank_no` 與 `card_id`。

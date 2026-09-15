@@ -27,7 +27,9 @@ public static class PostgresTransactionReader
         string? cardType = null,
         DateOnly? from = null,
         DateOnly? to = null,
-        IEnumerable<string>? excludeTypes = null)
+        IEnumerable<string>? excludeTypes = null,
+        string? bankNo = null,
+        string? cardId = null)
     {
         var excluded = excludeTypes ?? ["繳款", "紅利折抵", "各項費用"];
 
@@ -43,16 +45,28 @@ public static class PostgresTransactionReader
                 parameters.Add($"excl{i}", excludedList[i]);
         }
 
-        if (bankName is not null)
+        if (bankNo is not null)
+        {
+            conditions.Add("bank_no = @bankNo");
+            parameters.Add("bankNo", bankNo);
+        }
+        else if (bankName is not null)
         {
             conditions.Add("bank_name = @bankName");
             parameters.Add("bankName", bankName);
         }
-        if (cardType is not null)
+
+        if (cardId is not null)
+        {
+            conditions.Add("card_id = @cardId");
+            parameters.Add("cardId", cardId);
+        }
+        else if (cardType is not null)
         {
             conditions.Add("card_type = @cardType");
             parameters.Add("cardType", cardType);
         }
+
         if (from is not null)
         {
             conditions.Add("transaction_date >= @from");
@@ -117,21 +131,24 @@ public static class PostgresTransactionReader
 
         return new RewardTransaction
         {
-            TransactionId    = GetVal(r, "transaction_id")?.ToString() ?? "",
-            BankName         = GetVal(r, "bank_name")?.ToString() ?? "",
-            CardType         = GetVal(r, "card_type")?.ToString() ?? "",
-            CardNo           = GetVal(r, "card_no")?.ToString() ?? "",
-            VpcType          = GetVal(r, "vpc_type")?.ToString(),
-            TransactionDate  = ParseDate(GetVal(r, "transaction_date")),
-            PostingDate      = ParseDate(GetVal(r, "posting_date")),
-            Amount           = amt,
-            TransactionType  = GetVal(r, "transaction_type")?.ToString(),
-            MobilePayment    = (GetVal(r, "payment_process") ?? GetVal(r, "mobile_payment"))?.ToString(),
-            EcPlatform       = GetVal(r, "ec_platform")?.ToString(),
-            Merchant         = merch?.ToString(),
-            MerchantDisplay  = merchDisp?.ToString(),
+            TransactionId      = GetVal(r, "transaction_id")?.ToString() ?? "",
+            BankNo             = GetVal(r, "bank_no")?.ToString() ?? "",
+            BankName           = GetVal(r, "bank_name")?.ToString(),
+            CardId             = GetVal(r, "card_id")?.ToString() ?? "",
+            CardType           = GetVal(r, "card_type")?.ToString(),
+            CardNo             = GetVal(r, "card_no")?.ToString() ?? "",
+            VpcNo              = GetVal(r, "vpc_no")?.ToString(),
+            VpcType            = GetVal(r, "vpc_type")?.ToString(),
+            TransactionDate    = ParseDate(GetVal(r, "transaction_date")),
+            PostingDate        = ParseDate(GetVal(r, "posting_date")),
+            Amount             = amt,
+            TransactionType    = GetVal(r, "transaction_type")?.ToString(),
+            PaymentProcess     = (GetVal(r, "payment_process") ?? GetVal(r, "mobile_payment"))?.ToString(),
+            EcPlatform         = GetVal(r, "ec_platform")?.ToString(),
+            Merchant           = merch?.ToString(),
+            MerchantDisplay    = merchDisp?.ToString(),
             NormalizedMerchant = normMerch?.ToString(),
-            MerchantLocation = (GetVal(r, "merchant_location") ?? GetVal(r, "location"))?.ToString()
+            MerchantLocation   = (GetVal(r, "merchant_location") ?? GetVal(r, "location"))?.ToString()
         };
     }
     

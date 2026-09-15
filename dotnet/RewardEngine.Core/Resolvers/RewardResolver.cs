@@ -67,17 +67,15 @@ public sealed class RewardResolver
             if (!WithinDateRange(txn.TransactionDate, p.StartDate, p.EndDate))
                 return false;
 
+            // 銀行判定：代碼相符或適用全銀行
             bool isBankMatch = string.Equals(p.BankNo, "ALL", StringComparison.OrdinalIgnoreCase) ||
-                               string.Equals(p.BankName, "ALL", StringComparison.OrdinalIgnoreCase) ||
-                               (!string.IsNullOrEmpty(txn.BankNo) && string.Equals(p.BankNo, txn.BankNo, StringComparison.OrdinalIgnoreCase)) ||
-                               (!string.IsNullOrEmpty(txn.BankName) && string.Equals(p.BankName, txn.BankName, StringComparison.OrdinalIgnoreCase));
+                               string.Equals(p.BankNo, txn.BankNo, StringComparison.OrdinalIgnoreCase);
             if (!isBankMatch) return false;
 
-            bool isCardMatch = (string.IsNullOrEmpty(p.CardId) && string.IsNullOrEmpty(p.CardType)) ||
+            // 卡別判定：代碼相符或未指定/適用全卡別
+            bool isCardMatch = string.IsNullOrEmpty(p.CardId) ||
                                string.Equals(p.CardId, "ALL", StringComparison.OrdinalIgnoreCase) ||
-                               string.Equals(p.CardType, "ALL", StringComparison.OrdinalIgnoreCase) ||
-                               (!string.IsNullOrEmpty(txn.CardId) && string.Equals(p.CardId, txn.CardId, StringComparison.OrdinalIgnoreCase)) ||
-                               (!string.IsNullOrEmpty(txn.CardType) && string.Equals(p.CardType, txn.CardType, StringComparison.OrdinalIgnoreCase));
+                               string.Equals(p.CardId, txn.CardId, StringComparison.OrdinalIgnoreCase);
             if (!isCardMatch) return false;
 
             if (p.Source == RewardProgramSource.Base && lockedBasePrograms != null && lockedBasePrograms.Count > 0 &&
@@ -251,45 +249,33 @@ public sealed class RewardResolver
         if (!WithinDateRange(txn.TransactionDate, rule.StartDate, rule.EndDate))
             return false;
 
-        // 2. 銀行與卡別限制
-        // rule.BankNo 與 rule.BankName 是同一個銀行身份的兩種表達（代號 vs 名稱）。
-        // txn.BankNo 可能為 null（資料庫無此欄位），因此兩者合併以 OR 比對：
-        // 交易只要通過「代號清單」或「名稱清單」其中一邊即視為銀行符合。
-        bool hasBankNoRule = rule.BankNo != null && rule.BankNo.Length > 0;
-        bool hasBankNameRule = rule.BankName != null && rule.BankName.Length > 0;
-        if (hasBankNoRule || hasBankNameRule)
+        // 2. 銀行限制 (3NF 代碼精準比對)
+        if (rule.BankNo != null && rule.BankNo.Length > 0)
         {
-            bool bankNoOk   = hasBankNoRule   && (MatchesBankOrCard(rule.BankNo, txn.BankNo) || MatchesBankOrCard(rule.BankNo, txn.BankName));
-            bool bankNameOk = hasBankNameRule && MatchesBankOrCard(rule.BankName, txn.BankName);
-            if (!bankNoOk && !bankNameOk)
+            if (!MatchesBankOrCard(rule.BankNo, txn.BankNo))
                 return false;
         }
 
-        // 卡別：CardId 與 CardType 同理，兩者互為別名，OR 合併比對
-        bool hasCardIdRule   = rule.CardId != null && rule.CardId.Length > 0;
-        bool hasCardTypeRule = rule.CardType != null && rule.CardType.Length > 0;
-        if (hasCardIdRule || hasCardTypeRule)
+        // 3. 卡別限制 (3NF 代碼精準比對)
+        if (rule.CardId != null && rule.CardId.Length > 0)
         {
-            bool cardIdOk   = hasCardIdRule   && (MatchesBankOrCard(rule.CardId, txn.CardId) || MatchesBankOrCard(rule.CardId, txn.CardType));
-            bool cardTypeOk = hasCardTypeRule && MatchesBankOrCard(rule.CardType, txn.CardType);
-            if (!cardIdOk && !cardTypeOk)
+            if (!MatchesBankOrCard(rule.CardId, txn.CardId))
                 return false;
         }
 
-
-        // 3. 管道與行為屬性（支援 ALL / NONE / 清單比對）
-        if (!MatchesBehaviorField(rule.PaymentProcess, txn.PaymentProcess ?? txn.MobilePayment))
+        // 4. 管道與行為屬性（支援 ALL / NONE / 清單比對）
+        if (!MatchesBehaviorField(rule.PaymentProcess, txn.PaymentProcess))
             return false;
         if (!MatchesBehaviorField(rule.EcPlatform, txn.EcPlatform))
             return false;
         if (!MatchesVpcField(rule.VpcType, txn.VpcType))
             return false;
 
-        // 4. 地理/國別限制
+        // 5. 地理/國別限制
         if (!MatchesLocationField(rule.MerchantLocation, txn.MerchantLocation))
             return false;
 
-        // 5. 特約商店名稱 (NormalizedMerchant / MerchantDisplay)
+        // 6. 特約商店名稱 (NormalizedMerchant / MerchantDisplay)
         if (!MatchesMerchantField(rule, txn))
             return false;
 
