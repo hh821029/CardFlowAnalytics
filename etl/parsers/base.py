@@ -81,7 +81,7 @@ class BaseBillParser:
                 raw_bank_no = self.bank.get('bank_no', '')
                 self.bank_no = str(raw_bank_no).zfill(3) if raw_bank_no else ''
                 self.bank_name = self.bank.get('bills_mapping_name', self.bank.get('bank_name', ''))
-                logger.info(f"✅ 已載入銀行配置：{self.bank_name} ({self.bank_id}, {self.bank_no})")
+                logger.info(f"✅ 已載入銀行配置：{self.bank_name} ({self.bank_id})")
             else:
                 logger.warning(f"⚠️ 無法識別的銀行標誌: {bank_id_or_keyword}")
 
