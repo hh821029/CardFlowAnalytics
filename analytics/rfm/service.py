@@ -486,28 +486,43 @@ def get_dimension_volatility_bubble_data(
     else:
         df_clean[c_col] = df_clean[c_col].fillna('其他卡別').astype(str).str.strip().replace({'': '其他卡別', 'nan': '其他卡別', 'None': '其他卡別'})
 
-    # 提取全量維度清單以供前端下拉選單使用
+    # 提取全量維度清單以供前端下拉選單使用 (在過濾前提取)
     all_payments = sorted([p for p in df_clean[p_col].unique() if p and p != 'nan'])
     all_categories = sorted([c for c in df_clean['category'].unique() if c and c not in ('nan', '未分類')])
     all_cards = sorted([c for c in df_clean[c_col].unique() if c and c not in ('nan', '其他卡別')])
 
-    # 決定聚合分組鍵值
-    valid_modes = ['payment_category', 'card_category', 'card_payment', 'payment_only', 'category_only', 'card_only']
+    # 決定聚合分組鍵值 (預設為生活類別視角 category_only)
+    valid_modes = ['category_only', 'card_only', 'payment_only', 'payment_category', 'card_category', 'card_payment']
     if group_mode not in valid_modes:
-        group_mode = 'payment_category'
+        group_mode = 'category_only'
 
-    if group_mode == 'payment_category':
+    if group_mode == 'category_only':
+        group_cols = ['category']
+    elif group_mode == 'card_only':
+        group_cols = [c_col]
+    elif group_mode == 'payment_only':
+        group_cols = [p_col]
+    elif group_mode == 'payment_category':
         group_cols = [p_col, 'category']
     elif group_mode == 'card_category':
         group_cols = [c_col, 'category']
-    elif group_mode == 'card_payment':
+    else:  # card_payment
         group_cols = [c_col, p_col]
-    elif group_mode == 'payment_only':
-        group_cols = [p_col]
-    elif group_mode == 'category_only':
-        group_cols = ['category']
-    else:  # card_only
-        group_cols = [c_col]
+
+    # 在分組前依傳入條件篩選交易明細
+    if payment and payment != 'all':
+        df_clean = df_clean[df_clean[p_col] == payment]
+    if category and category != 'all':
+        df_clean = df_clean[df_clean['category'] == category]
+    if card and card != 'all':
+        df_clean = df_clean[df_clean[c_col] == card]
+
+    if df_clean.empty:
+        empty_res["group_mode"] = group_mode
+        empty_res["payments"] = all_payments
+        empty_res["categories"] = all_categories
+        empty_res["cards"] = all_cards
+        return empty_res
 
     # 向量化分組計算均值、標準差、金額加總與筆數
     grouped = df_clean.groupby(group_cols)['payment_amount']
@@ -563,7 +578,18 @@ def get_dimension_volatility_bubble_data(
             lower_bound = max(min_val, q1 - 1.5 * iqr)
             upper_bound = min(max_val, q3 + 1.5 * iqr)
 
-            # 提取小於 lower_bound 或大於 upper_bound 之交易
+            # 語意化分佈型態判定 (單筆單次、固定等額/訂閱、常態分佈)
+            if cnt == 1:
+                dist_type = "single"
+                dist_desc = f"單筆單次消費 (僅 1 筆 NT$ {round(median):,}，無分佈波動)"
+            elif iqr == 0.0 or min_val == max_val:
+                dist_type = "fixed_amount"
+                dist_desc = f"固定等額消費 (共 {cnt} 筆均為 NT$ {round(median):,}，零波動/定期扣款)"
+            else:
+                dist_type = "regular"
+                dist_desc = "常態波動分佈"
+
+            # 提取小於 lower_bound 或大於 upper_bound 之離群交易
             outlier_mask = (sub_amts < lower_bound) | (sub_amts > upper_bound)
             outlier_rows = sub_df[outlier_mask]
             outliers = []
@@ -576,6 +602,8 @@ def get_dimension_volatility_bubble_data(
             outliers = outliers[:25]
         else:
             q1, median, q3, min_val, max_val, iqr, lower_bound, upper_bound = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            dist_type = "single"
+            dist_desc = "無數據"
             outliers = []
 
         is_act = int(rec_cnt_series.get(idx, 0)) > 0 if cutoff_180d is not None else True
@@ -624,6 +652,8 @@ def get_dimension_volatility_bubble_data(
             "monetary": s_amt,
             "frequency": cnt,
             "segment": rfm_seg,
+            "distribution_type": dist_type,
+            "distribution_desc": dist_desc,
             "boxplot": [round(lower_bound, 2), round(q1, 2), round(median, 2), round(q3, 2), round(upper_bound, 2)],
             "q1": round(q1, 2),
             "median": round(median, 2),
@@ -641,22 +671,10 @@ def get_dimension_volatility_bubble_data(
     global_med_avg = float(pd.Series([g['avg_ticket'] for g in all_groups]).median())
     global_med_std = float(pd.Series([g['std_ticket'] for g in all_groups]).median())
 
-    # 依使用者傳入的條件篩選
+    # 由於已在分組前執行精確篩選，filtered_groups 即為聚合結果
     filtered_groups = all_groups
-    if payment and payment != 'all':
-        filtered_groups = [g for g in filtered_groups if g['payment_process'] == payment]
-    if category and category != 'all':
-        filtered_groups = [g for g in filtered_groups if g['category'] == category]
-    if card and card != 'all':
-        filtered_groups = [g for g in filtered_groups if g['card_type'] == card]
-
-    # 計算當前篩選下的中位數
-    if filtered_groups:
-        cur_med_avg = float(pd.Series([g['avg_ticket'] for g in filtered_groups]).median())
-        cur_med_std = float(pd.Series([g['std_ticket'] for g in filtered_groups]).median())
-    else:
-        cur_med_avg = global_med_avg
-        cur_med_std = global_med_std
+    cur_med_avg = global_med_avg
+    cur_med_std = global_med_std
 
     # 標註四象限波動型態與統計計數
     vol_counts = {"固定大額": 0, "大額偶發": 0, "微額日常": 0, "長尾混合": 0}

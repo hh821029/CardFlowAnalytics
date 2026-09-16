@@ -214,15 +214,15 @@
                     <div style="margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
                         <!-- 第一行：觀察維度 + 讀取 + 全部重設/全選 -->
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <label style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">🔀 觀察維度：</label>
+                            <label style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">🔀 觀察視角：</label>
                             <select id="dimGroupModeSelect" onchange="onDimGroupModeChange()"
                                 style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(56, 189, 248, 0.4); padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none; font-weight: 500;">
-                                <option value="payment_category" selected>🔀 行動支付 ✕ 消費類別 (通路場景)</option>
-                                <option value="card_category">💳 信用卡 ✕ 消費類別 (卡片領域配比)</option>
-                                <option value="card_payment">💳 信用卡 ✕ 行動支付 (卡片錢包偏好)</option>
-                                <option value="payment_only">📱 純依行動支付 (通路宏觀)</option>
-                                <option value="category_only">🏷️ 純依消費類別 (領域宏觀)</option>
-                                <option value="card_only">💳 純依信用卡 (卡片資產宏觀)</option>
+                                <option value="category_only" selected>🏷️ 生活領域視角 (X: 消費大類 ｜ 篩選支付與卡片)</option>
+                                <option value="card_only">💳 卡片資產視角 (X: 信用卡別 ｜ 篩選類別與支付)</option>
+                                <option value="payment_only">📱 通路管道視角 (X: 行動支付 ｜ 篩選類別與卡片)</option>
+                                <option value="payment_category">🔀 複合交叉：行動支付 ✕ 消費類別</option>
+                                <option value="card_category">🔀 複合交叉：信用卡 ✕ 消費類別</option>
+                                <option value="card_payment">🔀 複合交叉：信用卡 ✕ 行動支付</option>
                             </select>
 
                             <button class="btn-secondary" style="font-size: 12px; padding: 6px 12px;"
@@ -232,7 +232,7 @@
                                 onclick="resetDimFilters()">✨ 全部重設/全選</button>
                         </div>
 
-                        <!-- 第二行：支付管道 + 消費類別 + 信用卡別 -->
+                        <!-- 第二行：支付管道 + 消費類別 + 信用卡別 (依視角動態顯示) -->
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                             <label id="lblDimPayment" style="font-size: 13px; color: var(--text-secondary);">📱 支付管道：</label>
                             <select id="dimPaymentSelect" onchange="onDimFilterChange()"
@@ -240,16 +240,15 @@
                                 <option value="all">🌐 全部支付</option>
                             </select>
 
-                            <label id="lblDimCategory" style="font-size: 13px; color: var(--text-secondary);">🏷️ 消費類別：</label>
+                            <label id="lblDimCategory" style="font-size: 13px; color: var(--text-secondary); display: none;">🏷️ 消費類別：</label>
                             <select id="dimCategorySelect" onchange="onDimFilterChange()"
-                                style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;">
+                                style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none; display: none;">
                                 <option value="all">🌐 全部類別</option>
                             </select>
 
-                            <label id="lblDimCard" style="font-size: 13px; color: var(--text-secondary); display: none;">💳
-                                信用卡別：</label>
+                            <label id="lblDimCard" style="font-size: 13px; color: var(--text-secondary);">💳 信用卡別：</label>
                             <select id="dimCardSelect" onchange="onDimFilterChange()"
-                                style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none; display: none;">
+                                style="background-color: #1e293b; color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; outline: none;">
                                 <option value="all">🌐 全部卡片</option>
                             </select>
                         </div>
@@ -889,9 +888,9 @@
 
         function onDimGroupModeChange() {
             const modeSelect = document.getElementById('dimGroupModeSelect');
-            const mode = modeSelect ? modeSelect.value : 'payment_category';
+            const mode = modeSelect ? modeSelect.value : 'category_only';
 
-            // 動態控制篩選器顯示與隱藏
+            // 動態控制篩選器顯示與隱藏（方案 A：依三大視角智慧配對）
             const pLbl = document.getElementById('lblDimPayment');
             const pSel = document.getElementById('dimPaymentSelect');
             const cLbl = document.getElementById('lblDimCategory');
@@ -899,18 +898,50 @@
             const cardLbl = document.getElementById('lblDimCard');
             const cardSel = document.getElementById('dimCardSelect');
 
-            const hasPayment = mode.includes('payment');
-            const hasCategory = mode.includes('category');
-            const hasCard = mode.includes('card');
+            let showPayment = true;
+            let showCategory = true;
+            let showCard = true;
 
-            if (pLbl && pSel) { pLbl.style.display = hasPayment ? '' : 'none'; pSel.style.display = hasPayment ? '' : 'none'; }
-            if (cLbl && cSel) { cLbl.style.display = hasCategory ? '' : 'none'; cSel.style.display = hasCategory ? '' : 'none'; }
-            if (cardLbl && cardSel) { cardLbl.style.display = hasCard ? '' : 'none'; cardSel.style.display = hasCard ? '' : 'none'; }
+            if (mode === 'category_only') {
+                // X 軸為消費大類：篩選行動支付與信用卡
+                showPayment = true;
+                showCategory = false;
+                showCard = true;
+                if (cSel) cSel.value = 'all';
+            } else if (mode === 'card_only') {
+                // X 軸為信用卡：篩選消費類別與行動支付
+                showPayment = true;
+                showCategory = true;
+                showCard = false;
+                if (cardSel) cardSel.value = 'all';
+            } else if (mode === 'payment_only') {
+                // X 軸為行動支付：篩選消費類別與信用卡
+                showPayment = false;
+                showCategory = true;
+                showCard = true;
+                if (pSel) pSel.value = 'all';
+            } else if (mode === 'payment_category') {
+                showPayment = false;
+                showCategory = false;
+                showCard = true;
+            } else if (mode === 'card_category') {
+                showPayment = true;
+                showCategory = false;
+                showCard = false;
+            } else if (mode === 'card_payment') {
+                showPayment = false;
+                showCategory = true;
+                showCard = false;
+            }
+
+            if (pLbl && pSel) { pLbl.style.display = showPayment ? '' : 'none'; pSel.style.display = showPayment ? '' : 'none'; }
+            if (cLbl && cSel) { cLbl.style.display = showCategory ? '' : 'none'; cSel.style.display = showCategory ? '' : 'none'; }
+            if (cardLbl && cardSel) { cardLbl.style.display = showCard ? '' : 'none'; cardSel.style.display = showCard ? '' : 'none'; }
 
             const labelEl = document.getElementById('dimBubbleFilterLabel');
             if (labelEl && modeSelect) {
                 const optText = modeSelect.options[modeSelect.selectedIndex].text;
-                labelEl.textContent = `目前維度：${optText.replace(/^[^\s]+\s*/, '')}`;
+                labelEl.textContent = `目前視角：${optText.replace(/^[^\s]+\s*/, '')}`;
             }
 
             loadDimVolatilityData();
@@ -947,10 +978,24 @@
             // 準備箱形圖 (Boxplot) 與離群值 (Outliers) 數據
             const categoryNames = filtered.map(g => g.name || '');
             const boxplotData = filtered.map(g => {
+                const med = g.median !== undefined ? g.median : (g.avg_ticket || 0);
+                const dType = g.distribution_type || (g.boxplot && g.boxplot[0] === g.boxplot[4] ? (g.frequency === 1 ? 'single' : 'fixed_amount') : 'regular');
+
+                // 固定等額扣款或單筆交易時，五數相同導致 boxplot 塌縮為 0 像素細線，加入微小視覺 padding 保持清晰
+                if (dType === 'single' || dType === 'fixed_amount') {
+                    const vPad = Math.max(med * 0.015, 6);
+                    return [
+                        Math.max(0, med - vPad),
+                        Math.max(0, med - vPad * 0.4),
+                        med,
+                        med + vPad * 0.4,
+                        med + vPad
+                    ];
+                }
+
                 if (g.boxplot && g.boxplot.length === 5) {
                     return g.boxplot;
                 }
-                const med = g.median !== undefined ? g.median : (g.avg_ticket || 0);
                 const q1 = g.q1 !== undefined ? g.q1 : med * 0.7;
                 const q3 = g.q3 !== undefined ? g.q3 : med * 1.3;
                 const minVal = g.min !== undefined ? g.min : q1 * 0.5;
@@ -1100,12 +1145,44 @@
                             if (param.seriesType === 'boxplot') {
                                 const idx = param.dataIndex;
                                 const g = (currentFilteredDimGroups && currentFilteredDimGroups[idx]) || {};
-                                const b = param.value || [];
-                                const medVal = g.median !== undefined ? g.median : b[2];
-                                const q1Val = g.q1 !== undefined ? g.q1 : b[1];
-                                const q3Val = g.q3 !== undefined ? g.q3 : b[3];
-                                const lowerVal = b[0] !== undefined ? b[0] : (g.min || 0);
-                                const upperVal = b[4] !== undefined ? b[4] : (g.max || 0);
+                                const b = (g.boxplot && g.boxplot.length === 5) ? g.boxplot : (param.value || []);
+                                const medVal = g.median !== undefined ? g.median : (g.avg_ticket || 0);
+                                const q1Val = g.q1 !== undefined ? g.q1 : (b[1] !== undefined ? b[1] : medVal);
+                                const q3Val = g.q3 !== undefined ? g.q3 : (b[3] !== undefined ? b[3] : medVal);
+                                const lowerVal = b[0] !== undefined ? b[0] : (g.min || medVal);
+                                const upperVal = b[4] !== undefined ? b[4] : (g.max || medVal);
+                                const dType = g.distribution_type || (lowerVal === upperVal ? (g.frequency === 1 ? 'single' : 'fixed_amount') : 'regular');
+
+                                if (dType === 'fixed_amount') {
+                                    return `
+                                        <div style="font-weight:bold; font-size:14px; margin-bottom:6px; color:#38bdf8;">🏷️ ${g.name || param.name}</div>
+                                        <div style="font-size:11px; background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid rgba(56,189,248,0.4); padding:2px 8px; border-radius:4px; display:inline-block; font-weight:600; margin-bottom:6px;">
+                                            📌 固定等額消費 (訂閱 / 定期扣款)
+                                        </div>
+                                        <div style="font-size:12px; line-height:1.7;">
+                                            <div>💰 <span style="color:#cbd5e1;">每期固定扣款：</span><b style="color:#fbbf24; font-size:14px;">NT$ ${Math.round(medVal).toLocaleString()}</b></div>
+                                            <div style="color:#94a3b8; font-size:11px;">（全期 ${g.frequency || 0} 筆金額完全一致，零波動）</div>
+                                            <div style="margin-top:4px; padding-top:4px; border-top:1px dashed rgba(255,255,255,0.15);">
+                                                🔄 交易筆數：<b style="color:#34d399;">${g.frequency || 0} 筆</b> ｜ 💰 累積金額：<b>NT$ ${Number(g.monetary || 0).toLocaleString()}</b>
+                                            </div>
+                                        </div>
+                                    `;
+                                } else if (dType === 'single') {
+                                    return `
+                                        <div style="font-weight:bold; font-size:14px; margin-bottom:6px; color:#38bdf8;">🏷️ ${g.name || param.name}</div>
+                                        <div style="font-size:11px; background:rgba(192,132,252,0.2); color:#c084fc; border:1px solid rgba(192,132,252,0.4); padding:2px 8px; border-radius:4px; display:inline-block; font-weight:600; margin-bottom:6px;">
+                                            ☝️ 單筆單次消費 (樣本數 N=1)
+                                        </div>
+                                        <div style="font-size:12px; line-height:1.7;">
+                                            <div>💰 <span style="color:#cbd5e1;">單次刷卡金額：</span><b style="color:#fbbf24; font-size:14px;">NT$ ${Math.round(medVal).toLocaleString()}</b></div>
+                                            <div style="color:#94a3b8; font-size:11px;">（僅此 1 次交易，無分佈波動）</div>
+                                            <div style="margin-top:4px; padding-top:4px; border-top:1px dashed rgba(255,255,255,0.15);">
+                                                🔄 交易筆數：<b style="color:#34d399;">1 筆</b> ｜ 💰 累積金額：<b>NT$ ${Number(g.monetary || 0).toLocaleString()}</b>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+
                                 return `
                                     <div style="font-weight:bold; font-size:14px; margin-bottom:6px; color:#38bdf8;">🏷️ ${g.name || param.name}</div>
                                     <div style="font-size:12px; line-height:1.7;">

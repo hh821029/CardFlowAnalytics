@@ -297,7 +297,7 @@ def test_dimension_volatility_stats(sample_tx_df):
     cube_group = next((g for g in res_card["groups"] if "CUBE卡" in g["name"]), None)
     assert cube_group is not None
 
-    # 3. 測試 Boxplot 統計五數與離群值結構驗證
+    # 3. 測試 Boxplot 統計五數、語意化型態與離群值結構驗證
     assert "boxplot" in line_cat
     assert len(line_cat["boxplot"]) == 5
     lower, q1, med, q3, upper = line_cat["boxplot"]
@@ -306,5 +306,16 @@ def test_dimension_volatility_stats(sample_tx_df):
     assert line_cat["median"] == 400.0
     assert "outliers" in line_cat
     assert isinstance(line_cat["outliers"], list)
+    assert "distribution_type" in line_cat
+    assert line_cat["distribution_type"] in ["single", "fixed_amount", "regular"]
+
+    # 4. 測試 category_only 搭配 payment 篩選
+    res_filtered = get_dimension_volatility_bubble_data(
+        group_mode="category_only",
+        payment="LINE Pay",
+        df_tx_provider=lambda: sample_tx_df
+    )
+    assert res_filtered["group_mode"] == "category_only"
+    assert len(res_filtered["groups"]) > 0
 
 

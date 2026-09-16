@@ -1,19 +1,22 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-16**
-    * **金流維度消費波動圖重構為箱形分佈圖 (Boxplot & Outliers Refactoring)**：
-      - **後端統計引擎五數綜合與離群值提取 (`analytics/rfm/service.py`)**：
-        - 於 `get_dimension_volatility_bubble_data` 聚合各分組計算單筆金額之 $Q1$ (25%)、$Median$ (50%)、$Q3$ (75%)、$IQR$、統計邊界 $LowerBound = \max(\min, Q1 - 1.5 \times IQR)$ 與 $UpperBound = \min(\max, Q3 + 1.5 \times IQR)$。
-        - 提取超出邊界之交易紀錄作為 `outliers`（包含金額、商家名稱、日期），並注入 `boxplot` 五數陣列，向下相容原有統計欄位。
+    * **金流維度消費波動圖重構為箱形分佈圖 (Boxplot & Outliers Refactoring) — 落地方案 A (三大視角切換)**：
+      - **後端前置過濾與統計引擎五數綜合 (`analytics/rfm/service.py`)**：
+        - 重構 `get_dimension_volatility_bubble_data`：將篩選條件 (`payment`, `category`, `card`) 移至分組聚合**之前**執行，解決過往單一維度聚合後過濾導致結果清空的邏輯缺陷。
+        - 計算單筆金額之 $Q1$ (25%)、$Median$ (50%)、$Q3$ (75%)、$IQR$、統計邊界 $LowerBound = \max(\min, Q1 - 1.5 \times IQR)$ 與 $UpperBound = \min(\max, Q3 + 1.5 \times IQR)$。
+        - 引入語意化分佈判定 `distribution_type`：精確標記 `single`（單筆單次）、`fixed_amount`（固定等額扣款/訂閱）、`regular`（常態分佈），並提取 `outliers`（金額、商家、日期）。
+      - **前端視覺化與三大視角切換落地 (`web/analytics_dashboard.html`)**：
+        - 採納**方案 A（切換式單一面板）**：預設以「🏷️ 生活領域視角 (`category_only`)」為主力，搭配「💳 卡片資產視角 (`card_only`)」與「📱 通路管道視角 (`payment_only`)」及複合模式。
+        - **智慧篩選器連動**：依選定視角動態顯示關聯過濾下拉選單（例如：選擇消費大類視角時，自動提供行動支付與信用卡篩選，隱藏消費類別自身）。
+        - **固定等額/單筆消費防塌縮視覺 Padding**：針對 $IQR=0$ 且五數相等的特徵，注入極微小視覺厚度（$\max(med \times 0.015, 6)$），防止 ECharts 繪出 0 像素隱形箱體。
+        - **語意化 Tooltip 資訊卡片**：針對固定等額扣款與單筆單次交易分別客製專屬卡片標籤，清楚標示每期扣款與零波動特性；常態消費則維持標準五數綜合與離群明細。
       - **靜態展示資料預烘焙 (`export_demo_static_json.py` & `web/mock_data/dimension_volatility.json`)**：
         - 重新烘焙六大金流流向維度之 `dimension_volatility.json`，完整支援 GitHub Pages 靜態展示。
-      - **前端視覺化重構 (`web/analytics_dashboard.html`)**：
-        - 第二張圖表升級為 ECharts `type: 'boxplot'` 搭配 `type: 'scatter'`（離群大額消費），以 Tailwind Slate `#0f172a` 主題搭配 `#38bdf8` 邊框、`#fbbf24` 金黃中位線與 `#f87171` 珊瑚紅散點。
-        - 加入水平 `dataZoom` 滑動條與滾輪縮放，並重構 Tooltip 懸停交互（箱體展示中位數與常態 IQR 區間；散點直觀揭露大額消費商家與金額）。
       - **指標指引與專案追蹤文件對齊**：
         - 更新 `docs/plot_reading.md`：建立第 2 章「圖例改善與指標選擇」，規範箱形圖解讀、趨勢圖 Top 5 收斂與 KPI 候選指標。
         - 建立 `issues/issues20260915.md` 追蹤本期視覺化重構里程碑。
       - **全套單元測試驗證 (`tests/test_analytics_features.py`)**：
-        - 擴充 `test_dimension_volatility_stats` 斷言檢驗五數遞增性約束與離群值清單結構。
+        - 擴充 `test_dimension_volatility_stats` 斷言檢驗五數遞增性約束、語意化分佈標籤與前置篩選功能。
         - 全專案 250 項 pytest 測試 100% 綠燈通過。
 
 * **2026-09-15**
