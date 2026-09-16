@@ -65,11 +65,15 @@ services:
       - CSHARP_REWARDS_API_URL=http://csharp-api:5000/api/run/rewards
       - USE_CSHARP_REWARDS_ENGINE=True
     volumes:
+      - ./analytics:/app/analytics
+      - ./api:/app/api
+      - ./etl:/app/etl
       - ./profiles:/app/profiles
       - ./output:/app/output
       - ./errorlog:/app/errorlog
       - ./database:/app/database
       - ./web:/app/web
+      - ./const.py:/app/const.py
     depends_on:
       db:
         condition: service_healthy
@@ -85,6 +89,8 @@ services:
     restart: always
     ports:
       - "127.0.0.1:8080:80" # 本機打開 http://localhost:8080
+    volumes:
+      - ./web:/usr/share/nginx/html
     depends_on:
       - python-api
 
