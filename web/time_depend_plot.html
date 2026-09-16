@@ -58,7 +58,7 @@
         <!-- 月度消費大類堆疊趨勢圖 -->
         <div class="chart-box" style="margin-bottom: 20px;">
             <div class="chart-header">
-                <div class="chart-title">📈 月度消費大類堆疊趨勢分析</div>
+                <div class="chart-title">📈 月度消費支出趨勢分析 (月總額長條 ✕ 走勢折線)</div>
                 <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;"
                     onclick="loadMonthlyTrend()">🔄 重新整理</button>
             </div>
@@ -147,7 +147,7 @@
                 const result = await res.json();
                 if (!result.success || !result.data) return;
 
-                const { months, series, summary } = result.data;
+                const { months, series, summary, category_summary, monthly_totals } = result.data;
 
                 // KPI 更新
                 if (summary) {
@@ -160,17 +160,153 @@
                 const dom = document.getElementById('trendChart');
                 if (!trendChartInst) trendChartInst = echarts.init(dom, 'dark');
 
+                const totalsData = monthly_totals || (series && series[0] ? series[0].data : []);
+
+                // 12 個月 DataZoom 窗口計算
+                const totalMonths = (months || []).length;
+                const startIdx = Math.max(0, totalMonths - 12);
+                const startMonth = totalMonths > 0 ? months[startIdx] : undefined;
+                const endMonth = totalMonths > 0 ? months[totalMonths - 1] : undefined;
+
                 const option = {
                     backgroundColor: 'transparent',
-                    tooltip: { trigger: 'axis' },
-                    legend: { top: 0, textStyle: { color: '#94a3b8' } },
-                    grid: { top: 50, right: 30, bottom: 30, left: 60 },
-                    xAxis: { type: 'category', data: months },
-                    yAxis: { type: 'value', name: '消費 (NT$)', splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } } },
-                    series: series
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: {
+                            type: 'shadow',
+                            shadowStyle: { color: 'rgba(56, 189, 248, 0.08)' }
+                        },
+                        formatter: (params) => {
+                            if (!params || !params.length) return '';
+                            const month = params[0].name;
+                            const totalVal = params[0].value || 0;
+
+                            // 找出該月份的所有消費類別並依金額降冪排序
+                            const monthCats = (category_summary || [])
+                                .filter(c => c.month === month && (c.total_amount || 0) > 0)
+                                .sort((a, b) => (b.total_amount || 0) - (a.total_amount || 0));
+
+                            let html = `<div style="font-family: 'Outfit', sans-serif; min-width: 220px; padding: 2px;">`;
+                            html += `<div style="font-size: 13px; font-weight: 600; color: #f8fafc; margin-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">📅 ${month} 消費總覽</div>`;
+                            html += `<div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: #38bdf8; font-weight: bold;">`;
+                            html += `<span>💰 當月總額</span><span>NT$ ${Number(totalVal).toLocaleString('zh-TW')}</span>`;
+                            html += `</div>`;
+
+                            if (monthCats.length > 0) {
+                                html += `<div style="font-size: 11px; color: #94a3b8; margin-bottom: 4px;">類別消費明細 (依金額大小排序)：</div>`;
+                                monthCats.forEach((cat, idx) => {
+                                    const amt = cat.total_amount || 0;
+                                    const pct = totalVal > 0 ? ((amt / totalVal) * 100).toFixed(1) : '0.0';
+                                    const countStr = cat.txn_count ? ` (${cat.txn_count}筆)` : '';
+                                    html += `<div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 3px; color: #e2e8f0;">`;
+                                    html += `<span style="display: flex; align-items: center; gap: 4px;">`;
+                                    html += `<span style="color: #94a3b8; font-size: 10px; width: 14px;">${idx + 1}.</span>`;
+                                    html += `<span>${cat.category}</span>`;
+                                    html += `<span style="font-size: 10px; color: #64748b;">${countStr}</span>`;
+                                    html += `</span>`;
+                                    html += `<span style="font-weight: 500; color: #f1f5f9;">NT$ ${Number(amt).toLocaleString('zh-TW')} <span style="font-size: 10px; color: #38bdf8;">(${pct}%)</span></span>`;
+                                    html += `</div>`;
+                                });
+                            } else {
+                                html += `<div style="font-size: 12px; color: #64748b; font-style: italic;">當月無消費紀錄</div>`;
+                            }
+
+                            html += `</div>`;
+                            return html;
+                        }
+                    },
+                    legend: {
+                        top: 0,
+                        textStyle: { color: '#94a3b8' },
+                        data: ['月度消費', '支出走勢']
+                    },
+                    grid: { top: 45, right: 30, bottom: 50, left: 65 },
+                    xAxis: {
+                        type: 'category',
+                        data: months,
+                        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
+                        axisLabel: { color: '#94a3b8', fontSize: 11 }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: '消費 (NT$)',
+                        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+                        axisLabel: {
+                            color: '#94a3b8',
+                            formatter: (val) => val >= 10000 ? `${(val / 10000).toFixed(0)}萬` : val
+                        }
+                    },
+                    dataZoom: [
+                        {
+                            type: 'slider',
+                            show: true,
+                            xAxisIndex: [0],
+                            startValue: startMonth,
+                            endValue: endMonth,
+                            height: 22,
+                            bottom: 10,
+                            borderColor: 'rgba(255, 255, 255, 0.08)',
+                            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+                            fillerColor: 'rgba(56, 189, 248, 0.15)',
+                            handleStyle: {
+                                color: '#38bdf8',
+                                borderColor: '#0284c7'
+                            },
+                            textStyle: {
+                                color: '#94a3b8',
+                                fontSize: 11
+                            }
+                        },
+                        {
+                            type: 'inside',
+                            xAxisIndex: [0],
+                            startValue: startMonth,
+                            endValue: endMonth
+                        }
+                    ],
+                    series: [
+                        {
+                            name: '月度消費',
+                            type: 'bar',
+                            data: totalsData,
+                            barMaxWidth: 38,
+                            itemStyle: {
+                                borderRadius: [4, 4, 0, 0],
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: '#38bdf8' },
+                                    { offset: 1, color: '#1e3a8a' }
+                                ])
+                            },
+                            emphasis: {
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: '#60a5fa' },
+                                        { offset: 1, color: '#2563eb' }
+                                    ])
+                                }
+                            }
+                        },
+                        {
+                            name: '支出走勢',
+                            type: 'line',
+                            data: totalsData,
+                            symbol: 'circle',
+                            symbolSize: 8,
+                            lineStyle: {
+                                color: '#f59e0b',
+                                width: 2.5
+                            },
+                            itemStyle: {
+                                color: '#f59e0b',
+                                borderColor: '#ffffff',
+                                borderWidth: 1.5
+                            }
+                        }
+                    ]
                 };
 
-                trendChartInst.setOption(option);
+                trendChartInst.setOption(option, true);
                 window.addEventListener('resize', () => trendChartInst.resize());
             } catch (e) {
                 console.error("載入月度趨勢失敗:", e);

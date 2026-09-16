@@ -1,5 +1,19 @@
 ## 📅 開發日記 (Dev Log)
 * **2026-09-16**
+    * **月度消費趨勢圖重構為「直條圖 + 直條頂端折線圖 (Bar + Line Combo)」— 方案 A (強烈對比色與全類別 Tooltip 排序落地)**：
+      - **後端時間序列連續化與 12 個月保底補齊 (`analytics/common/chart.py`)**：
+        - 重構 `build_monthly_trend_payload`：動態計算資料時間範圍，保底生成至少 12 個連續月份之時間軸（未滿 12 個月自動由最新月往前補齊，金額填補 0.0），徹底解決歷史月份少時圖表過度拉寬或跳月斷層問題。
+        - 計算時序對齊之 `monthly_totals`，並輸出直條（Bar: "月度消費"）與折線（Line: "支出走勢"）雙 Series。
+      - **前端視覺落成與對比色設計 (`web/time_depend_plot.html`)**：
+        - **方案 A 落地**：月度總額直條採用科技深藍漸層（`#38bdf8` ➔ `#1e3a8a`，圓角 `[4, 4, 0, 0]`，`barMaxWidth: 38`），頂端折線採用暖色對比色琥珀橙金（`#f59e0b`，線寬 2.5px，圓形節點直徑 8px），節點精準貫穿直條頂端。
+        - **Tooltip 全類別降冪穿透**：柱頂無常駐文字標籤；Hover 懸浮時，Tooltip 依消費金額由大至小完整排序顯示當月所有消費類別（如 7 大類）之金額與百分比佔比。
+        - **DataZoom 12 個月窗口**：預設視野鎖定最新 12 個月，支援長歷史自由平移與短歷史補齊保底。
+      - **Demo 靜態資料重新烘焙 (`export_demo_static_json.py` & `web/mock_data/monthly_trend.json`)**：
+        - 重新產出 12 個月連續格式之 `monthly_trend.json`，同步支援 GitHub Pages 純靜態展示。
+      - **全套單元測試與文件更新**：
+        - 於 `tests/test_analytics_features.py` 新增 `test_build_monthly_trend_padding_and_continuous` 驗證短歷史補齊、斷月補 0 與雙 Series 契約；全套測試 100% 通過。
+        - 更新 `docs/plot_reading.md` 第 2-1 節與 `issues/issues20260915.md` 任務 2 狀態。
+
     * **金流維度消費波動圖重構為箱形分佈圖 (Boxplot & Outliers Refactoring) — 落地方案 A (三大視角切換)**：
       - **後端前置過濾與統計引擎五數綜合 (`analytics/rfm/service.py`)**：
         - 重構 `get_dimension_volatility_bubble_data`：將篩選條件 (`payment`, `category`, `card`) 移至分組聚合**之前**執行，解決過往單一維度聚合後過濾導致結果清空的邏輯缺陷。

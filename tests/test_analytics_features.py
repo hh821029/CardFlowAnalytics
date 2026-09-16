@@ -201,8 +201,32 @@ def test_build_monthly_trend_payload(sample_tx_df):
     payload = build_monthly_trend_payload(sample_tx_df)
     assert "months" in payload
     assert "series" in payload
-    assert len(payload["series"]) > 0
+    assert len(payload["series"]) == 2
+    assert payload["series"][0]["type"] == "bar"
+    assert payload["series"][1]["type"] == "line"
+    assert "monthly_totals" in payload
+    assert len(payload["months"]) >= 12  # 保底至少 12 個月
     assert payload["summary"]["total_amount"] == 2800.0
+
+
+def test_build_monthly_trend_padding_and_continuous():
+    from analytics.common import build_monthly_trend_payload
+    import pandas as pd
+    # 建立只有 2 個月 (2026-05 與 2026-06) 的樣本資料，驗證往前補齊 12 個月
+    df = pd.DataFrame([
+        {"transaction_date": "2026-05-15", "category": "餐飲", "payment_amount": 100.0, "card_type": "CardA", "payment_process": "LinePay"},
+        {"transaction_date": "2026-06-20", "category": "交通", "payment_amount": 250.0, "card_type": "CardA", "payment_process": "LinePay"}
+    ])
+    payload = build_monthly_trend_payload(df)
+    assert len(payload["months"]) == 12
+    assert payload["months"][-1] == "2026-06"
+    assert payload["months"][0] == "2025-07"
+    assert payload["monthly_totals"][-1] == 250.0
+    assert payload["monthly_totals"][-2] == 100.0
+    assert payload["monthly_totals"][0] == 0.0  # 補齊月份為 0
+    assert payload["summary"]["total_amount"] == 350.0
+    assert payload["summary"]["active_months"] == 2  # 真實活躍月份為 2
+
 
 
 
