@@ -297,4 +297,14 @@ def test_dimension_volatility_stats(sample_tx_df):
     cube_group = next((g for g in res_card["groups"] if "CUBE卡" in g["name"]), None)
     assert cube_group is not None
 
+    # 3. 測試 Boxplot 統計五數與離群值結構驗證
+    assert "boxplot" in line_cat
+    assert len(line_cat["boxplot"]) == 5
+    lower, q1, med, q3, upper = line_cat["boxplot"]
+    assert lower <= q1 <= med <= q3 <= upper
+    assert "median" in line_cat
+    assert line_cat["median"] == 400.0
+    assert "outliers" in line_cat
+    assert isinstance(line_cat["outliers"], list)
+
 

@@ -191,11 +191,11 @@
                 <div id="rfmBubbleChart" style="width: 100%; height: 480px;"></div>
             </div>
 
-            <!-- 📱 金流維度消費波動氣泡圖 (Sankey 流向探索) -->
+            <!-- 📱 金流維度消費分佈箱形圖 (Sankey 流向探索) -->
             <div class="chart-box" style="margin-bottom: 20px;">
                 <!-- 第一行：標題靠左，維度與顯示筆數靠右 (防止折行跑位) -->
                 <div class="chart-header" style="flex-wrap: nowrap; margin-bottom: 4px;">
-                    <div class="chart-title" style="white-space: nowrap;">📱 金流維度消費波動氣泡圖 (Sankey 流向探索)</div>
+                    <div class="chart-title" style="white-space: nowrap;">📱 金流維度消費分佈箱形圖 (Boxplot & Outliers 探索)</div>
                     <div
                         style="font-size: 12px; color: var(--accent-blue); font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; margin-left: auto;">
                         <span id="dimBubbleFilterLabel">目前維度：行動支付 ✕ 消費類別 (通路場景)</span> ｜
@@ -204,7 +204,7 @@
                 </div>
                 <!-- 第二行：維度副標說明 -->
                 <div style="font-size: 12px; color: #94a3b8; line-height: 1.5; margin-bottom: 10px;">
-                    依「Sankey 流向維度」分組聚合；觀察不同支付管道、消費領域與卡片資產的客單價 (μ) 與標準差 (σ) 分類取向
+                    依「Sankey 流向維度」分組觀察各通路、領域或卡片的單筆消費常態區間 (IQR: Q1~Q3)、中位數與離群特殊大額交易
                 </div>
 
                 <!-- 操作面板 Container：整合觀察維度篩選列與兩排維度按鈕 -->
@@ -354,16 +354,15 @@
                     </div>
                 </div>
 
-                <!-- X/Y 指標中位數說明 -->
+                <!-- 箱形圖指標說明 -->
                 <div id="dimBubbleMetricsInfo"
                     style="font-size: 12px; color: #94a3b8; line-height: 1.6; margin-bottom: 8px;">
-                    (X: 平均客單價，目前中位數: <b id="lblDimCurAvgMed" style="color: #38bdf8;">NT$ -</b> [全域: <span
+                    (單筆中位數基準 (Q2): <b id="lblDimCurAvgMed" style="color: #fbbf24;">NT$ -</b> [全域: <span
                         id="lblDimGlobalAvgMed" style="color: #cbd5e1;">NT$ -</span>] ；
-                    Y: 單筆標準差，目前中位數: <b id="lblDimCurStdMed" style="color: #38bdf8;">NT$ -</b> [全域: <span
-                        id="lblDimGlobalStdMed" style="color: #cbd5e1;">NT$ -</span>] ；
-                    氣泡大小: 累積總額)
+                    箱體常態涵蓋 50% 核心刷卡筆數 (IQR: Q1~Q3) ；
+                    🚨 珊瑚紅散點標示特殊離群大額消費)
                 </div>
-                <div id="dimBubbleChart" style="width: 100%; height: 500px;"></div>
+                <div id="dimBubbleChart" style="width: 100%; height: 520px;"></div>
             </div>
         </div>
 
@@ -794,10 +793,11 @@
             }
         }
 
-        // ── 金流維度消費波動氣泡圖 (Sankey 6 大流向維度) 邏輯 ───────────
+        // ── 金流維度消費分佈箱形圖 (Sankey 6 大流向維度) 邏輯 ───────────
         let dimChartInst = null;
         let allDimGroupsCache = [];
         let currentDimBubbleData = [];
+        let currentFilteredDimGroups = [];
         let dimCurMedianAvg = 0;
         let dimCurMedianStd = 0;
         let activeDimRfmSegments = new Set([
@@ -944,28 +944,72 @@
                 countEl.textContent = `顯示 ${filtered.length} / ${allDimGroupsCache.length} 分組`;
             }
 
-            const bubbleData = filtered.map(g => [
-                g.avg_ticket || 0,
-                g.std_ticket || 0,
-                g.monetary || 0,
-                g.name || '',
-                g.volatility_segment || '',
-                g.payment_process || '-',
-                g.category || '-',
-                g.card_type || '-',
-                g.frequency || 0,
-                g.cv || 0,
-                g.segment || '一般活躍 (Active)'
-            ]);
+            // 準備箱形圖 (Boxplot) 與離群值 (Outliers) 數據
+            const categoryNames = filtered.map(g => g.name || '');
+            const boxplotData = filtered.map(g => {
+                if (g.boxplot && g.boxplot.length === 5) {
+                    return g.boxplot;
+                }
+                const med = g.median !== undefined ? g.median : (g.avg_ticket || 0);
+                const q1 = g.q1 !== undefined ? g.q1 : med * 0.7;
+                const q3 = g.q3 !== undefined ? g.q3 : med * 1.3;
+                const minVal = g.min !== undefined ? g.min : q1 * 0.5;
+                const maxVal = g.max !== undefined ? g.max : q3 * 1.5;
+                return [minVal, q1, med, q3, maxVal];
+            });
 
-            // 方案 1：氣泡面積降序排序（大氣泡在底層、小氣泡在頂層，避免遮蔽）
-            bubbleData.sort((a, b) => (Number(b[2]) || 0) - (Number(a[2]) || 0));
-            currentDimBubbleData = bubbleData;
+            const outlierData = [];
+            filtered.forEach((g, idx) => {
+                if (g.outliers && g.outliers.length > 0) {
+                    g.outliers.forEach(o => {
+                        outlierData.push([idx, o.amount, o.merchant || '', o.date || '', g.name]);
+                    });
+                }
+            });
+
+            // 暫存以供 Tooltip 精確查找
+            currentFilteredDimGroups = filtered;
 
             dimChartInst.setOption({
-                series: [{
-                    data: bubbleData
-                }]
+                xAxis: {
+                    data: categoryNames,
+                    axisLabel: {
+                        interval: 0,
+                        rotate: categoryNames.length > 8 ? 20 : 0,
+                        color: '#94a3b8',
+                        fontSize: 11
+                    }
+                },
+                dataZoom: [
+                    {
+                        type: 'slider',
+                        show: true,
+                        xAxisIndex: 0,
+                        bottom: 10,
+                        height: 18,
+                        borderColor: 'transparent',
+                        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                        fillerColor: 'rgba(56, 189, 248, 0.25)',
+                        handleStyle: { color: '#38bdf8' },
+                        textStyle: { color: '#94a3b8', fontSize: 10 },
+                        start: 0,
+                        end: categoryNames.length > 15 ? Math.max(10, Math.round((15 / categoryNames.length) * 100)) : 100
+                    },
+                    {
+                        type: 'inside',
+                        xAxisIndex: 0
+                    }
+                ],
+                series: [
+                    {
+                        name: '常態消費分佈 (Boxplot)',
+                        data: boxplotData
+                    },
+                    {
+                        name: '特殊離群大額消費 (Outliers)',
+                        data: outlierData
+                    }
+                ]
             });
         }
 
@@ -1005,19 +1049,12 @@
                 // 中位數標籤更新
                 const curAvg = Number(current_median_avg_ticket || 0);
                 const globalAvg = Number(global_median_avg_ticket || 0);
-                const curStd = Number(current_median_std_ticket || 0);
-                const globalStd = Number(global_median_std_ticket || 0);
                 dimCurMedianAvg = curAvg;
-                dimCurMedianStd = curStd;
 
                 const elCurAvg = document.getElementById('lblDimCurAvgMed');
                 if (elCurAvg) elCurAvg.textContent = `NT$ ${Math.round(curAvg).toLocaleString()}`;
                 const elGlobalAvg = document.getElementById('lblDimGlobalAvgMed');
                 if (elGlobalAvg) elGlobalAvg.textContent = `NT$ ${Math.round(globalAvg).toLocaleString()}`;
-                const elCurStd = document.getElementById('lblDimCurStdMed');
-                if (elCurStd) elCurStd.textContent = `NT$ ${Math.round(curStd).toLocaleString()}`;
-                const elGlobalStd = document.getElementById('lblDimGlobalStdMed');
-                if (elGlobalStd) elGlobalStd.textContent = `NT$ ${Math.round(globalStd).toLocaleString()}`;
 
                 // 更新 RFM 分組計數
                 const sc = segment_counts || {};
@@ -1053,112 +1090,119 @@
                 const option = {
                     backgroundColor: 'transparent',
                     tooltip: {
+                        trigger: 'item',
                         backgroundColor: 'rgba(15, 23, 42, 0.94)',
                         borderColor: 'rgba(56, 189, 248, 0.35)',
                         borderWidth: 1,
                         padding: [10, 12],
                         textStyle: { color: '#f8fafc', fontSize: 12 },
                         formatter: function (param) {
-                            const val = param.value;
-                            const curX = Number(val[0]);
-                            const curY = Number(val[1]);
-
-                            // 方案 4：檢測相同/極相近座標（客單價與標準差差異 < 0.5）
-                            const overlaps = currentDimBubbleData.filter(d =>
-                                Math.abs(Number(d[0]) - curX) < 0.5 && Math.abs(Number(d[1]) - curY) < 0.5
-                            );
-
-                            if (overlaps.length > 1) {
-                                let html = `
-                                    <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.15);">
-                                        <div style="font-size:11px; background:rgba(251,191,36,0.2); color:#fbbf24; border:1px solid rgba(251,191,36,0.4); padding:2px 8px; border-radius:4px; display:inline-block; font-weight:600;">
-                                            📍 此座標重疊 ${overlaps.length} 組維度（依累積金額排序）
+                            if (param.seriesType === 'boxplot') {
+                                const idx = param.dataIndex;
+                                const g = (currentFilteredDimGroups && currentFilteredDimGroups[idx]) || {};
+                                const b = param.value || [];
+                                const medVal = g.median !== undefined ? g.median : b[2];
+                                const q1Val = g.q1 !== undefined ? g.q1 : b[1];
+                                const q3Val = g.q3 !== undefined ? g.q3 : b[3];
+                                const lowerVal = b[0] !== undefined ? b[0] : (g.min || 0);
+                                const upperVal = b[4] !== undefined ? b[4] : (g.max || 0);
+                                return `
+                                    <div style="font-weight:bold; font-size:14px; margin-bottom:6px; color:#38bdf8;">🏷️ ${g.name || param.name}</div>
+                                    <div style="font-size:12px; line-height:1.7;">
+                                        <div>👑 <span style="color:#cbd5e1;">單筆中位數 (Q2)：</span><b style="color:#fbbf24; font-size:13px;">NT$ ${Math.round(medVal).toLocaleString()}</b></div>
+                                        <div>📦 <span style="color:#cbd5e1;">常態消費區間 (50% IQR)：</span><b>NT$ ${Math.round(q1Val).toLocaleString()} ～ NT$ ${Math.round(q3Val).toLocaleString()}</b></div>
+                                        <div>📏 <span style="color:#cbd5e1;">日常極限邊界 (Whiskers)：</span>NT$ ${Math.round(lowerVal).toLocaleString()} ～ NT$ ${Math.round(upperVal).toLocaleString()}</div>
+                                        <div style="margin-top:4px; padding-top:4px; border-top:1px dashed rgba(255,255,255,0.15);">
+                                            🔄 交易筆數：<b style="color:#34d399;">${g.frequency || 0} 筆</b> ｜ 💰 累積金額：<b>NT$ ${Number(g.monetary || 0).toLocaleString()}</b>
                                         </div>
-                                        <div style="font-size:11px; color:#94a3b8; margin-top:4px;">
-                                            平均客單價 (μ): NT$ ${Math.round(curX).toLocaleString()} ｜ 單筆標準差 (σ): NT$ ${Math.round(curY).toLocaleString()}
-                                        </div>
+                                        ${(g.outliers && g.outliers.length > 0) ? `
+                                        <div style="color:#f87171; margin-top:2px;">
+                                            🚨 特殊離群筆數：<b>${g.outliers.length} 筆</b> (最高 NT$ ${Number(g.outliers[0].amount).toLocaleString()}${g.outliers[0].merchant ? ' - ' + g.outliers[0].merchant : ''})
+                                        </div>` : ''}
                                     </div>
-                                    <div style="max-height: 280px; overflow-y: auto; padding-right: 4px;">
                                 `;
-                                overlaps.forEach((item, idx) => {
-                                    html += `
-                                        <div style="margin-bottom: ${idx < overlaps.length - 1 ? '8px' : '0'}; padding-bottom: ${idx < overlaps.length - 1 ? '6px' : '0'}; ${idx < overlaps.length - 1 ? 'border-bottom:1px dashed rgba(255,255,255,0.1);' : ''}">
-                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                                                <span style="font-weight:bold; font-size:13px; color:#38bdf8;">${idx + 1}. ${item[3]}</span>
-                                                <span style="font-size:11px; color:#fbbf24; background:rgba(251,191,36,0.15); padding:1px 5px; border-radius:3px;">${item[4]}</span>
-                                            </div>
-                                            <div style="font-size:11px; color:#cbd5e1;">📱 支付: <b>${item[5]}</b> ｜ 🏷️ 類別: <b>${item[6]}</b> ${item[7] && item[7] !== '-' ? '｜ 💳 卡片: <b>' + item[7] + '</b>' : ''}</div>
-                                            <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">
-                                                🔄 交易筆數: <b style="color:#34d399; font-size:12px;">${item[8]} 筆</b> ｜ 💰 累積: <b>NT$ ${Number(item[2]).toLocaleString()}</b> ｜ 🏆 客群: ${item[10]}
-                                            </div>
-                                        </div>
-                                    `;
-                                });
-                                html += `</div>`;
-                                return html;
+                            } else if (param.seriesType === 'scatter') {
+                                const val = param.value || [];
+                                const amt = val[1];
+                                const merchant = val[2];
+                                const date = val[3];
+                                const groupName = val[4];
+                                return `
+                                    <div style="font-size:11px; background:rgba(248,113,113,0.2); color:#f87171; border:1px solid rgba(248,113,113,0.4); padding:2px 8px; border-radius:4px; display:inline-block; font-weight:600; margin-bottom:4px;">
+                                        🚨 特殊大額 / 離群刷卡
+                                    </div>
+                                    <div style="font-weight:bold; font-size:14px; color:#f8fafc; margin-bottom:2px;">${merchant || '消費明細'}</div>
+                                    <div style="font-size:12px; color:#cbd5e1;">所屬分組：<span style="color:#38bdf8;">${groupName || ''}</span></div>
+                                    <div style="font-size:13px; margin-top:4px;">💰 刷卡金額：<b style="color:#f87171; font-size:14px;">NT$ ${Number(amt).toLocaleString()}</b></div>
+                                    ${date ? `<div style="font-size:11px; color:#94a3b8; margin-top:2px;">📅 交易日期：${date}</div>` : ''}
+                                `;
                             }
-
-                            return `
-                                <div style="font-weight:bold; font-size:14px; margin-bottom:4px; color:#38bdf8;">${val[3]}</div>
-                                <div>📱 支付: <b>${val[5]}</b> ｜ 🏷️ 類別: <b>${val[6]}</b> ${val[7] && val[7] !== '-' ? '｜ 💳 卡片: <b>' + val[7] + '</b>' : ''}</div>
-                                <div>👑 波動分群: <span style="color:#fbbf24; font-weight:600;">${val[4]}</span></div>
-                                <div>💵 平均客單價 (μ): <b>NT$ ${Number(val[0]).toLocaleString()}</b></div>
-                                <div>📊 單筆標準差 (σ): <b>NT$ ${Number(val[1]).toLocaleString()}</b></div>
-                                <div>📈 變異係數 (CV): <b>${val[9] !== undefined ? val[9] : 0}</b></div>
-                                <div>🔄 交易筆數 (F): <b>${val[8]} 筆</b></div>
-                                <div>💰 累積消費 (M): <b>NT$ ${Number(val[2]).toLocaleString()}</b></div>
-                                <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.15);">🏆 RFM 客群: <span style="color:#38bdf8; font-weight:600;">${val[10]}</span></div>
-                            `;
+                            return '';
                         }
                     },
-                    grid: { top: 40, right: 60, bottom: 50, left: 70 },
+                    grid: { top: 35, right: 30, bottom: 65, left: 80 },
                     xAxis: {
-                        name: '平均客單價 (NT$)',
-                        nameLocation: 'middle',
-                        nameGap: 30,
-                        type: 'value',
-                        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
+                        type: 'category',
+                        data: [],
+                        axisLine: { lineStyle: { color: '#475569' } },
+                        splitLine: { show: false }
                     },
                     yAxis: {
-                        name: '單筆標準差 (NT$)',
+                        name: '單筆金額 (NT$)',
                         type: 'value',
+                        nameTextStyle: { color: '#94a3b8', fontSize: 11 },
+                        axisLabel: {
+                            color: '#94a3b8',
+                            formatter: val => `NT$ ${val.toLocaleString()}`
+                        },
                         splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } }
                     },
-                    series: [{
-                        type: 'scatter',
-                        data: [],
-                        symbolSize: function (val) {
-                            return Math.min(Math.max(Math.sqrt(val[2]) * 0.65, 14), 70);
-                        },
-                        markLine: {
-                            silent: true,
-                            lineStyle: { type: 'dashed', color: 'rgba(255, 255, 255, 0.25)', width: 1 },
-                            data: [
-                                { xAxis: curAvg || 500, label: { formatter: `中位客單: NT$ ${Math.round(curAvg).toLocaleString()}`, position: 'end', color: '#38bdf8', fontSize: 10 } },
-                                { yAxis: curStd || 200, label: { formatter: `中位標準差: NT$ ${Math.round(curStd).toLocaleString()}`, position: 'end', color: '#38bdf8', fontSize: 10 } }
-                            ]
-                        },
-                        itemStyle: {
-                            color: function (params) {
-                                const seg = params.value[4] || '';
-                                if (seg.includes('固定大額') || seg.includes('Fixed')) return '#38bdf8';
-                                if (seg.includes('大額偶發') || seg.includes('Spike')) return '#f87171';
-                                if (seg.includes('微額日常') || seg.includes('Micro')) return '#34d399';
-                                if (seg.includes('長尾混合') || seg.includes('Elastic')) return '#c084fc';
-                                return '#64748b';
+                    series: [
+                        {
+                            name: '常態消費分佈 (Boxplot)',
+                            type: 'boxplot',
+                            data: [],
+                            itemStyle: {
+                                color: 'rgba(56, 189, 248, 0.18)',
+                                borderColor: '#38bdf8',
+                                borderWidth: 1.5
                             },
-                            opacity: 0.72,
-                            borderColor: 'rgba(255, 255, 255, 0.45)',
-                            borderWidth: 1.2
+                            emphasis: {
+                                itemStyle: {
+                                    color: 'rgba(56, 189, 248, 0.35)',
+                                    borderColor: '#7dd3fc',
+                                    borderWidth: 2
+                                }
+                            }
+                        },
+                        {
+                            name: '特殊離群大額消費 (Outliers)',
+                            type: 'scatter',
+                            data: [],
+                            symbolSize: 8,
+                            itemStyle: {
+                                color: '#f87171',
+                                borderColor: '#ffffff',
+                                borderWidth: 1,
+                                opacity: 0.85
+                            },
+                            emphasis: {
+                                scale: 1.6,
+                                itemStyle: {
+                                    color: '#ef4444',
+                                    borderColor: '#fecaca',
+                                    borderWidth: 2
+                                }
+                            }
                         }
-                    }]
+                    ]
                 };
 
                 dimChartInst.setOption(option);
                 renderFilteredDimBubbleChart();
 
             } catch (err) {
-                console.error("載入維度消費波動數據失敗:", err);
+                console.error("載入維度消費數據失敗:", err);
             }
         }
 

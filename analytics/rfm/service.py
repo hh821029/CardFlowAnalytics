@@ -538,6 +538,10 @@ def get_dimension_volatility_bubble_data(
     m_rank_series = sum_series.rank(pct=True)
     rec_m_rank_series = rec_sum_series.reindex(sum_series.index, fill_value=0.0).rank(pct=True)
 
+    m_col = 'merchant_display' if 'merchant_display' in df_clean.columns else ('merchant' if 'merchant' in df_clean.columns else None)
+    d_col = 'transaction_date' if 'transaction_date' in df_clean.columns else None
+    grouped_full = df_clean.groupby(group_cols)
+
     all_groups = []
     for idx in cnt_series.index:
         cnt = int(cnt_series.at[idx])
@@ -545,6 +549,34 @@ def get_dimension_volatility_bubble_data(
         m_amt = round(float(mean_series.at[idx]), 2) if cnt > 0 else 0.0
         sd_amt = round(float(std_series.at[idx]), 2) if cnt >= 2 else 0.0
         cv_amt = float(cv_series.at[idx]) if m_amt > 0 else 0.0
+
+        # 計算 Boxplot 五數綜合指標與離群大額消費 (Outliers)
+        if idx in grouped_full.groups:
+            sub_df = grouped_full.get_group(idx)
+            sub_amts = sub_df['payment_amount'].dropna()
+            q1 = float(sub_amts.quantile(0.25)) if cnt > 0 else 0.0
+            median = float(sub_amts.median()) if cnt > 0 else 0.0
+            q3 = float(sub_amts.quantile(0.75)) if cnt > 0 else 0.0
+            min_val = float(sub_amts.min()) if cnt > 0 else 0.0
+            max_val = float(sub_amts.max()) if cnt > 0 else 0.0
+            iqr = q3 - q1
+            lower_bound = max(min_val, q1 - 1.5 * iqr)
+            upper_bound = min(max_val, q3 + 1.5 * iqr)
+
+            # 提取小於 lower_bound 或大於 upper_bound 之交易
+            outlier_mask = (sub_amts < lower_bound) | (sub_amts > upper_bound)
+            outlier_rows = sub_df[outlier_mask]
+            outliers = []
+            for _, o_row in outlier_rows.iterrows():
+                o_amt = round(float(o_row['payment_amount']), 2)
+                o_m = str(o_row[m_col]) if m_col and pd.notna(o_row[m_col]) else "未知商家"
+                o_d = str(o_row[d_col])[:10] if d_col and pd.notna(o_row[d_col]) else ""
+                outliers.append({"amount": o_amt, "merchant": o_m, "date": o_d})
+            outliers.sort(key=lambda x: x['amount'], reverse=True)
+            outliers = outliers[:25]
+        else:
+            q1, median, q3, min_val, max_val, iqr, lower_bound, upper_bound = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            outliers = []
 
         is_act = int(rec_cnt_series.get(idx, 0)) > 0 if cutoff_180d is not None else True
         is_high = float(m_rank_series.get(idx, 0.0)) >= 0.8
@@ -591,7 +623,15 @@ def get_dimension_volatility_bubble_data(
             "cv": cv_amt,
             "monetary": s_amt,
             "frequency": cnt,
-            "segment": rfm_seg
+            "segment": rfm_seg,
+            "boxplot": [round(lower_bound, 2), round(q1, 2), round(median, 2), round(q3, 2), round(upper_bound, 2)],
+            "q1": round(q1, 2),
+            "median": round(median, 2),
+            "q3": round(q3, 2),
+            "iqr": round(iqr, 2),
+            "min": round(min_val, 2),
+            "max": round(max_val, 2),
+            "outliers": outliers
         })
 
     if not all_groups:
