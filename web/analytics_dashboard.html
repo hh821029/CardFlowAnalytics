@@ -1015,6 +1015,14 @@
             // 暫存以供 Tooltip 精確查找
             currentFilteredDimGroups = filtered;
 
+            // 橫軸最小顯示數 4 (縮放時最少維持顯示 4 個箱子)
+            const totalCats = categoryNames.length;
+            const minBoxes = 4;
+            const minSpanPercent = totalCats > 0 ? Math.min(100, (minBoxes / totalCats) * 100) : 0;
+            // 預設可視範圍：超過 12 個時預設顯示前 12 個，但確保不小於最小跨度 (4 個)
+            const initialCount = totalCats > 12 ? 12 : totalCats;
+            const initialEnd = totalCats > 0 ? Math.max(minSpanPercent, Math.round((initialCount / totalCats) * 100)) : 100;
+
             dimChartInst.setOption({
                 xAxis: {
                     data: categoryNames,
@@ -1038,20 +1046,27 @@
                         handleStyle: { color: '#38bdf8' },
                         textStyle: { color: '#94a3b8', fontSize: 10 },
                         start: 0,
-                        end: categoryNames.length > 15 ? Math.max(10, Math.round((15 / categoryNames.length) * 100)) : 100
+                        end: initialEnd,
+                        minSpan: minSpanPercent,
+                        minValueSpan: totalCats >= minBoxes ? (minBoxes - 1) : null
                     },
                     {
                         type: 'inside',
-                        xAxisIndex: 0
+                        xAxisIndex: 0,
+                        minSpan: minSpanPercent,
+                        minValueSpan: totalCats >= minBoxes ? (minBoxes - 1) : null
                     }
                 ],
                 series: [
                     {
                         name: '常態消費分佈 (Boxplot)',
+                        type: 'boxplot',
+                        boxWidth: [12, 46],
                         data: boxplotData
                     },
                     {
                         name: '特殊離群大額消費 (Outliers)',
+                        type: 'scatter',
                         data: outlierData
                     }
                 ]
@@ -1238,6 +1253,7 @@
                         {
                             name: '常態消費分佈 (Boxplot)',
                             type: 'boxplot',
+                            boxWidth: [12, 46],
                             data: [],
                             itemStyle: {
                                 color: 'rgba(56, 189, 248, 0.18)',

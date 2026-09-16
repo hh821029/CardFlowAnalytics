@@ -9,6 +9,7 @@
         - 採納**方案 A（切換式單一面板）**：預設以「🏷️ 生活領域視角 (`category_only`)」為主力，搭配「💳 卡片資產視角 (`card_only`)」與「📱 通路管道視角 (`payment_only`)」及複合模式。
         - **智慧篩選器連動**：依選定視角動態顯示關聯過濾下拉選單（例如：選擇消費大類視角時，自動提供行動支付與信用卡篩選，隱藏消費類別自身）。
         - **固定等額/單筆消費防塌縮視覺 Padding**：針對 $IQR=0$ 且五數相等的特徵，注入極微小視覺厚度（$\max(med \times 0.015, 6)$），防止 ECharts 繪出 0 像素隱形箱體。
+        - **橫軸最小顯示數約束 (Min Boxes = 4)**：於 `dataZoom` 動態配置 `minSpan` 與 `minValueSpan: 3`（強制最少顯示 4 個箱子），搭配 `boxWidth: [12, 46]`，防止過度放大或少量分組時箱體過寬變形。
         - **語意化 Tooltip 資訊卡片**：針對固定等額扣款與單筆單次交易分別客製專屬卡片標籤，清楚標示每期扣款與零波動特性；常態消費則維持標準五數綜合與離群明細。
       - **靜態展示資料預烘焙 (`export_demo_static_json.py` & `web/mock_data/dimension_volatility.json`)**：
         - 重新烘焙六大金流流向維度之 `dimension_volatility.json`，完整支援 GitHub Pages 靜態展示。
