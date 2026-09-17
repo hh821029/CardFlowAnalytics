@@ -566,8 +566,17 @@ def get_dimension_volatility_bubble_data(
         cv_amt = float(cv_series.at[idx]) if m_amt > 0 else 0.0
 
         # 計算 Boxplot 五數綜合指標與離群大額消費 (Outliers)
-        if idx in grouped_full.groups:
-            sub_df = grouped_full.get_group(idx)
+        sub_df = None
+        lookup_key = (idx,) if (len(group_cols) == 1 and not isinstance(idx, tuple)) else idx
+        try:
+            sub_df = grouped_full.get_group(lookup_key)
+        except (KeyError, ValueError):
+            try:
+                sub_df = grouped_full.get_group(idx)
+            except (KeyError, ValueError):
+                sub_df = None
+
+        if sub_df is not None and not sub_df.empty:
             sub_amts = sub_df['payment_amount'].dropna()
             q1 = float(sub_amts.quantile(0.25)) if cnt > 0 else 0.0
             median = float(sub_amts.median()) if cnt > 0 else 0.0

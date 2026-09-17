@@ -1,4 +1,10 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-09-17**
+    * **修復 CI 中 pandas `get_group` 單長度 list-like 分組 KeyError 異常 (`analytics/rfm/service.py`)**：
+      - **原因分析**：在 `get_dimension_volatility_bubble_data` 中，當維度分組為長度為 1 的清單時（如 `category_only` 之 `['category']`），pandas 在特定版本（如 Ubuntu CI 環境）中呼叫 `grouped_full.get_group(idx)` 若傳入純純字串 key 會因型別未對齊而拋出 `KeyError: '餐飲食品'`（並在其他版本引發 `FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group`）。
+      - **修復方案**：於 `analytics/rfm/service.py` 統一 group key 提取邏輯：若分組欄位為單一欄位且 key 非 tuple，自動轉為 1-tuple `(idx,)`；並以 double try-catch 安全防護機制相容所有版本之 scalar / tuple index 查詢，徹底杜絕 KeyError 與 FutureWarning 警告。
+      - **測試驗證**：本地與 CI 全套 251 項 pytest 單元測試 100% 綠燈通過。
+
 * **2026-09-16**
     * **月度消費趨勢圖重構為「直條圖 + 直條頂端折線圖 (Bar + Line Combo)」— 方案 A (強烈對比色與全類別 Tooltip 排序落地)**：
       - **後端時間序列連續化與 12 個月保底補齊 (`analytics/common/chart.py`)**：
