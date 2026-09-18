@@ -207,6 +207,9 @@ def test_build_monthly_trend_payload(sample_tx_df):
     assert "monthly_totals" in payload
     assert len(payload["months"]) >= 12  # 保底至少 12 個月
     assert payload["summary"]["total_amount"] == 2800.0
+    assert payload["summary"]["avg_monthly_amount"] == 1400.0
+    assert payload["summary"]["total_transactions"] == 4
+    assert payload["summary"]["median_amount"] == 650.0
 
 
 def test_build_monthly_trend_padding_and_continuous():
@@ -226,6 +229,9 @@ def test_build_monthly_trend_padding_and_continuous():
     assert payload["monthly_totals"][0] == 0.0  # 補齊月份為 0
     assert payload["summary"]["total_amount"] == 350.0
     assert payload["summary"]["active_months"] == 2  # 真實活躍月份為 2
+    assert payload["summary"]["avg_monthly_amount"] == 175.0
+    assert payload["summary"]["total_transactions"] == 2
+    assert payload["summary"]["median_amount"] == 175.0
 
 
 

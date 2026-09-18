@@ -118,6 +118,9 @@ class TestMockDataContracts:
         assert "series" in payload
         assert "summary" in payload
         assert payload["summary"].get("total_amount", 0) > 0
+        assert payload["summary"].get("avg_monthly_amount", 0) > 0
+        assert payload["summary"].get("total_transactions", 0) > 0
+        assert payload["summary"].get("median_amount", 0) > 0
 
     def test_sankey_flow_contract(self):
         """校驗 sankey_flow.json 資料結構"""

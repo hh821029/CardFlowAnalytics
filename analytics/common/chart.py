@@ -41,6 +41,9 @@ def build_monthly_trend_payload(df: pd.DataFrame) -> Dict[str, Any]:
             "card_summary": [],
             "summary": {
                 "total_amount": 0.0,
+                "avg_monthly_amount": 0.0,
+                "total_transactions": 0,
+                "median_amount": 0.0,
                 "active_months": 0,
                 "card_count": 0,
                 "payment_count": 0
@@ -63,6 +66,9 @@ def build_monthly_trend_payload(df: pd.DataFrame) -> Dict[str, Any]:
             "card_summary": [],
             "summary": {
                 "total_amount": 0.0,
+                "avg_monthly_amount": 0.0,
+                "total_transactions": 0,
+                "median_amount": 0.0,
                 "active_months": 0,
                 "card_count": 0,
                 "payment_count": 0
@@ -110,12 +116,17 @@ def build_monthly_trend_payload(df: pd.DataFrame) -> Dict[str, Any]:
 
     amount_col = 'payment_amount' if 'payment_amount' in df.columns else 'pay_amount'
     if amount_col in df.columns:
-        amt_series = pd.Series(pd.to_numeric(df[amount_col], errors='coerce')).fillna(0.0)
+        amt_series = pd.Series(pd.to_numeric(df[amount_col], errors='coerce')).dropna()
         total_amount = round(float(amt_series.sum()), 2)
+        total_transactions = int(len(amt_series))
+        median_amount = round(float(amt_series.median()), 2) if total_transactions > 0 else 0.0
     else:
         total_amount = round(sum(monthly_totals), 2)
+        total_transactions = int(len(df))
+        median_amount = 0.0
         
     active_months = len(raw_months)
+    avg_monthly_amount = round(total_amount / active_months, 2) if active_months > 0 else 0.0
     card_count = df['card_type'].nunique() if 'card_type' in df.columns else 0
     payment_count = df['payment_process'].nunique() if 'payment_process' in df.columns else 0
 
@@ -128,6 +139,9 @@ def build_monthly_trend_payload(df: pd.DataFrame) -> Dict[str, Any]:
         "card_summary": df_card.to_dict(orient='records'),
         "summary": {
             "total_amount": total_amount,
+            "avg_monthly_amount": avg_monthly_amount,
+            "total_transactions": total_transactions,
+            "median_amount": median_amount,
             "active_months": active_months,
             "card_count": card_count,
             "payment_count": payment_count

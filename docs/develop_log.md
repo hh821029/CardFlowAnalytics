@@ -1,4 +1,28 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-09-18**
+    * **堆疊趨勢圖上方 4 個 KPI 指標卡重構 (精簡收斂 4 大核心財務指標)**：
+      - **後端統計引擎與 Payload 組裝 (`analytics/common/chart.py`)**：
+        - 於 `build_monthly_trend_payload` 中實現 4 大指標運算：
+          1. `total_amount`：總累積消費金額 (`sum(payment_amount)`)。
+          2. `avg_monthly_amount`：月均消費金額 (`total_amount ÷ active_months`)，依實際有消費記錄之活躍月數計算，提供月度支出基準。
+          3. `total_transactions`：總交易筆數 (`count(transactions)`)。
+          4. `median_amount`：單筆消費中位數 (`median(payment_amount)`)，具備高抗極端值特性，真實反映日常單筆消費水準。
+        - 同步於空資料保底邊界邏輯中對齊預設值，並保留既有維度欄位確保相容。
+      - **前端視覺化與極簡收斂落地 (`web/time_depend_plot.html`, `web/scripts/time_depend_plot.js`)**：
+        - 依使用者指示全面精簡收斂，去除贅字、評判標籤與多餘括號，建立 4 個乾淨純粹的 KPI 卡片：
+          - 卡 1（總體財務）：`總累積消費金額` ➔ 冰藍色 (`#38bdf8`)。
+          - 卡 2（月度開銷）：`月均消費金額` ➔ 紫羅蘭色 (`#a855f7`)。
+          - 卡 3（交易頻率）：`總交易筆數` ➔ 翡翠綠 (`#10b981`)。
+          - 卡 4（中位基準）：`單筆消費中位數` ➔ 琥珀金 (`#fbbf24`)。
+        - 更新 `loadMonthlyTrend` 與 `updateKpiCards` 前端渲染與數值格式化邏輯。
+      - **Demo 靜態資料預烘焙 (`export_demo_static_json.py` & `web/mock_data/monthly_trend.json`)**：
+        - 重新烘焙 `monthly_trend.json`，完整涵蓋 4 大核心指標，使 GitHub Pages 純靜態環境也能精準呈現一致數據。
+      - **單元測試驗證與合約校驗 (`tests/test_analytics_features.py`, `tests/test_web_frontend_scripts.py`)**：
+        - 新增針對 4 大 KPI 指標之計算正確性、邊界條件與靜態 JSON 合約斷言，全套測試 100% 綠燈通過。
+      - **文檔與任務追蹤更新 (`docs/plot_reading.md`, `issues/issues20260915.md`)**：
+        - 於 `docs/plot_reading.md` 第 2-3 節正式收錄已定案之 4 個 KPI 指標規範與財務演算法說明。
+        - 標記 `issues/issues20260915.md` 任務 3 與里程碑 4 為全數完成。
+
 * **2026-09-17**
     * **修復 CI 中 pandas `get_group` 單長度 list-like 分組 KeyError 異常 (`analytics/rfm/service.py`)**：
       - **原因分析**：在 `get_dimension_volatility_bubble_data` 中，當維度分組為長度為 1 的清單時（如 `category_only` 之 `['category']`），pandas 在特定版本（如 Ubuntu CI 環境）中呼叫 `grouped_full.get_group(idx)` 若傳入純純字串 key 會因型別未對齊而拋出 `KeyError: '餐飲食品'`（並在其他版本引發 `FutureWarning: When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group`）。

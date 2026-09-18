@@ -102,11 +102,30 @@ function hideLoading() {
 
 function updateKpiCards(summary) {
     if (!summary) return;
-    const total = (summary.total_amount || 0).toLocaleString('zh-TW', { minimumFractionDigits: 0 });
-    document.getElementById('kpiTotalAmount').innerText = `NT$ ${total}`;
-    document.getElementById('kpiActiveMonths').innerText = `${summary.active_months !== undefined ? summary.active_months : 0} 個月`;
-    document.getElementById('kpiCardCount').innerText = `${summary.card_count || 0} 張`;
-    document.getElementById('kpiPaymentCount').innerText = `${summary.payment_count || 0} 種`;
+    const total = Math.round(Number(summary.total_amount || 0)).toLocaleString('zh-TW');
+    const monthlyAvg = Math.round(Number(summary.avg_monthly_amount || 0)).toLocaleString('zh-TW');
+    const txnCount = Number(summary.total_transactions || 0).toLocaleString('zh-TW');
+    const medianAmt = Math.round(Number(summary.median_amount || 0)).toLocaleString('zh-TW');
+
+    const elTotal = document.getElementById('kpiTotalAmount');
+    if (elTotal) elTotal.innerText = `NT$ ${total}`;
+
+    const elMonthly = document.getElementById('kpiMonthlyAvg');
+    if (elMonthly) elMonthly.innerText = `NT$ ${monthlyAvg}`;
+
+    const elTxn = document.getElementById('kpiTxnCount');
+    if (elTxn) elTxn.innerText = `${txnCount} 筆`;
+
+    const elMedian = document.getElementById('kpiMedianAmount');
+    if (elMedian) elMedian.innerText = `NT$ ${medianAmt}`;
+
+    // 向下相容備用 ID 檢查
+    const elActiveMonths = document.getElementById('kpiActiveMonths') || document.getElementById('kpiMonths');
+    if (elActiveMonths) elActiveMonths.innerText = `${summary.active_months || 0} 個月`;
+    const elCardCount = document.getElementById('kpiCardCount') || document.getElementById('kpiCards');
+    if (elCardCount) elCardCount.innerText = `${summary.card_count || 0} 張`;
+    const elPayCount = document.getElementById('kpiPaymentCount') || document.getElementById('kpiPayments');
+    if (elPayCount) elPayCount.innerText = `${summary.payment_count || 0} 種`;
 }
 
 function renderTrendChart(data) {

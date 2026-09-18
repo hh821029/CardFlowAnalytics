@@ -35,23 +35,23 @@
             <a href="ranking.html">🏆 核心排行與資產分群</a>
         </div>
 
-        <!-- KPI 總覽 -->
+        <!-- KPI 總覽 (月度趨勢 4 大核心指標) -->
         <div class="kpi-row" style="margin-bottom: 20px;">
             <div class="kpi-card">
                 <div class="kpi-lbl">總累積消費金額</div>
-                <div id="kpiTotalAmount" class="kpi-val">NT$ -</div>
+                <div id="kpiTotalAmount" class="kpi-val" style="color: #38bdf8;">NT$ -</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-lbl">活躍月份數</div>
-                <div id="kpiMonths" class="kpi-val" style="color: #a855f7;">-</div>
+                <div class="kpi-lbl">月均消費金額</div>
+                <div id="kpiMonthlyAvg" class="kpi-val" style="color: #a855f7;">NT$ -</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-lbl">使用信用卡數</div>
-                <div id="kpiCards" class="kpi-val" style="color: #10b981;">-</div>
+                <div class="kpi-lbl">總交易筆數</div>
+                <div id="kpiTxnCount" class="kpi-val" style="color: #10b981;">- 筆</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-lbl">支付管道數</div>
-                <div id="kpiPayments" class="kpi-val" style="color: #fbbf24;">-</div>
+                <div class="kpi-lbl">單筆消費中位數</div>
+                <div id="kpiMedianAmount" class="kpi-val" style="color: #fbbf24;">NT$ -</div>
             </div>
         </div>
 
@@ -149,12 +149,24 @@
 
                 const { months, series, summary, category_summary, monthly_totals } = result.data;
 
-                // KPI 更新
+                // KPI 更新 (4 大核心指標)
                 if (summary) {
-                    document.getElementById('kpiTotalAmount').textContent = `NT$ ${Number(summary.total_amount || 0).toLocaleString()}`;
-                    document.getElementById('kpiMonths').textContent = summary.active_months || 0;
-                    document.getElementById('kpiCards').textContent = summary.card_count || 0;
-                    document.getElementById('kpiPayments').textContent = summary.payment_count || 0;
+                    const totalAmt = Math.round(Number(summary.total_amount || 0)).toLocaleString('zh-TW');
+                    const monthlyAvg = Math.round(Number(summary.avg_monthly_amount || 0)).toLocaleString('zh-TW');
+                    const txnCount = Number(summary.total_transactions || 0).toLocaleString('zh-TW');
+                    const medianAmt = Math.round(Number(summary.median_amount || 0)).toLocaleString('zh-TW');
+
+                    const elTotal = document.getElementById('kpiTotalAmount');
+                    if (elTotal) elTotal.textContent = `NT$ ${totalAmt}`;
+
+                    const elMonthly = document.getElementById('kpiMonthlyAvg');
+                    if (elMonthly) elMonthly.textContent = `NT$ ${monthlyAvg}`;
+
+                    const elTxn = document.getElementById('kpiTxnCount');
+                    if (elTxn) elTxn.textContent = `${txnCount} 筆`;
+
+                    const elMedian = document.getElementById('kpiMedianAmount');
+                    if (elMedian) elMedian.textContent = `NT$ ${medianAmt}`;
                 }
 
                 const dom = document.getElementById('trendChart');
