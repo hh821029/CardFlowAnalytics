@@ -1,4 +1,20 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-09-22**
+    * **首頁全景功能導引整合、說明文字架構重構、桑基圖展示順序調整與按鍵色彩檢討 (`web/index.html`, `web/time_depend_plot.html`, `web/task_console.html`, `web/styles/dashboard.css`, `issues/issues20260922.md`)**：
+      - **補齊首頁核心模組導航與系統全景介紹 (`web/index.html`)**：
+        - 於首頁功能卡片區新增第 5 個核心模組卡片「🏆 核心排行與資產分群 (Ranking & Assets)」，完整引導至 `web/ranking.html`。
+        - 結構化收納四散於子頁面的詳細說明文字（ETL 帳單清洗入庫機制、SSOT 三大維度設定同步、金流桑基圖真實/DEMO 流向維度、RFM 五大價值九宮格與四大波動型態），使首頁升級為完整的「系統全景導引中樞」。
+      - **多層級金流桑基圖展示順序調整與子頁面文字精簡 (`web/time_depend_plot.html`)**：
+        - 依持卡人真實財務分析優先原則，在內容與資料流 100% 保持一致的前提下調整順序：將「個人實際金流全貌桑基圖（真實財務全景）」移至上方優先呈現，「DEMO 脫敏展示桑基圖」移至下方。
+        - 精簡子頁面長段流向維度與規則敘述（完整說明已收錄至首頁），大幅釋放垂直版面空間，提升圖表專注度。
+      - **任務控制中心說明文字收斂 (`web/task_console.html`)**：
+        - 精簡 Tab 1 (ETL) 與 Tab 2 (SSOT) 說明敘述，主控制台回歸俐落直觀之操作體驗。
+      - **按鍵色彩體系調和與現代 Fintech AI 風格建立 (`web/index.html`, `web/styles/dashboard.css`)**：
+        - 檢討並統一全域按鈕與模組卡片色彩搭配，依功能主題賦予協調的漸層強調色（任務控制: Indigo、卡片管理: Sky Blue、時間趨勢: Emerald Teal、卡片客群: Rose Violet、核心排行: Amber Gold）。
+        - 底部「快速全域操作區」收斂為一致的沉穩科技藍與靛紫，消除過往過於突兀雜亂之霓虹粉配色。
+      - **API 資料源環境狀態記錄 (`issues/issues20260922.md`)**：
+        - 建立 `issues/issues20260922.md`，確認卡片管理功能正常且目前 API 載入 12 家銀行、4 張卡片為符合預期之測試環境資料 (Mock Dataset)。
+
 * **2026-09-18**
     * **堆疊趨勢圖上方 4 個 KPI 指標卡重構 (精簡收斂 4 大核心財務指標)**：
       - **後端統計引擎與 Payload 組裝 (`analytics/common/chart.py`)**：

@@ -38,22 +38,29 @@
             🟢 API 服務運作正常 | 點擊下方模組進入專屬操作頁面
         </div>
 
-        <!-- 四大核心功能模組區 -->
+        <!-- 五大核心功能模組區 -->
         <div class="dashboard-grid">
-            <!-- 模組一：任務執行控制中心 (唯一 Console 所在地) -->
+            <!-- 模組一：任務執行控制中心 -->
             <div class="module-card">
                 <div>
                     <div class="module-header">
                         <span class="module-icon">⚡</span>
                         <h2 class="module-title">任務控制中心 (Task Console)</h2>
                     </div>
-                    <p class="module-desc">
-                        集中調度所有後端運算管線：帳單 ETL 清洗入庫、SSOT 維度設定同步、C# 瀑布式回饋金計算、RFM 價值模型與條件篩選匯出，共享即時串流 Console。
-                    </p>
+                    <div class="module-desc">
+                        集中調度所有後端運算管線與即時串流 Console：
+                        <ul class="module-feature-list">
+                            <li>📦 <b>帳單 ETL 清洗入庫</b>：自動掃描並載入各大銀行原始對帳單 (國泰、中信、華南、玉山等)，執行商家名稱正規化、支付管道標記、匯率折算與特徵提取，精確寫入主資料庫。</li>
+                            <li>⚙️ <b>SSOT 維度規則同步</b>：涵蓋商家與支付錢包、信用卡基本檔與結帳日歷史、瀑布式回饋規則與每日匯率表三大維度更新寫入。</li>
+                            <li>💰 <b>運算引擎調度</b>：支援 C# 高效瀑布式回饋金計算、RFM 客群模型分析與自訂條件篩選交易導出。</li>
+                        </ul>
+                    </div>
                 </div>
                 <div class="module-footer">
-                    <a href="task_console.html" class="btn-primary" style="text-decoration:none; padding:10px 18px;">⚡ 進入任務控制</a>
-                    <span class="quick-badge">Pipeline & Engine</span>
+                    <a href="task_console.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #4f46e5, #6366f1);">⚡
+                        進入任務控制</a>
+                    <span class="quick-badge" style="color: #818cf8; border-color: rgba(99, 102, 241, 0.25);">Pipeline & Engine</span>
                 </div>
             </div>
 
@@ -64,15 +71,20 @@
                         <span class="module-icon">💳</span>
                         <h2 class="module-title">卡片管理面板 (Cards Manager)</h2>
                     </div>
-                    <p class="module-desc">
-                        視覺化維護個人信用卡清單 (bridge_user_cards)、卡片開關狀態、歷史換發卡紀錄與年費/回饋方案關聯。
-                    </p>
+                    <div class="module-desc">
+                        視覺化維護持卡產品、換卡履歷與行動支付綁定：
+                        <ul class="module-feature-list">
+                            <li>💳 <b>卡片產品管理</b>：視覺化管理個人信用卡產品清單 (bridge_user_cards) 與卡片啟用/停用狀態。</li>
+                            <li>📅 <b>換卡履歷對照</b>：追蹤卡號末四碼更換紀錄、發卡組織、有效期限與年費/回饋方案關聯。</li>
+                            <li>📱 <b>行動支付綁定</b>：維護每張卡片之第三方支付錢包綁定關係 (`vpc_pay`)。</li>
+                        </ul>
+                    </div>
                 </div>
                 <div class="module-footer">
                     <a href="cards_manager.html" class="btn-primary"
                         style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #0284c7, #3b82f6);">💳
                         進入卡片管理</a>
-                    <span class="quick-badge">Cards JSON</span>
+                    <span class="quick-badge" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.25);">Cards JSON</span>
                 </div>
             </div>
 
@@ -83,15 +95,20 @@
                         <span class="module-icon">📈</span>
                         <h2 class="module-title">時間趨勢分析 (Time Trends)</h2>
                     </div>
-                    <p class="module-desc">
-                        依時間維度穿透分析：月度消費大類堆疊趨勢、跨期消費走勢與多層級金流桑基圖 (Sankey Flow)。
-                    </p>
+                    <div class="module-desc">
+                        依時間維度穿透分析消費全景與資金金流動向：
+                        <ul class="module-feature-list">
+                            <li>📈 <b>月度消費趨勢分析</b>：月總額長條 ✕ 走勢折線分析，提供總累積額、月均消費、總交易筆數與單筆中位數 4 大客觀財務 KPI。</li>
+                            <li>📊 <b>個人真實金流桑基圖</b>：實際發卡行 ➔ 實際所有信用卡 ➔ 實際所有支付管道 ➔ 消費大類 ➔ 前 10 大核心商家（100% 真實財務全景無脫敏）。</li>
+                            <li>🌊 <b>DEMO 脫敏展示桑基圖</b>：發卡行 (脫敏) ➔ 核心展示卡 (CUBE / Uniopen / Unicard) ➔ 標準支付管道 ➔ 消費大類（白名單脫敏聚類，適合公開展示）。</li>
+                        </ul>
+                    </div>
                 </div>
                 <div class="module-footer">
                     <a href="time_depend_plot.html" class="btn-primary"
-                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #10b981, #059669);">📈
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #059669, #10b981);">📈
                         進入時間趨勢</a>
-                    <span class="quick-badge">Time & Sankey</span>
+                    <span class="quick-badge" style="color: #34d399; border-color: rgba(52, 211, 153, 0.25);">Time & Sankey</span>
                 </div>
             </div>
 
@@ -102,15 +119,44 @@
                         <span class="module-icon">👑</span>
                         <h2 class="module-title">卡片回饋與客群 (Cards & RFM)</h2>
                     </div>
-                    <p class="module-desc">
-                        依卡片與商家維度聚合：RFM 客群價值氣泡圖、五大價值九宮格分群統計、月度卡片實質回饋率與回饋池上限監控。
-                    </p>
+                    <div class="module-desc">
+                        依卡片與商家維度聚合價值分群與回饋效益監控：
+                        <ul class="module-feature-list">
+                            <li>👑 <b>RFM 商家客群價值</b>：依近半年活躍度與金額劃分核心商家、潛力商家、一般活躍、流失高價值、沉睡等五大價值分群。</li>
+                            <li>📊 <b>消費波動型態象限</b>：固定大額、大額偶發、微額日常、長尾混合四大交易頻次與金額特性分群。</li>
+                            <li>🔒 <b>實質回饋與回饋池上限</b>：各卡每月實質回饋率計算、回饋金彙總與回饋池使用狀況/上限警戒監控。</li>
+                        </ul>
+                    </div>
                 </div>
                 <div class="module-footer">
                     <a href="analytics_dashboard.html" class="btn-primary"
-                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #ec4899, #8b5cf6);">👑
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #7c3aed, #a855f7);">👑
                         進入卡片與客群</a>
-                    <span class="quick-badge">RFM & Rewards</span>
+                    <span class="quick-badge" style="color: #c084fc; border-color: rgba(192, 132, 252, 0.25);">RFM & Rewards</span>
+                </div>
+            </div>
+
+            <!-- 模組五：生活領域核心排行與資產分群 -->
+            <div class="module-card">
+                <div>
+                    <div class="module-header">
+                        <span class="module-icon">🏆</span>
+                        <h2 class="module-title">核心排行與資產分群 (Ranking & Assets)</h2>
+                    </div>
+                    <div class="module-desc">
+                        各生活領域主力消費商家與信用卡資產價值分群：
+                        <ul class="module-feature-list">
+                            <li>🏆 <b>領域 Top 3 核心主力商家</b>：依累積消費金額 (M) 排名各生活消費領域前 3 大主力特店，穿透次分類、交易次數 (F) 與客群價值標記。</li>
+                            <li>💳 <b>信用卡資產價值分群</b>：各發卡行持卡狀態、資產價值分群 (Core/Active/Dormant) 與平均客單價全面盤點，支援示範卡片置頂。</li>
+                            <li>🏷️ <b>多維度生活領域篩選</b>：即時依食衣住行育樂等細分領域動態切換排行檢視。</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="module-footer">
+                    <a href="ranking.html" class="btn-primary"
+                        style="text-decoration:none; padding:10px 18px; background: linear-gradient(135deg, #d97706, #f59e0b);">🏆
+                        進入核心排行</a>
+                    <span class="quick-badge" style="color: #fbbf24; border-color: rgba(251, 191, 36, 0.25);">Top 3 & Assets</span>
                 </div>
             </div>
         </div>
@@ -121,13 +167,18 @@
             <p style="margin: 0 0 15px 0; font-size: 13px; color: var(--text-secondary);">一鍵啟動系統全量同步或特徵狀態檢視。
             </p>
             <div class="button-group">
-                <button id="btnConfigAll" class="btn-primary" onclick="runGlobalTask('config_all')">⚙️ 執行全量設定同步</button>
+                <button id="btnConfigAll" class="btn-primary"
+                    style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none;"
+                    onclick="runGlobalTask('config_all')">⚙️ 執行全量設定同步</button>
                 <button id="btnEtlAll" class="btn-primary"
-                    style="background: linear-gradient(135deg, #ec4899, #8b5cf6);" onclick="runGlobalTask('etl')">🚀 執行
-                    ETL 入庫</button>
-                <button id="btnFeatureStatus" class="btn-secondary" onclick="checkFeatureStatus()">🔍
-                    檢查資料特徵提取狀態</button>
-                <button id="btnClear" class="btn-secondary" onclick="clearConsole()">🧹 清空日誌</button>
+                    style="background: linear-gradient(135deg, #4f46e5, #7c3aed); border: none;"
+                    onclick="runGlobalTask('etl')">🚀 執行 ETL 入庫</button>
+                <button id="btnFeatureStatus" class="btn-secondary"
+                    style="background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(56, 189, 248, 0.25); color: #e2e8f0;"
+                    onclick="checkFeatureStatus()">🔍 檢查資料特徵提取狀態</button>
+                <button id="btnClear" class="btn-secondary"
+                    style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-secondary);"
+                    onclick="clearConsole()">🧹 清空日誌</button>
             </div>
         </div>
 

@@ -65,23 +65,7 @@
             <div id="trendChart" style="width: 100%; height: 420px;"></div>
         </div>
 
-        <!-- 金流桑基圖 (DEMO 展示模式) -->
-        <div class="chart-box" style="margin-bottom: 24px;">
-            <div class="chart-header">
-                <div class="chart-title">
-                    <span>🌊 多層級金流桑基圖 (DEMO 展示模式)</span>
-                    <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: normal;">DEMO 脫敏展示</span>
-                </div>
-                <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadSankeyDemoFlow()">🔄 重新整理</button>
-            </div>
-            <p style="font-size: 12px; color: var(--text-secondary, #94a3b8); margin: 0 0 14px 0; line-height: 1.5;">
-                🔍 <b>流向維度</b>：發卡行 (脫敏) ➔ 核心展示卡 (CUBE / Uniopen / Unicard) ➔ 標準支付管道 ➔ 消費大類。<br/>
-                💡 <b>說明</b>：自動套用白名單脫敏與聚類規則，適合公開展示或簡報，非核心卡片與管道自動收斂為「其他」。
-            </p>
-            <div id="sankeyDemoChart" style="width: 100%; height: 500px;"></div>
-        </div>
-
-        <!-- 金流桑基圖 (個人實際財務參考 - 非 DEMO) -->
+        <!-- 金流桑基圖 (個人實際財務全景 - 非 DEMO) -->
         <div class="chart-box" style="margin-bottom: 24px; border: 1px solid rgba(52, 211, 153, 0.25);">
             <div class="chart-header">
                 <div class="chart-title">
@@ -97,8 +81,7 @@
                 </div>
             </div>
             <p style="font-size: 12px; color: var(--text-secondary, #94a3b8); margin: 0 0 14px 0; line-height: 1.5;">
-                🎯 <b>流向維度</b>：實際發卡行 ➔ 實際所有信用卡 ➔ 實際所有支付管道 ➔ 消費大類 ➔ 核心商家 (可選)。<br/>
-                💡 <b>說明</b>：無任何脫敏或白名單限制，100% 呈現真實個人財務數據與資金路徑，作為個人財務決策與記帳檢視的最佳參考。
+                🎯 100% 呈現真實個人財務數據與資金路徑（實際發卡行 ➔ 信用卡 ➔ 支付管道 ➔ 消費大類 ➔ 核心商家）。詳細維度定義請參見首頁總控制台說明。
             </p>
             
             <!-- 真實財務專屬快速 KPI 列 -->
@@ -126,6 +109,21 @@
             </div>
 
             <div id="sankeyRealChart" style="width: 100%; height: 580px;"></div>
+        </div>
+
+        <!-- 金流桑基圖 (DEMO 展示模式) -->
+        <div class="chart-box" style="margin-bottom: 24px;">
+            <div class="chart-header">
+                <div class="chart-title">
+                    <span>🌊 多層級金流桑基圖 (DEMO 展示模式)</span>
+                    <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 3px 8px; border-radius: 6px; font-weight: normal;">DEMO 脫敏展示</span>
+                </div>
+                <button class="btn-secondary" style="font-size: 12px; padding: 4px 10px;" onclick="loadSankeyDemoFlow()">🔄 重新整理</button>
+            </div>
+            <p style="font-size: 12px; color: var(--text-secondary, #94a3b8); margin: 0 0 14px 0; line-height: 1.5;">
+                🔍 自動套用白名單脫敏與聚類規則，適合公開展示與簡報（展示卡 ➔ 標準支付 ➔ 消費大類）。詳細維度定義請參見首頁總控制台說明。
+            </p>
+            <div id="sankeyDemoChart" style="width: 100%; height: 500px;"></div>
         </div>
     </div>
 

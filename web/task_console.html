@@ -84,7 +84,7 @@
             <div class="section-box">
                 <div class="section-title">📦 帳單資料處理 (ETL 流程)</div>
                 <p style="margin: 0 0 15px 0; font-size: 13px; color: var(--text-secondary);">
-                    自動掃描並載入各大銀行原始對帳單 (國泰、中信、華南、玉山等)，執行商家名稱正規化、支付管道標記、匯率折算與特徵提取，精確寫入主資料庫。
+                    執行各大銀行帳單自動化清洗入庫與特徵提取。（詳細處理機制與流程請見首頁總控制台說明）
                 </p>
                 <div class="button-group">
                     <button id="btnEtl" class="btn-primary" onclick="TaskConsole.run('etl', '', 'ETL 帳單處理')">
@@ -99,7 +99,7 @@
             <div class="section-box">
                 <div class="section-title">📄 維度規則與設定資料同步面板 (SSOT)</div>
                 <p style="margin: 0 0 12px 0; font-size: 13px; color: var(--text-secondary);">
-                    將 profiles 與 configs 檔案中的維度設定資料（卡片、特約商家、支付管道、回饋規則、每日匯率）更新或合併寫入至資料庫。
+                    將 profiles 與 configs 維度設定資料更新或合併寫入至資料庫。（三大維度定義請見首頁總控制台說明）
                 </p>
 
                 <div class="button-group" style="margin-bottom: 20px;">

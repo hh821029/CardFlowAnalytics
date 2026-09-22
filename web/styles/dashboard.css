@@ -53,6 +53,27 @@
             flex-grow: 1;
         }
 
+        .module-feature-list {
+            margin: 10px 0 0 0;
+            padding-left: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 12.5px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+
+        .module-feature-list li {
+            position: relative;
+            padding-left: 2px;
+        }
+
+        .module-feature-list li b {
+            color: var(--text-primary);
+        }
+
         .module-footer {
             display: flex;
             gap: 10px;
