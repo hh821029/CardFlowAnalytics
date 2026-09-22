@@ -12,6 +12,8 @@
       - **按鍵色彩體系調和與現代 Fintech AI 風格建立 (`web/index.html`, `web/styles/dashboard.css`)**：
         - 檢討並統一全域按鈕與模組卡片色彩搭配，依功能主題賦予協調的漸層強調色（任務控制: Indigo、卡片管理: Sky Blue、時間趨勢: Emerald Teal、卡片客群: Rose Violet、核心排行: Amber Gold）。
         - 底部「快速全域操作區」收斂為一致的沉穩科技藍與靛紫，消除過往過於突兀雜亂之霓虹粉配色。
+      - **任務控制中心維度子卡片按鍵橫向等寬對齊優化 (`web/styles/body.css`)**：
+        - 針對 `web/task_console.html` 之 SSOT 三大維度子卡片（`.sub-card`），將內部按鈕群改為 `2 等分網格 (grid-template-columns: repeat(2, 1fr))` 佈局，解決過往因按鈕文字長度不一導致部分卡片換行直排、部分橫排之不一致現象，確保所有子卡片按鈕均勻橫排等寬對齊。
       - **API 資料源環境狀態記錄 (`issues/issues20260922.md`)**：
         - 建立 `issues/issues20260922.md`，確認卡片管理功能正常且目前 API 載入 12 家銀行、4 張卡片為符合預期之測試環境資料 (Mock Dataset)。
 

@@ -81,6 +81,22 @@ body {
     line-height: 1.5;
 }
 
+.sub-card .button-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+}
+
+.sub-card .button-group button {
+    width: 100%;
+    padding: 10px 6px;
+    font-size: 13px;
+    white-space: nowrap;
+    text-align: center;
+    justify-content: center;
+}
+
 /* 按鈕元件樣式 */
 .button-group {
     display: flex;
