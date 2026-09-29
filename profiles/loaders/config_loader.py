@@ -273,9 +273,28 @@ class ConfigFilter:
                     df_cards = DBReader.read_sql("SELECT DISTINCT card_type FROM dim_cards WHERE card_type IS NOT NULL AND card_type != ''", db_path=target_db_path)
                 if not df_cards.empty and 'card_type' in df_cards.columns:
                     result["cards"] = [str(c) for c in df_cards['card_type'].tolist()]
-                logger.info(f"🔍 讀取卡片名成功 (from bridge_user_cards)，共 {len(result['cards'])} 筆")
+                else:
+                    # else 降級處理：資料庫無卡片時，自 UserCardsLoader (bridge_user_cards.json / bridge_user_cards_mock.json) 讀取
+                    from profiles.loaders.user_cards_loader import UserCardsLoader
+                    u_loader = UserCardsLoader()
+                    cards_json_list = u_loader.load_json()
+                    result["cards"] = list(dict.fromkeys([
+                        str(c.get("card_type")).strip() for c in cards_json_list if c.get("card_type")
+                    ]))
+                logger.info(f"🔍 讀取卡片名成功，共 {len(result['cards'])} 筆")
             except Exception as e:
                 logger.warning(f"⚠️ 無法從 bridge_user_cards / dim_cards 讀取 card_type: {e}")
+                try:
+                    # else 降級處理：若 DB 連線或查詢出錯，回退讀取 JSON / Mock 設定檔
+                    from profiles.loaders.user_cards_loader import UserCardsLoader
+                    u_loader = UserCardsLoader()
+                    cards_json_list = u_loader.load_json()
+                    result["cards"] = list(dict.fromkeys([
+                        str(c.get("card_type")).strip() for c in cards_json_list if c.get("card_type")
+                    ]))
+                    logger.info(f"🔍 降級從 UserCardsLoader 讀取卡片名成功，共 {len(result['cards'])} 筆")
+                except Exception as inner_e:
+                    logger.warning(f"⚠️ 降級讀取 UserCardsLoader 亦失敗: {inner_e}")
                 
             # 3. 取得不重複的第三方支付 (priority < 25)
             try:

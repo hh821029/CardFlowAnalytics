@@ -17,11 +17,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/cards", tags=["User Cards JSON"])
 
 def get_cards_json_path() -> str:
-    """取得當前 active profile 的 bridge_user_cards.json 絕對路徑"""
+    """取得當前 active profile 的 bridge_user_cards.json 絕對路徑 (支援 mock.json 降級)"""
     active_profile = getattr(const, 'ACTIVE_PROFILE_NAME', 'user_main')
     config_dir = os.path.join(const.PROFILES_DIR, active_profile, 'configs')
     os.makedirs(config_dir, exist_ok=True)
-    return os.path.join(config_dir, 'bridge_user_cards.json')
+    p_std = os.path.join(config_dir, 'bridge_user_cards.json')
+    if os.path.exists(p_std):
+        return p_std
+    p_mock = os.path.join(config_dir, 'bridge_user_cards_mock.json')
+    if os.path.exists(p_mock):
+        return p_mock
+    return p_std
 
 @router.get("/banks")
 async def api_get_banks():

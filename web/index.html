@@ -35,7 +35,7 @@
 
         <!-- 系統狀態摘要儀表板 -->
         <div id="status" class="status-box">
-            🟢 API 服務運作正常 | 點擊下方模組進入專屬操作頁面
+            🟡 正在連線檢查 API 服務狀態...
         </div>
 
         <!-- 五大核心功能模組區 -->
@@ -264,10 +264,28 @@
 
         // 自動檢查伺服器健康狀態
         fetch('/api/analyzable-data')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+                return res.json();
+            })
             .then(data => {
                 const statusDiv = document.getElementById('status');
-                statusDiv.innerHTML = `🟢 API 服務運作正常 | 已載入 ${data.banks?.length || 0} 家銀行、${data.cards?.length || 0} 張卡片`;
+                if (data.error) {
+                    statusDiv.innerHTML = `🔴 API 服務異常：${data.error}`;
+                    statusDiv.style.color = '#f87171';
+                    return;
+                }
+                const banksCount = data.banks?.length || 0;
+                const cardsCount = data.cards?.length || 0;
+                if (banksCount === 0 && cardsCount === 0) {
+                    statusDiv.innerHTML = `🟡 API 服務已連線，但尚未載入卡片或銀行維度資料 (請確認設定檔或執行資料同步)`;
+                    statusDiv.style.color = '#fbbf24';
+                } else {
+                    statusDiv.innerHTML = `🟢 API 服務運作正常 | 已載入 ${banksCount} 家銀行、${cardsCount} 張卡片`;
+                    statusDiv.style.color = '';
+                }
             })
             .catch(() => {
                 const statusDiv = document.getElementById('status');
