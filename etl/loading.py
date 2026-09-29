@@ -180,7 +180,11 @@ def _standardize_fx_df(df: pd.DataFrame) -> pd.DataFrame:
     if 'fx_rate' in df_clean.columns:
         df_clean['fx_rate'] = pd.to_numeric(df_clean['fx_rate'], errors='coerce')
         
-    return df_clean.dropna(subset=['conversion_date', 'currency_type', 'fx_rate'])
+    required_cols = ['conversion_date', 'currency_type', 'fx_rate']
+    if not all(col in df_clean.columns for col in required_cols):
+        return pd.DataFrame()
+        
+    return df_clean.dropna(subset=required_cols)
 
 
 def load_fx_table(config_dir: Optional[str] = None) -> pd.DataFrame:
@@ -227,8 +231,12 @@ def normalize_to_twd(
 
     df_result = df.copy()
 
-    # 確保必要欄位存在
-    if 'payment_currency' not in df_result.columns or 'payment_amount' not in df_result.columns:
+    # 確保必要欄位存在 (若無折算日或無幣別/金額，直接略過折算)
+    if (
+        'conversion_date' not in df_result.columns or 
+        'payment_currency' not in df_result.columns or 
+        'payment_amount' not in df_result.columns
+    ):
         return df_result
 
     # 1. 判斷需要折算的條件：conversion_date 存在 且 payment_currency 非 TWD / 空值
