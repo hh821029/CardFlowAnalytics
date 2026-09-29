@@ -16,7 +16,6 @@ class EsunParser(BaseCsvParser):
             "消費日": const.COL_TXN_DATE,
             "入帳日": const.COL_POST_DATE,
             "消費明細   消費地  外幣折算日": const.COL_MERCHANT,
-            "交易類別": const.COL_TXN_TYPE,
             "幣別": const.COL_CURRENCY,
             "金額": const.COL_CURR_AMOUNT,
             "繳款幣別": const.COL_PAY_CURR,
@@ -83,8 +82,8 @@ class EsunParser(BaseCsvParser):
         str_cols = df.select_dtypes(include=['object']).columns
         df[str_cols] = df[str_cols].apply(lambda x: x.str.strip())
         
-        # 將空字串取代為 NaN，方便後續處理
-        df.replace('', pd.NA, inplace=True)
+        # 將空字串取代為 None，方便後續處理
+        df.replace('', None, inplace=True)
         return df
 
     def _process_mobile_payment(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -176,7 +175,8 @@ class EsunParser(BaseCsvParser):
                 df.loc[target_index, const.COL_PAY_AMOUNT] = -amounts.loc[valid_idx]
                 
                 # 標記交易類別 (選用)
-                if const.COL_TXN_TYPE in df.columns:
-                    df.loc[target_index, const.COL_TXN_TYPE] = '紅利折抵'
+                if const.COL_TXN_TYPE not in df.columns:
+                    df[const.COL_TXN_TYPE] = ''
+                df.loc[target_index, const.COL_TXN_TYPE] = '紅利折抵'
 
         return df

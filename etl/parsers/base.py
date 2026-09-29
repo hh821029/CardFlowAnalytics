@@ -137,7 +137,7 @@ class BaseBillParser:
                 s = s.str.replace(r'^(\d+)\.0$', r'\1', regex=True)
                 s = s.str.strip()
                 df[col_name] = s
-                df[col_name] = df[col_name].replace({'nan': None, 'None': None, '': None})
+                df[col_name] = df[col_name].replace({'nan': None, 'None': None, '': None, '<NA>': None, '<na>': None})
             elif dtype == 'date':
                 if not pd.api.types.is_datetime64_any_dtype(df[col_name]):
                      df[col_name] = pd.to_datetime(df[col_name], format='mixed', errors='coerce')

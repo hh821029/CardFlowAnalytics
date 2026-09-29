@@ -28,8 +28,8 @@ class TransactionClassifier:
         if const.COL_TXN_TYPE not in df.columns:
             df[const.COL_TXN_TYPE] = ''
         
-        # 確保 NaN 被轉為空字串，以利後續判斷
-        df[const.COL_TXN_TYPE] = df[const.COL_TXN_TYPE].fillna('')
+        # 確保 NaN 或殘留無效字串被轉為空字串，以利後續判斷
+        df[const.COL_TXN_TYPE] = df[const.COL_TXN_TYPE].fillna('').replace({'<NA>': '', '<na>': '', 'nan': '', 'None': ''})
 
         # 依序執行分類標記 (一旦標記，後續步驟就不會覆蓋)
         df = self._mark_payment(df)
@@ -187,7 +187,7 @@ class TransactionClassifier:
     def _check_uncategorized(self, df: pd.DataFrame) -> pd.DataFrame:
         """檢查未分類交易並輸出異常報告"""
         if 'transaction_type' in df.columns:
-            anomalies = df[df['transaction_type'].isin(['未分類', 'Unknown', '', None])]
+            anomalies = df[df['transaction_type'].isin(['未分類', 'Unknown', '', None, '<NA>', '<na>'])]
             if not isinstance(anomalies, pd.DataFrame):
                 anomalies = pd.DataFrame(anomalies)
             if not anomalies.empty:
