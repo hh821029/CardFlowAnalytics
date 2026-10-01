@@ -80,6 +80,143 @@ class ViewsManager:
     LEFT JOIN dim_credit_card_products p ON t.card_id = p.card_id
     """
 
+    V_RAW_TRANSACTIONS_VIEW_SQL = """
+    SELECT 
+        r.transaction_id,
+        r.bank_no,
+        COALESCE(b.bank_name, '') AS bank_name,
+        COALESCE(b.bills_mapping_name, '') AS bills_mapping_name,
+        r.statement_month,
+        r.transaction_date,
+        r.posting_date,
+        r.conversion_date,
+        r.raw_merchant,
+        r.raw_currency,
+        r.raw_amount,
+        r.payment_currency,
+        r.payment_amount,
+        r.card_no,
+        r.raw_location,
+        r.raw_extra,
+        r.created_at
+    FROM raw_transactions r
+    LEFT JOIN dim_banks b ON r.bank_no = b.bank_no
+    """
+
+    RAW_TABLE_DDL_PG = """
+    CREATE TABLE IF NOT EXISTS raw_transactions (
+        transaction_id      VARCHAR(32) PRIMARY KEY,
+        bank_no             VARCHAR(3) NOT NULL,
+        statement_month     DATE NOT NULL,
+        transaction_date    DATE NOT NULL,
+        posting_date        DATE,
+        conversion_date     DATE,
+        raw_merchant        VARCHAR(500) NOT NULL,
+        raw_currency        VARCHAR(3) NOT NULL DEFAULT 'TWD',
+        raw_amount          NUMERIC(12, 2) NOT NULL,
+        payment_currency    VARCHAR(3) NOT NULL DEFAULT 'TWD',
+        payment_amount      NUMERIC(12, 2) NOT NULL,
+        card_no             VARCHAR(4),
+        raw_location        VARCHAR(10) DEFAULT 'TW',
+        raw_extra           JSONB,
+        created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """
+
+    RAW_TABLE_DDL_SQLITE = """
+    CREATE TABLE IF NOT EXISTS raw_transactions (
+        transaction_id      TEXT PRIMARY KEY,
+        bank_no             TEXT NOT NULL,
+        statement_month     TEXT NOT NULL,
+        transaction_date    TEXT NOT NULL,
+        posting_date        TEXT,
+        conversion_date     TEXT,
+        raw_merchant        TEXT NOT NULL,
+        raw_currency        TEXT NOT NULL DEFAULT 'TWD',
+        raw_amount          REAL NOT NULL,
+        payment_currency    TEXT NOT NULL DEFAULT 'TWD',
+        payment_amount      REAL NOT NULL,
+        card_no             TEXT,
+        raw_location        TEXT DEFAULT 'TW',
+        raw_extra           TEXT,
+        created_at          TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime'))
+    );
+    """
+
+    @classmethod
+    def ensure_raw_schema(
+        cls,
+        db_backend: Optional[str] = None,
+        db_path: Optional[str] = None,
+        engine=None,
+        conn=None,
+        loader: Optional[Any] = None
+    ) -> bool:
+        """
+        確保 Stage 1 原始事實表 raw_transactions、索引與 v_raw_transactions 檢視表已建立
+        """
+        backend = getattr(loader, 'backend', None) or resolve_db_backend(db_backend)
+        target_path = getattr(loader, 'db_path', None) or db_path
+
+        if backend == 'sqlite':
+            path = target_path or getattr(const, 'DB_PATH', 'data/credit_card.db')
+            should_close = False
+            if conn is None:
+                os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+                conn = sqlite3.connect(path, timeout=30.0)
+                should_close = True
+            try:
+                cursor = conn.cursor()
+                cursor.execute(cls.RAW_TABLE_DDL_SQLITE)
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_txns_bank_month ON raw_transactions (bank_no, statement_month);")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_txns_date ON raw_transactions (transaction_date);")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_raw_txns_card_no ON raw_transactions (card_no);")
+
+                # 建立或覆蓋 v_raw_transactions 視圖
+                cursor.execute("SELECT type FROM sqlite_master WHERE name='v_raw_transactions'")
+                row = cursor.fetchone()
+                if row:
+                    if row[0] == 'table':
+                        cursor.execute("DROP TABLE IF EXISTS v_raw_transactions")
+                    else:
+                        cursor.execute("DROP VIEW IF EXISTS v_raw_transactions")
+                cursor.execute(f"CREATE VIEW v_raw_transactions AS {cls.V_RAW_TRANSACTIONS_VIEW_SQL}")
+
+                conn.commit()
+                logger.info("✅ SQLite [raw_transactions] 表與 [v_raw_transactions] 視圖初始化完成")
+                return True
+            except Exception as e:
+                logger.error(f"❌ 建立 SQLite raw_transactions 表或視圖失敗: {e}", exc_info=True)
+                return False
+            finally:
+                if should_close and conn:
+                    conn.close()
+        else:
+            if engine is None:
+                try:
+                    from database.loaders.db_config import get_postgres_engine
+                    engine = get_postgres_engine()
+                except Exception as e:
+                    logger.warning(f"⚠️ 無法取得 PostgreSQL engine: {e}")
+                    return False
+            if engine is None:
+                return False
+
+            try:
+                from sqlalchemy import text
+                with engine.connect() as pg_conn:
+                    pg_conn.execute(text(cls.RAW_TABLE_DDL_PG))
+                    pg_conn.execute(text("CREATE INDEX IF NOT EXISTS idx_raw_txns_bank_month ON raw_transactions (bank_no, statement_month);"))
+                    pg_conn.execute(text("CREATE INDEX IF NOT EXISTS idx_raw_txns_date ON raw_transactions (transaction_date);"))
+                    pg_conn.execute(text("CREATE INDEX IF NOT EXISTS idx_raw_txns_card_no ON raw_transactions (card_no);"))
+                    pg_conn.execute(text(f"CREATE OR REPLACE VIEW v_raw_transactions AS {cls.V_RAW_TRANSACTIONS_VIEW_SQL}"))
+                    pg_conn.commit()
+                logger.info("✅ PostgreSQL [raw_transactions] 表與 [v_raw_transactions] 視圖初始化完成")
+                return True
+            except Exception as e:
+                logger.error(f"❌ 建立 PostgreSQL raw_transactions 表或視圖失敗: {e}", exc_info=True)
+                return False
+
     @classmethod
     def create_or_replace_views(
         cls, 
@@ -144,6 +281,19 @@ class ViewsManager:
             cursor.execute(f"CREATE VIEW rfm_transactions AS {cls.RFM_VIEW_SQL}")
             logger.info("✅ SQLite 視圖 [rfm_transactions] 建立/更新成功")
 
+            # 3. 若 raw_transactions 存在，建立/覆蓋 v_raw_transactions
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='raw_transactions'")
+            if cursor.fetchone():
+                cursor.execute("SELECT type FROM sqlite_master WHERE name='v_raw_transactions'")
+                row_raw = cursor.fetchone()
+                if row_raw:
+                    if row_raw[0] == 'table':
+                        cursor.execute("DROP TABLE IF EXISTS v_raw_transactions")
+                    else:
+                        cursor.execute("DROP VIEW IF EXISTS v_raw_transactions")
+                cursor.execute(f"CREATE VIEW v_raw_transactions AS {cls.V_RAW_TRANSACTIONS_VIEW_SQL}")
+                logger.info("✅ SQLite 視圖 [v_raw_transactions] 建立/更新成功")
+
             conn.commit()
             return True
         except Exception as e:
@@ -176,6 +326,12 @@ class ViewsManager:
                 # 建立或覆蓋 rfm_transactions
                 conn.execute(text(f"CREATE OR REPLACE VIEW rfm_transactions AS {cls.RFM_VIEW_SQL}"))
                 logger.info("✅ PostgreSQL 視圖 [rfm_transactions] 建立/更新成功")
+
+                # 若 raw_transactions 存在，建立或覆蓋 v_raw_transactions
+                check_raw = conn.execute(text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'raw_transactions')")).scalar()
+                if check_raw:
+                    conn.execute(text(f"CREATE OR REPLACE VIEW v_raw_transactions AS {cls.V_RAW_TRANSACTIONS_VIEW_SQL}"))
+                    logger.info("✅ PostgreSQL 視圖 [v_raw_transactions] 建立/更新成功")
 
                 conn.commit()
             return True
