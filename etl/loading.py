@@ -76,7 +76,15 @@ class TransactionIdGenerator:
                 df_work[col] = None
 
         df_work['_seq'] = df_work.groupby(self.group_cols, dropna=False).cumcount().astype(str)
-        df_work['transaction_id'] = df_work.apply(self._generate_transaction_id, axis=1)
+        
+        # 若已有非空 transaction_id 且每列皆具備，保留 Stage 1 確立之主鍵；否則動態生成
+        has_existing_id = (
+            'transaction_id' in df_work.columns and
+            df_work['transaction_id'].notna().all() and
+            (df_work['transaction_id'].astype(str).str.strip() != '').all()
+        )
+        if not has_existing_id:
+            df_work['transaction_id'] = df_work.apply(self._generate_transaction_id, axis=1)
 
         # 2. 移除重複交易 (Deduplication)
         duplicated_mask = df_work.duplicated(subset=['transaction_id'], keep='first')
@@ -142,7 +150,12 @@ class DBColMapper:
 
     def map_all_transactions(self, df: pd.DataFrame) -> pd.DataFrame:
         """產出準備寫入 all_transactions 資料表的 DataFrame"""
-        return self._apply_mapping(df, self.all_txn_mapping)
+        mapped = self._apply_mapping(df, self.all_txn_mapping)
+        # 確保 3NF 所有定義的 SQL 欄位皆存在於 DataFrame (缺者補 None)，保證資料表 Schema 完整並防止 View 崩潰
+        for sql_col in self.all_txn_mapping.values():
+            if sql_col not in mapped.columns:
+                mapped[sql_col] = None
+        return mapped
 
     def map_rfm_transactions(self, df: pd.DataFrame) -> pd.DataFrame:
         """產出 RFM 分析資料表 DataFrame (以 transaction_id 為外鍵)"""
@@ -323,7 +336,8 @@ def load_data(
     final_df: pd.DataFrame, 
     force: bool = False, 
     db_backend: Optional[str] = None,
-    output_dir: Optional[str] = None
+    output_dir: Optional[str] = None,
+    db_path: Optional[str] = None
 ) -> bool:
     """
     執行 ETL 最終寫入 (STEP 3 & STEP 4)：
@@ -370,9 +384,9 @@ def load_data(
 
             # 2. 取得 DB Loader
             if get_db_loader is not None:
-                loader = get_db_loader(db_backend=effective_backend)
+                loader = get_db_loader(db_backend=effective_backend, db_path=db_path)
             elif SQLiteLoader is not None:
-                loader = SQLiteLoader(db_path=const.DB_PATH)
+                loader = SQLiteLoader(db_path=db_path or const.DB_PATH)
             else:
                 raise ImportError("無法取得任何有效的 DB Loader")
 
@@ -414,9 +428,10 @@ def load_data(
             # 4. 建立 3NF 複合索引 (bank_no, card_id) 與 (transaction_date)
             if ViewsManager is not None:
                 try:
-                    ViewsManager.create_indices(loader=loader)
+                    ViewsManager.create_indices(loader=loader, db_path=db_path)
+                    ViewsManager.create_or_replace_views(loader=loader, db_path=db_path)
                 except Exception as idx_err:
-                    logger.warning(f"⚠️ 建立 3NF 複合索引略過: {idx_err}")
+                    logger.warning(f"⚠️ 建立 3NF 複合索引或視圖略過: {idx_err}")
 
         else:
             logger.warning("⚠️ 載入器缺失，略過資料庫寫入。")

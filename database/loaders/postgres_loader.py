@@ -16,12 +16,15 @@ try:
 except ImportError:
     HAS_SQLALCHEMY = False
 
+import numpy as np
+
 try:
     import psycopg2
-    from psycopg2.extras import execute_values
+    from psycopg2.extras import execute_values, Json
     HAS_PSYCOPG2 = True
 except ImportError:
     HAS_PSYCOPG2 = False
+
 
 
 from .db_config import get_postgres_url, get_postgres_engine
@@ -194,8 +197,19 @@ class PostgresLoader(BaseDBLoader):
                 ON CONFLICT ("{pk_col}") DO UPDATE SET {update_str}
             """
             
-            values = [tuple(x) for x in df.to_numpy()]
+            values = []
+            for row in df.itertuples(index=False):
+                row_vals = []
+                for val in row:
+                    if isinstance(val, dict):
+                        row_vals.append(Json(val))
+                    elif isinstance(val, (float, np.floating)) and pd.isna(val):
+                        row_vals.append(None)
+                    else:
+                        row_vals.append(val)
+                values.append(tuple(row_vals))
             execute_values(cursor, sql, values)
+
             raw_conn.commit()
             cursor.close()
         finally:

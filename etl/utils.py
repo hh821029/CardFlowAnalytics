@@ -25,6 +25,8 @@ class StandardColumns:
         TC.TXN_TYPE, TC.PAYMENT_PROCESS, TC.EC_PLATFORM, TC.VPC_TYPE,
         TC.CURRENCY, TC.CURR_AMOUNT, TC.PAY_CURR, TC.PAY_AMOUNT
     ]
+
+
     ALL_TRANSACTIONS: List[str] = [m.col_name for m in ALL_TRANSACTIONS_MEMBERS]
 
     # 2. RFM 分析專用表 / 視圖 (rfm_transactions)

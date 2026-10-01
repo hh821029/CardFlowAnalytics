@@ -404,6 +404,17 @@ def get_all_banks() -> list:
 def clear_bank_cache():
     """清除銀行清單快取 (當設定檔有變更時呼叫)"""
     get_all_banks.cache_clear()
+def get_bank_by_no(bank_no: str) -> Optional[dict]:
+    """依銀行 3 碼代號搜尋對應銀行字典"""
+    if not bank_no:
+        return None
+    bno_str = str(bank_no).strip().zfill(3)
+    for bank in get_all_banks():
+        if str(bank.get('bank_no', '')).strip().zfill(3) == bno_str:
+            return bank
+    return None
+
+
 def get_bank_by_keyword(keyword: str) -> Optional[dict]:
     """取代原 Bank.from_keyword()，依關鍵字搜尋對應銀行字典"""
     if not keyword:
@@ -414,6 +425,7 @@ def get_bank_by_keyword(keyword: str) -> Optional[dict]:
             if k.upper() in kw_upper:
                 return bank
     return None
+
 
 
 class RewardType(Enum):

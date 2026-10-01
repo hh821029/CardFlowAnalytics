@@ -80,6 +80,8 @@ class ViewsManager:
     LEFT JOIN dim_credit_card_products p ON t.card_id = p.card_id
     """
 
+
+
     V_RAW_TRANSACTIONS_VIEW_SQL = """
     SELECT 
         r.transaction_id,
@@ -257,29 +259,39 @@ class ViewsManager:
                 logger.debug("ℹ️ all_transactions 實體表尚未建立，略過視圖建立。")
                 return False
 
+            # 檢查是否有 dim_banks 維度表
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dim_banks'")
+            has_dim_banks = bool(cursor.fetchone())
+
             # 1. 重建 rewards_transactions
             cursor.execute("SELECT type FROM sqlite_master WHERE name='rewards_transactions'")
             row = cursor.fetchone()
-            if row:
-                if row[0] == 'table':
-                    cursor.execute("DROP TABLE IF EXISTS rewards_transactions")
-                else:
-                    cursor.execute("DROP VIEW IF EXISTS rewards_transactions")
-            
-            cursor.execute(f"CREATE VIEW rewards_transactions AS {cls.REWARDS_VIEW_SQL}")
-            logger.info("✅ SQLite 視圖 [rewards_transactions] 建立/更新成功")
+            if row and row[0] == 'table' and not has_dim_banks:
+                logger.debug("ℹ️ 資料表 [rewards_transactions] 為實體表且缺少 dim_banks，保留實體表。")
+            else:
+                if row:
+                    if row[0] == 'table':
+                        cursor.execute("DROP TABLE IF EXISTS rewards_transactions")
+                    else:
+                        cursor.execute("DROP VIEW IF EXISTS rewards_transactions")
+                cursor.execute(f"CREATE VIEW rewards_transactions AS {cls.REWARDS_VIEW_SQL}")
+                logger.info("✅ SQLite 視圖 [rewards_transactions] 建立/更新成功")
 
             # 2. 重建 rfm_transactions
             cursor.execute("SELECT type FROM sqlite_master WHERE name='rfm_transactions'")
             row_rfm = cursor.fetchone()
-            if row_rfm:
-                if row_rfm[0] == 'table':
-                    cursor.execute("DROP TABLE IF EXISTS rfm_transactions")
-                else:
-                    cursor.execute("DROP VIEW IF EXISTS rfm_transactions")
+            if row_rfm and row_rfm[0] == 'table' and not has_dim_banks:
+                logger.debug("ℹ️ 資料表 [rfm_transactions] 為實體表且缺少 dim_banks，保留實體表。")
+            else:
+                if row_rfm:
+                    if row_rfm[0] == 'table':
+                        cursor.execute("DROP TABLE IF EXISTS rfm_transactions")
+                    else:
+                        cursor.execute("DROP VIEW IF EXISTS rfm_transactions")
+                cursor.execute(f"CREATE VIEW rfm_transactions AS {cls.RFM_VIEW_SQL}")
+                logger.info("✅ SQLite 視圖 [rfm_transactions] 建立/更新成功")
 
-            cursor.execute(f"CREATE VIEW rfm_transactions AS {cls.RFM_VIEW_SQL}")
-            logger.info("✅ SQLite 視圖 [rfm_transactions] 建立/更新成功")
+
 
             # 3. 若 raw_transactions 存在，建立/覆蓋 v_raw_transactions
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='raw_transactions'")
@@ -319,13 +331,22 @@ class ViewsManager:
         try:
             from sqlalchemy import text
             with engine.connect() as conn:
-                # 建立或覆蓋 rewards_transactions
-                conn.execute(text(f"CREATE OR REPLACE VIEW rewards_transactions AS {cls.REWARDS_VIEW_SQL}"))
-                logger.info("✅ PostgreSQL 視圖 [rewards_transactions] 建立/更新成功")
+                # 檢查若 rewards_transactions 為實體表 (BASE TABLE)，則略過建立視圖避免命名衝突
+                check_rewards = conn.execute(text("SELECT table_type FROM information_schema.tables WHERE table_name = 'rewards_transactions'")).scalar()
+                if check_rewards == 'VIEW' or check_rewards is None:
+                    conn.execute(text(f"CREATE OR REPLACE VIEW rewards_transactions AS {cls.REWARDS_VIEW_SQL}"))
+                    logger.info("✅ PostgreSQL 視圖 [rewards_transactions] 建立/更新成功")
+                else:
+                    logger.info("ℹ️ 資料表 [rewards_transactions] 已為實體表，保留實體資料結構")
 
-                # 建立或覆蓋 rfm_transactions
-                conn.execute(text(f"CREATE OR REPLACE VIEW rfm_transactions AS {cls.RFM_VIEW_SQL}"))
-                logger.info("✅ PostgreSQL 視圖 [rfm_transactions] 建立/更新成功")
+                # 檢查若 rfm_transactions 為實體表 (BASE TABLE)，則略過建立視圖避免命名衝突
+                check_rfm = conn.execute(text("SELECT table_type FROM information_schema.tables WHERE table_name = 'rfm_transactions'")).scalar()
+                if check_rfm == 'VIEW' or check_rfm is None:
+                    conn.execute(text(f"CREATE OR REPLACE VIEW rfm_transactions AS {cls.RFM_VIEW_SQL}"))
+                    logger.info("✅ PostgreSQL 視圖 [rfm_transactions] 建立/更新成功")
+                else:
+                    logger.info("ℹ️ 資料表 [rfm_transactions] 已為實體表，保留實體資料結構")
+
 
                 # 若 raw_transactions 存在，建立或覆蓋 v_raw_transactions
                 check_raw = conn.execute(text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'raw_transactions')")).scalar()

@@ -4,9 +4,9 @@ import os
 import sys
 import time
 
-# 引入核心 ETL 與 Analytics 分析 API
 import const
-from etl.etl_api import run_etl_pipeline
+# 引入核心 ETL 與 Analytics 分析 API
+from etl.etl_api import run_etl_pipeline, run_stage2_pipeline
 from analytics.api import run_analytics, sync_rewards_data_mart
 from analytics.common.transaction_query import query_transactions_modular
 from profiles.profiles_api import (
@@ -81,6 +81,7 @@ def show_menu():
     print("  【📦 帳單 ETL 入庫】")
     print("    1.   掃描原始檔案並產生/更新資料庫 (去重檢查)")
     print("    1F.  強制全量重新解析所有帳單檔案")
+    print("    1R.  🔄 免重掃檔案，直接自資料庫重跑商業清洗 (Stage 2)")
     print("  【⚙️ 設定檔與維度表同步 (SSOT)】")
     print("    2.   執行全量設定同步 (All Configs)")
     print("    2A.  🏪 特約商家資料同步")
@@ -178,12 +179,14 @@ def run_cli_web_server():
 if __name__ == "__main__":
     while True:
         show_menu()
-        choice = input("請輸入選項 (例如 1, 1F, 2, 2A, 3, 4, 5, 6, Q): ").strip().upper()
+        choice = input("請輸入選項 (例如 1, 1F, 1R, 2, 2A, 3, 4, 5, 6, Q): ").strip().upper()
         
         if choice == '1':
             safe_execute("ETL 流程 (產生資料庫)", run_etl_pipeline)
         elif choice == '1F':
             safe_execute("ETL 流程 (強制全量重新解析)", lambda: run_etl_pipeline(force=True))
+        elif choice == '1R':
+            safe_execute("Stage 2 商業清洗 (免重掃檔案)", lambda: run_stage2_pipeline(force=True), require_db=True)
         elif choice == '2':
             safe_execute("全量設定檔同步 (All Configs)", run_all_config_sync)
         elif choice == '2A':

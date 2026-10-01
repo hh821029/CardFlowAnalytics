@@ -10,6 +10,7 @@ import re
 from typing import Optional, Dict, Any, List, Tuple
 import logging
 import pandas as pd
+import numpy as np
 from pydantic import (
     BaseModel,
     Field,
@@ -112,7 +113,7 @@ class RawTransactionSchema(BaseModel):
         description="原始交易幣別 (如 TWD, USD, JPY)"
     )
     raw_amount: Decimal = Field(
-        ...,
+        default=Decimal(0),
         validation_alias=AliasChoices('raw_amount', 'currency_amount', 'amount'),
         description="原始交易金額"
     )
@@ -123,7 +124,7 @@ class RawTransactionSchema(BaseModel):
         description="應繳折算幣別 (如 TWD, USD)"
     )
     payment_amount: Decimal = Field(
-        ...,
+        default=Decimal(0),
         validation_alias=AliasChoices('payment_amount', 'pay_amount'),
         description="應繳折算金額"
     )
@@ -137,9 +138,9 @@ class RawTransactionSchema(BaseModel):
     )
     raw_location: Optional[str] = Field(
         default="TW",
-        max_length=10,
-        validation_alias=AliasChoices('raw_location', 'merchant_location', 'location'),
-        description="原始消費國別代碼 (如 TW, JP, US)"
+        max_length=100,
+        validation_alias=AliasChoices('raw_location', 'merchant_location', 'location', 'consumption_place'),
+        description="原始消費國別或地點代碼 (如 TW, JP, US, JPN CHIYODA-KU)"
     )
 
     # 6. 特殊備份與稽核欄位
@@ -148,13 +149,51 @@ class RawTransactionSchema(BaseModel):
         description="銀行特有欄位備份 (如行動支付註記、專屬備註)"
     )
     created_at: Optional[datetime] = Field(
-        default=None,
+        default_factory=datetime.now,
         description="建立時間"
     )
 
     # ==========================================
     # Pydantic V2 欄位驗證與防禦消毒器
     # ==========================================
+
+    @model_validator(mode='before')
+    @classmethod
+    def ensure_amounts_fallback(cls, data: Any) -> Any:
+        """雙向金額互補：若原始金額或應繳金額其中一者缺失，以另一者自動補齊；若皆缺失則設為 0"""
+        if isinstance(data, dict):
+            r_amt = data.get('raw_amount') if data.get('raw_amount') is not None else data.get('currency_amount')
+            p_amt = data.get('payment_amount') if data.get('payment_amount') is not None else (data.get('pay_amount') if data.get('pay_amount') is not None else data.get('amount'))
+
+            def is_invalid(val):
+                if val is None:
+                    return True
+                if isinstance(val, (float, np.floating)) and pd.isna(val):
+                    return True
+                s = str(val).strip().lower()
+                return s in ['', 'nan', '<na>', 'none', 'nat', 'null']
+
+            r_inv = is_invalid(r_amt)
+            p_inv = is_invalid(p_amt)
+
+            if r_inv and not p_inv:
+                data['raw_amount'] = p_amt
+            elif p_inv and not r_inv:
+                data['payment_amount'] = r_amt
+                data['pay_amount'] = r_amt
+            elif r_inv and p_inv:
+                data['raw_amount'] = 0
+                data['payment_amount'] = 0
+                data['pay_amount'] = 0
+
+            # 幣別防禦補全
+            if is_invalid(data.get('raw_currency')) and is_invalid(data.get('currency_type')):
+                data['raw_currency'] = 'TWD'
+            if is_invalid(data.get('payment_currency')) and is_invalid(data.get('pay_currency')):
+                data['payment_currency'] = 'TWD'
+        return data
+
+
 
     @field_validator('*', mode='before')
     @classmethod
@@ -311,16 +350,31 @@ def validate_raw_dataframe(
         df_working['statement_month'] = default_statement_month
 
     # 若缺少 raw_amount 但有 payment_amount，進行互補
-    if 'raw_amount' not in df_working.columns and 'currency_amount' not in df_working.columns:
-        if 'payment_amount' in df_working.columns:
-            df_working['raw_amount'] = df_working['payment_amount']
-        elif 'amount' in df_working.columns:
-            df_working['raw_amount'] = df_working['amount']
+    p_col = df_working['payment_amount'] if 'payment_amount' in df_working.columns else df_working.get('amount')
+    if 'raw_amount' in df_working.columns and p_col is not None:
+        df_working['raw_amount'] = df_working['raw_amount'].combine_first(p_col)
+    elif 'currency_amount' in df_working.columns and p_col is not None:
+        df_working['raw_amount'] = df_working['currency_amount'].combine_first(p_col)
+    elif p_col is not None:
+        df_working['raw_amount'] = p_col
 
-    if 'payment_amount' not in df_working.columns and 'amount' in df_working.columns:
-        df_working['payment_amount'] = df_working['amount']
+    if 'payment_amount' in df_working.columns and p_col is not None:
+        df_working['payment_amount'] = df_working['payment_amount'].combine_first(p_col)
+    elif p_col is not None:
+        df_working['payment_amount'] = p_col
 
     # 2. 逐列轉換與驗證
+    STANDARD_RAW_FIELDS = {
+        'transaction_id', 'bank_no', 'statement_month', 'transaction_date',
+        'posting_date', 'raw_merchant', 'raw_currency', 'raw_amount',
+        'payment_currency', 'payment_amount', 'card_no', 'raw_location',
+        'raw_extra', 'created_at',
+        # 各種常見別名
+        'merchant', 'merchant_name', 'currency_type', 'currency',
+        'currency_amount', 'amount', 'pay_currency', 'pay_amount',
+        'card_last_4', 'merchant_location', 'location', 'tx_date'
+    }
+
     records = df_working.to_dict(orient='records')
     validated_schemas: List[RawTransactionSchema] = []
     clean_records: List[Dict[str, Any]] = []
@@ -354,6 +408,26 @@ def validate_raw_dataframe(
                     seq=seq
                 )
 
+            # 收集特有欄位進入 raw_extra (如行動支付註記、vpc_type 等)
+            extra_collector = {}
+            if isinstance(row.get('raw_extra'), dict):
+                extra_collector.update(row['raw_extra'])
+
+            for k, v in row.items():
+                if k not in STANDARD_RAW_FIELDS and not pd.isna(v) and v is not None and v != "":
+                    if isinstance(v, (datetime, date, pd.Timestamp)):
+                        extra_collector[k] = v.strftime('%Y-%m-%d')
+                    elif isinstance(v, Decimal):
+                        extra_collector[k] = float(v)
+                    elif isinstance(v, (np.integer, np.int64)):
+                        extra_collector[k] = int(v)
+                    elif isinstance(v, (np.floating, np.float64)):
+                        extra_collector[k] = float(v)
+                    else:
+                        extra_collector[k] = str(v)
+            if extra_collector:
+                row['raw_extra'] = extra_collector
+
             # 實例化 Pydantic 模型
             schema_inst = RawTransactionSchema.model_validate(row)
             validated_schemas.append(schema_inst)
@@ -363,3 +437,4 @@ def validate_raw_dataframe(
 
     clean_df = pd.DataFrame(clean_records)
     return validated_schemas, clean_df
+

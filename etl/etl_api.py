@@ -1,7 +1,7 @@
 # etl/etl_api.py
 """
 ETL 模組統一對外調度介面 (Service-Level Dispatcher / Facade API)
-負責協調 Extract (extraction.py)、Transform (transformation.py) 與 Load (loading.py) 三大階段 Pipeline
+負責協調 Stage 1 Extract/Ingestion、Stage 2 Refinement 與 Load 三大階段 Pipeline
 """
 import os
 import pandas as pd
@@ -11,9 +11,9 @@ from typing import Optional
 # 1. 引入核心配置與常量
 import const
 
-# 2. 引入 Extract、Transform 與 Load 階段模組
+# 2. 引入 Extract、Refine 與 Load 階段模組
 from etl.extraction import extract_raw_data
-from etl.transformation import transform_data
+from etl.refinement import refine_transactions, run_stage2_pipeline
 from etl.loading import load_data
 from etl.utils import save_anomaly_report
 
@@ -29,10 +29,11 @@ logger = logging.getLogger(__name__)
 # ==========================================
 def run_etl_pipeline(force: bool = True, input_dir: Optional[str] = None, db_backend: Optional[str] = None) -> bool:
     """
-    執行獨立且完整的 ETL Pipeline:
-    1. Extract: 掃描帳單檔案、SHA-256 去重比對、分派 Parser 提取原始資料 (etl.extraction)
-    2. Transform: 調用 DataRefiner 進行商家正規化、前綴拆分與交易分類 (etl.transformation)
-    3. Load: 標準欄位收斂、型態執法、流水號生成與去重、存入 CSV 與 Database (etl.loading)
+    執行完整雙階式 ETL Pipeline:
+    1. Extract: 掃描帳單檔案、去重比對、分派 Parser 提取原始資料 (etl.extraction)
+    2. Stage 1 Ingestion: 透過 Pydantic V2 驗證並同步寫入 raw_transactions 表
+    3. Stage 2 Refine: 調用 refine_transactions 進行卡片歸戶、商家正規化與交易分類 (etl.refinement)
+    4. Load: 標準欄位收斂、型態執法、流水號生成與去重、存入 CSV 與 Database (etl.loading)
     """
     logger.info(f"🚀 ETL 流程啟動 (獨立模組執行)... {'(強制全量重新解析)' if force else '(啟用檔案去重檢查)'}")
     
@@ -45,10 +46,26 @@ def run_etl_pipeline(force: bool = True, input_dir: Optional[str] = None, db_bac
             logger.info("ℹ️ 無新資料需要處理。")
             return True
 
-        # --- STEP 2: Transform (清洗與商業邏輯) ---
-        final_df = transform_data(merged_df)
+        # --- STEP 1.5: Stage 1 Raw Bronze 表同步 (保留原始事實不可竄改) ---
+        try:
+            from etl.schemas.raw_transaction import validate_raw_dataframe
+            from database.loaders.views_manager import ViewsManager
+            from database.loaders.db_factory import get_db_loader
 
-        # --- STEP 3 & 4: Load (欄位收斂、去重、入庫) ---
+            ViewsManager.ensure_raw_schema(db_backend=db_backend)
+            raw_schemas, raw_clean_df = validate_raw_dataframe(merged_df)
+            if not raw_clean_df.empty:
+                loader = get_db_loader(db_backend=db_backend)
+                loader.load(raw_clean_df, table_name='raw_transactions', mode='append')
+                logger.info(f"💾 [Stage 1 Bronze] 已同步入庫 {len(raw_clean_df)} 筆原始資料至 raw_transactions")
+        except Exception as raw_e:
+            logger.warning(f"⚠️ [Stage 1 Bronze] 寫入 raw_transactions 略過或失敗 (非致命): {raw_e}")
+
+        # --- STEP 2: Transform (Stage 2 商業特徵清洗) ---
+        target_raw_df = raw_clean_df if (raw_clean_df is not None and not raw_clean_df.empty) else merged_df
+        final_df = refine_transactions(target_raw_df)
+
+        # --- STEP 3 & 4: Load (欄位收斂、去重、入庫 all_transactions 與更新 Views) ---
         success = load_data(
             final_df=final_df,
             force=force,
@@ -63,3 +80,6 @@ def run_etl_pipeline(force: bool = True, input_dir: Optional[str] = None, db_bac
         if merged_df is not None:
             save_anomaly_report(merged_df, 'crash_dump_global.csv', "全域流程崩潰，已嘗試救援資料")
         return False
+
+
+__all__ = ["run_etl_pipeline", "run_stage2_pipeline", "refine_transactions"]
