@@ -1,12 +1,12 @@
-# etl/etl_extraction.py
+# etl/extraction.py
 """
 ETL 模組 - Extract (資料讀取、去重與解析器分派)
-零邏輯變更說明：自 etl_api.py 完全等價遷移 parser 分派與檔案解析邏輯
+支援逐檔串流提取 (extract_raw_data_stream) 與單檔錯誤隔離 (extract_file)
 """
 import os
 import pandas as pd
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Generator
 
 import const
 from etl.parsers.sinopac import SinopacBillParser
@@ -117,127 +117,251 @@ def get_parser_mapping() -> Dict[str, Any]:
 
 
 # ==========================================
-# Extract 階段進入點
+# Extract 階段進入點 (單檔處理與串流產生器)
 # ==========================================
-def extract_raw_data(force: bool = True, input_dir: Optional[str] = None) -> Optional[pd.DataFrame]:
+def extract_file(
+    filepath: str,
+    force: bool = True,
+    registry_mgr: Optional[Any] = None
+) -> Dict[str, Any]:
     """
-    掃描資料夾中的帳單檔案並進行解構與批次讀取：
-    1. 使用 FileRegistryManager 進行去重檢查 (若 force=False)
-    2. 自動為每個檔案指派 Parser 並調用 parse() 方法
-    3. 整合多檔案資料為單一 Raw DataFrame
-    """
-    all_raw_dfs: List[pd.DataFrame] = []
-    registry_mgr = FileRegistryManager() if FileRegistryManager else None
+    單一帳單檔案解構與安全讀取核心函式 (Per-File Extraction):
+    1. 計算檔案雜湊 (SHA-256) 與大小
+    2. 比對 FileRegistry (若 force=False 且已成功入庫則標記 SKIPPED)
+    3. 自動分派對應 Parser 進行安全解析
+    4. 補齊標準維度欄位 (bank_no, bank_name)
+    5. 攔截解析例外 (InvalidBillFormatError, MaliciousPayloadDetectedError 等)
 
-    target_dir = input_dir or (const.PROFILE_DATA_DIR if (os.path.exists(const.PROFILE_DATA_DIR) and len(os.listdir(const.PROFILE_DATA_DIR)) > 0) else const.DATA_DIR)
-    
+    回傳字典結構:
+    {
+        'filepath': str,
+        'filename': str,
+        'file_size': int,
+        'file_hash': Optional[str],
+        'bank_id': Optional[str],
+        'bank_no': Optional[str],
+        'bank_name': Optional[str],
+        'df': Optional[pd.DataFrame],
+        'record_count': int,
+        'status': 'SUCCESS' | 'SKIPPED' | 'FAILED',
+        'error': Optional[str]
+    }
+    """
+    filename = os.path.basename(filepath)
+    file_size = os.path.getsize(filepath) if os.path.exists(filepath) else 0
+    file_hash = None
+
+    if registry_mgr and os.path.exists(filepath):
+        file_hash = registry_mgr.calculate_file_hash(filepath)
+        if not force and registry_mgr.is_file_ingested(file_hash):
+            logger.info(f"  ⏭️ [SKIP] 檔案已成功解析過 ({file_hash[:8]}...): {filename}")
+            return {
+                'filepath': filepath,
+                'filename': filename,
+                'file_size': file_size,
+                'file_hash': file_hash,
+                'bank_id': None,
+                'bank_no': None,
+                'bank_name': None,
+                'df': None,
+                'record_count': 0,
+                'status': 'SKIPPED',
+                'error': None
+            }
+
+    bank_info = get_bank_info(filename)
+    parser = get_parser(filename)
+    bank_id = bank_info.get('bank_id') if bank_info else None
+    bills_mapping_name = bank_info.get('bills_mapping_name') if bank_info else None
+    official_bank_name = bank_info.get('bank_name') if bank_info else None
+    target_bank_name = bills_mapping_name or official_bank_name or bank_id
+    target_bank_no = bank_info.get('bank_no') if bank_info else None
+    if target_bank_no:
+        target_bank_no = str(target_bank_no).zfill(3)
+
+    if not parser:
+        if not bank_info and filename.lower().endswith(('.csv', '.xls', '.xlsx', '.pdf', '.html')):
+            logger.warning(f"  ⚠️ [UnmappedBank] 查無可映射銀行代碼: {filename}")
+        else:
+            logger.debug(f"  ⏭️ 跳過不支援或未定義 Parser 的檔案: {filename}")
+        return {
+            'filepath': filepath,
+            'filename': filename,
+            'file_size': file_size,
+            'file_hash': file_hash,
+            'bank_id': bank_id,
+            'bank_no': target_bank_no,
+            'bank_name': target_bank_name,
+            'df': None,
+            'record_count': 0,
+            'status': 'SKIPPED',
+            'error': 'Unmapped bank or unsupported file type'
+        }
+
+    try:
+        logger.info(f"處理中: {filename} ...")
+        df = parser.parse(filepath)
+        if df is not None and not df.empty:
+            if const.COL_BANK_NO not in df.columns or df[const.COL_BANK_NO].isna().all() or (df[const.COL_BANK_NO] == '').all():
+                if target_bank_no:
+                    df[const.COL_BANK_NO] = target_bank_no
+            elif target_bank_no:
+                df[const.COL_BANK_NO] = df[const.COL_BANK_NO].replace('', target_bank_no).fillna(target_bank_no)
+
+            if 'bank_name' not in df.columns or df['bank_name'].isna().all() or (df['bank_name'] == '').all():
+                df['bank_name'] = target_bank_name
+            else:
+                df['bank_name'] = df['bank_name'].replace('', target_bank_name).fillna(target_bank_name)
+
+            record_cnt = len(df)
+            logger.info(f"  ✅ 解析成功 ({record_cnt} 筆): {filename}")
+            return {
+                'filepath': filepath,
+                'filename': filename,
+                'file_size': file_size,
+                'file_hash': file_hash,
+                'bank_id': bank_id,
+                'bank_no': target_bank_no,
+                'bank_name': target_bank_name,
+                'df': df,
+                'record_count': record_cnt,
+                'status': 'SUCCESS',
+                'error': None
+            }
+        else:
+            logger.warning(f"  ⚠️ 解析成功但無資料: {filename}")
+            return {
+                'filepath': filepath,
+                'filename': filename,
+                'file_size': file_size,
+                'file_hash': file_hash,
+                'bank_id': bank_id,
+                'bank_no': target_bank_no,
+                'bank_name': target_bank_name,
+                'df': pd.DataFrame() if df is None else df,
+                'record_count': 0,
+                'status': 'SUCCESS',
+                'error': None
+            }
+
+    except InvalidBillFormatError as e:
+        logger.warning(f"  ⚠️ [InvalidBillFormat] 略過格式錯位或空檔案 {filename}: {e}")
+        return {
+            'filepath': filepath,
+            'filename': filename,
+            'file_size': file_size,
+            'file_hash': file_hash,
+            'bank_id': bank_id,
+            'bank_no': target_bank_no,
+            'bank_name': target_bank_name,
+            'df': None,
+            'record_count': 0,
+            'status': 'FAILED',
+            'error': str(e)
+        }
+    except MaliciousPayloadDetectedError as e:
+        logger.error(f"  🚨 [SecurityBlock] 攔截並阻斷惡意帳單攻擊 {filename}: {e}")
+        return {
+            'filepath': filepath,
+            'filename': filename,
+            'file_size': file_size,
+            'file_hash': file_hash,
+            'bank_id': bank_id,
+            'bank_no': target_bank_no,
+            'bank_name': target_bank_name,
+            'df': None,
+            'record_count': 0,
+            'status': 'FAILED',
+            'error': str(e)
+        }
+    except Exception as e:
+        logger.error(f"  ❌ 解析失敗 {filename}: {str(e)}")
+        return {
+            'filepath': filepath,
+            'filename': filename,
+            'file_size': file_size,
+            'file_hash': file_hash,
+            'bank_id': bank_id,
+            'bank_no': target_bank_no,
+            'bank_name': target_bank_name,
+            'df': None,
+            'record_count': 0,
+            'status': 'FAILED',
+            'error': str(e)
+        }
+
+
+def extract_raw_data_stream(
+    force: bool = True,
+    input_dir: Optional[str] = None,
+    registry_mgr: Optional[Any] = None
+) -> Generator[Dict[str, Any], None, None]:
+    """
+    掃描資料夾中的帳單檔案並以 Generator 串流模式逐檔產出解析結果：
+    徹底消除全量 Concat 的記憶體高峰，並實現單檔錯誤隔離 (Fault Isolation)。
+    """
+    target_dir = input_dir or (
+        const.PROFILE_DATA_DIR
+        if (os.path.exists(const.PROFILE_DATA_DIR) and len(os.listdir(const.PROFILE_DATA_DIR)) > 0)
+        else const.DATA_DIR
+    )
+
     if not os.path.exists(target_dir):
         logger.error(f"❌ 找不到資料目錄: {target_dir}")
-        return None
+        return
 
     files = [f for f in os.listdir(target_dir) if not f.startswith('.')]
     logger.info(f"📂 掃描到 {len(files)} 個檔案 ({target_dir})")
 
+    active_registry = registry_mgr if registry_mgr is not None else (FileRegistryManager() if FileRegistryManager else None)
+
     for filename in files:
         filepath = os.path.join(target_dir, filename)
-        
         if not os.path.isfile(filepath):
             continue
+        file_result = extract_file(filepath=filepath, force=force, registry_mgr=active_registry)
+        yield file_result
 
-        file_size = os.path.getsize(filepath)
-        file_hash = None
-        if registry_mgr:
-            file_hash = registry_mgr.calculate_file_hash(filepath)
-            if not force and registry_mgr.is_file_ingested(file_hash):
-                logger.info(f"  ⏭️ [SKIP] 檔案已成功解析過 ({file_hash[:8]}...): {filename}")
-                continue
 
-        bank_info = get_bank_info(filename)
-        parser = get_parser(filename)
-        bank_id = bank_info.get('bank_id') if bank_info else None
-        bills_mapping_name = bank_info.get('bills_mapping_name') if bank_info else None
-        official_bank_name = bank_info.get('bank_name') if bank_info else None
-        target_bank_name = bills_mapping_name or official_bank_name or bank_id
-        target_bank_no = bank_info.get('bank_no') if bank_info else None
-        if target_bank_no:
-            target_bank_no = str(target_bank_no).zfill(3)
-        
-        if parser:
-            try:
-                logger.info(f"處理中: {filename} ...")
-                df = parser.parse(filepath)
-                if not df.empty:
-                    if const.COL_BANK_NO not in df.columns or df[const.COL_BANK_NO].isna().all() or (df[const.COL_BANK_NO] == '').all():
-                        if target_bank_no:
-                            df[const.COL_BANK_NO] = target_bank_no
-                    elif target_bank_no:
-                        df[const.COL_BANK_NO] = df[const.COL_BANK_NO].replace('', target_bank_no).fillna(target_bank_no)
+def extract_raw_data(force: bool = True, input_dir: Optional[str] = None) -> Optional[pd.DataFrame]:
+    """
+    【向後相容進入點】掃描帳單檔案並整合為單一 Raw DataFrame
+    """
+    all_raw_dfs: List[pd.DataFrame] = []
+    registry_mgr = FileRegistryManager() if FileRegistryManager else None
 
-                    if 'bank_name' not in df.columns or df['bank_name'].isna().all() or (df['bank_name'] == '').all():
-                        df['bank_name'] = target_bank_name
-                    else:
-                        df['bank_name'] = df['bank_name'].replace('', target_bank_name).fillna(target_bank_name)
-                    all_raw_dfs.append(df)
-                    record_cnt = len(df)
-                    logger.info(f"  ✅ 解析成功 ({record_cnt} 筆): {filename}")
-                    if registry_mgr and file_hash:
-                        registry_mgr.register_file(
-                            file_hash=file_hash,
-                            filename=filename,
-                            file_size=file_size,
-                            bank_id=bank_id,
-                            record_count=record_cnt,
-                            status='SUCCESS'
-                        )
-                else:
-                    logger.warning(f"  ⚠️ 解析成功但無資料: {filename}")
-                    if registry_mgr and file_hash:
-                        registry_mgr.register_file(
-                            file_hash=file_hash,
-                            filename=filename,
-                            file_size=file_size,
-                            bank_id=bank_id,
-                            record_count=0,
-                            status='SUCCESS'
-                        )
-            except InvalidBillFormatError as e:
-                logger.warning(f"  ⚠️ [InvalidBillFormat] 略過格式錯位或空檔案 {filename}: {e}")
-                if registry_mgr and file_hash:
-                    registry_mgr.register_file(
-                        file_hash=file_hash,
-                        filename=filename,
-                        file_size=file_size,
-                        bank_id=bank_id,
-                        record_count=0,
-                        status='FAILED'
-                    )
-            except MaliciousPayloadDetectedError as e:
-                logger.error(f"  🚨 [SecurityBlock] 攔截並阻斷惡意帳單攻擊 {filename}: {e}")
-                if registry_mgr and file_hash:
-                    registry_mgr.register_file(
-                        file_hash=file_hash,
-                        filename=filename,
-                        file_size=file_size,
-                        bank_id=bank_id,
-                        record_count=0,
-                        status='FAILED'
-                    )
-            except Exception as e:
-                logger.error(f"  ❌ 解析失敗 {filename}: {str(e)}")
-                if registry_mgr and file_hash:
-                    registry_mgr.register_file(
-                        file_hash=file_hash,
-                        filename=filename,
-                        file_size=file_size,
-                        bank_id=bank_id,
-                        record_count=0,
-                        status='FAILED'
-                    )
-        else:
-            if not bank_info and filename.lower().endswith(('.csv', '.xls', '.xlsx', '.pdf', '.html')):
-                logger.warning(f"  ⚠️ [UnmappedBank] 查無可映射銀行代碼: {filename}")
-            else:
-                logger.debug(f"  ⏭️ 跳過不支援或未定義 Parser 的檔案: {filename}")
+    for item in extract_raw_data_stream(force=force, input_dir=input_dir, registry_mgr=registry_mgr):
+        status = item.get('status')
+        df = item.get('df')
+        file_hash = item.get('file_hash')
+        filename = item.get('filename')
+        file_size = item.get('file_size')
+        bank_id = item.get('bank_id')
+        rec_cnt = item.get('record_count', 0)
+
+        # 登記檔案狀態
+        if registry_mgr and file_hash:
+            if status == 'SUCCESS':
+                registry_mgr.register_file(
+                    file_hash=file_hash,
+                    filename=filename,
+                    file_size=file_size,
+                    bank_id=bank_id,
+                    record_count=rec_cnt,
+                    status='SUCCESS'
+                )
+            elif status == 'FAILED':
+                registry_mgr.register_file(
+                    file_hash=file_hash,
+                    filename=filename,
+                    file_size=file_size,
+                    bank_id=bank_id,
+                    record_count=0,
+                    status='FAILED'
+                )
+
+        if df is not None and not df.empty:
+            all_raw_dfs.append(df)
 
     if not all_raw_dfs:
         logger.warning("🚫 本次執行未取得任何新有效資料（可能全部已解析或資料夾為空），流程結束。")
@@ -246,3 +370,14 @@ def extract_raw_data(force: bool = True, input_dir: Optional[str] = None) -> Opt
     merged_df = pd.concat(all_raw_dfs, ignore_index=True)
     logger.info(f"🔗 合併完成，共 {len(merged_df)} 筆原始資料")
     return merged_df
+
+
+__all__ = [
+    'extract_raw_data',
+    'extract_raw_data_stream',
+    'extract_file',
+    'get_bank_info',
+    'get_parser',
+    'get_parser_mapping'
+]
+

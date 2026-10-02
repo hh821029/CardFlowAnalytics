@@ -6,13 +6,13 @@ ETL 模組統一對外調度介面 (Service-Level Dispatcher / Facade API)
 import os
 import pandas as pd
 import logging
-from typing import Optional
+from typing import Optional, List, Dict, Any, Tuple, NamedTuple
 
 # 1. 引入核心配置與常量
 import const
 
 # 2. 引入 Extract 與 Refinement 階段模組
-from etl.extraction import extract_raw_data
+from etl.extraction import extract_raw_data, extract_raw_data_stream, extract_file
 from etl.refinement import refine_transactions
 
 # 3. 引入 Schema 驗證與資料庫工具 (Stage 1 Ingestion所需)
@@ -20,11 +20,16 @@ from etl.schemas.raw_transaction import validate_raw_dataframe
 from database.loaders.views_manager import ViewsManager
 from database.loaders.db_factory import get_db_loader
 
-# 4. 引入 DB 讀取模組 (Stage 2 Refinement所需)
+# 4. 引入 DB 讀取與檔案登記模組
 try:
     from database.loaders.db_reader import DBReader
 except ImportError:
     DBReader = None
+
+try:
+    from profiles.loaders.file_registry import FileRegistryManager
+except ImportError:
+    FileRegistryManager = None
 
 from etl.exceptions import save_anomaly_report
 
@@ -35,49 +40,160 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 logger = logging.getLogger(__name__)
 
 
+class Stage1Result(NamedTuple):
+    """
+    Stage 1 執行結果物件 (支援 Unpack 與布林真假值相容判定)
+    - 解構賦值: success, df = run_stage1_pipeline()
+    - 條件判定: if not run_stage1_pipeline():
+    """
+    success: bool
+    df: Optional[pd.DataFrame] = None
+
+    def __bool__(self) -> bool:
+        return self.success
+
+
 # ==========================================
 # 主流程 (ETL Controller & Pipeline)
 # ==========================================
 def run_stage1_pipeline(
     force: bool = True,
     input_dir: Optional[str] = None,
-    db_backend: Optional[str] = None
-) -> bool:
+    db_backend: Optional[str] = None,
+    db_path: Optional[str] = None
+) -> Stage1Result:
     """
-    Stage 1 Pipeline (Extract & Raw Ingestion):
-    1. Extract: 掃描帳單檔案、去重比對、分派 Parser 提取原始資料 (etl.extraction)
-    2. Stage 1 Ingestion: 透過 Pydantic V2 驗證並同步寫入 raw_transactions 原始事實表
+    Stage 1 Pipeline (Extract & Per-File Raw Ingestion):
+    1. Extract: 逐檔串流掃描帳單檔案、去重比對、分派 Parser 提取原始資料 (etl.extraction.extract_raw_data_stream)
+    2. Stage 1 Ingestion: 逐檔透過 Pydantic V2 驗證並同步寫入 raw_transactions (具備單檔容錯隔離 Fault Isolation)
+    回傳: Stage1Result(success=bool, df=Optional[pd.DataFrame])
     """
-    logger.info(f"🚀 [Stage 1 Pipeline] 啟動原始資料提取與入庫... {'(強制全量重新解析)' if force else '(啟用檔案去重檢查)'}")
-    
-    # 1. Extract (讀取與解析)
-    merged_df = extract_raw_data(force=force, input_dir=input_dir)
-    if merged_df is None or merged_df.empty:
-        logger.info("ℹ️ Stage 1 無新資料需要處理。")
-        return True
+    logger.info(f"🚀 [Stage 1 Pipeline] 啟動原始資料提取與逐檔入庫... {'(強制全量重新解析)' if force else '(啟用檔案去重檢查)'}")
 
-    raw_clean_df: Optional[pd.DataFrame] = None
-
-    # 2. Stage 1 Ingestion (Bronze 表同步入庫)
+    # 1. 確保 raw_transactions 表結構與 v_raw_transactions 視圖存在
     try:
-        ViewsManager.ensure_raw_schema(db_backend=db_backend)
-        raw_schemas, raw_clean_df = validate_raw_dataframe(merged_df)
-        if not raw_clean_df.empty:
-            loader = get_db_loader(db_backend=db_backend)
-            loader.load(raw_clean_df, table_name='raw_transactions', mode='append')
-            logger.info(f"💾 [Stage 1 Bronze] 已同步入庫 {len(raw_clean_df)} 筆原始資料至 raw_transactions")
-            return True
-        else:
-            logger.warning("⚠️ [Stage 1 Bronze] 驗證消毒後無有效資料可入庫。")
-            return False
-    except Exception as raw_e:
-        logger.warning(f"⚠️ [Stage 1 Bronze] 寫入 raw_transactions 略過或失敗 (非致命): {raw_e}")
-        dump_df = raw_clean_df if (raw_clean_df is not None and not raw_clean_df.empty) else merged_df
-        if dump_df is not None and not dump_df.empty:
-            dump_path = os.path.join(OUTPUT_DIR, 'raw_transactions_failed_dump.csv')
-            dump_df.to_csv(dump_path, index=False, encoding='utf-8-sig')
-            logger.warning(f"🔍 寫入失敗之原始資料表已輸出至: {dump_path}，請前往 output/ 查看。")
-        return False
+        ViewsManager.ensure_raw_schema(db_backend=db_backend, db_path=db_path)
+    except Exception as schema_err:
+        logger.error(f"❌ [Stage 1 Bronze] 初始化 raw_transactions 表結構失敗: {schema_err}", exc_info=True)
+        return Stage1Result(success=False, df=None)
+
+    # 2. 準備 DB Loader 與 FileRegistryManager
+    loader = get_db_loader(db_backend=db_backend, db_path=db_path)
+    registry_mgr = FileRegistryManager(db_path=db_path) if FileRegistryManager else None
+
+    success_files = 0
+    skipped_files = 0
+    failed_files = 0
+    all_clean_dfs: List[pd.DataFrame] = []
+
+    # 3. 逐檔串流提取與入庫 (Per-File Processing)
+    for item in extract_raw_data_stream(force=force, input_dir=input_dir, registry_mgr=registry_mgr):
+        filename = item.get('filename', 'unknown')
+        file_hash = item.get('file_hash')
+        file_size = item.get('file_size', 0)
+        bank_id = item.get('bank_id')
+        status = item.get('status')
+        file_df = item.get('df')
+
+        # (1) 已存在且略過
+        if status == 'SKIPPED':
+            skipped_files += 1
+            continue
+
+        # (2) 解析層失敗 (單檔隔離，記錄失敗但不中斷整體管線)
+        if status == 'FAILED':
+            failed_files += 1
+            if registry_mgr and file_hash:
+                registry_mgr.register_file(
+                    file_hash=file_hash,
+                    filename=filename,
+                    file_size=file_size,
+                    bank_id=bank_id,
+                    record_count=0,
+                    status='FAILED'
+                )
+            continue
+
+        # (3) 解析成功但為空表
+        if file_df is None or file_df.empty:
+            success_files += 1
+            if registry_mgr and file_hash:
+                registry_mgr.register_file(
+                    file_hash=file_hash,
+                    filename=filename,
+                    file_size=file_size,
+                    bank_id=bank_id,
+                    record_count=0,
+                    status='SUCCESS'
+                )
+            continue
+
+        # (4) 進行 Pydantic V2 嚴格型態驗證與資料庫寫入
+        try:
+            raw_schemas, clean_file_df = validate_raw_dataframe(file_df)
+            if clean_file_df is None or clean_file_df.empty:
+                logger.warning(f"⚠️ [Stage 1 Bronze] 檔案 {filename} 驗證後無有效資料可入庫。")
+                continue
+
+            # 冪等性防護 (Idempotent DB Load)：若為 SQLite，排除已存在於 raw_transactions 的主鍵
+            target_to_insert = clean_file_df
+            effective_backend = getattr(loader, 'backend', None) or db_backend or 'sqlite'
+            if effective_backend == 'sqlite' and DBReader is not None:
+                try:
+                    existing_ids_df = DBReader.read_sql("SELECT transaction_id FROM raw_transactions", db_path=db_path)
+                    if existing_ids_df is not None and not existing_ids_df.empty and 'transaction_id' in existing_ids_df.columns:
+                        existing_ids_set = set(existing_ids_df['transaction_id'].astype(str))
+                        new_mask = ~clean_file_df['transaction_id'].astype(str).isin(existing_ids_set)
+                        target_to_insert = clean_file_df[new_mask]
+                except Exception as check_e:
+                    logger.debug(f"查詢既有 transaction_id 略過: {check_e}")
+                    target_to_insert = clean_file_df
+
+            # 寫入資料庫
+            if not target_to_insert.empty:
+                loader.load(target_to_insert, table_name='raw_transactions', mode='append')
+                logger.info(f"💾 [Stage 1 Bronze] 檔案 {filename} 已成功入庫 {len(target_to_insert)} 筆資料至 raw_transactions")
+            else:
+                logger.info(f"ℹ️ [Stage 1 Bronze] 檔案 {filename} 中所有交易皆已存在於 raw_transactions，略過重複寫入。")
+
+            # 登記檔案註冊表 SUCCESS
+            if registry_mgr and file_hash:
+                registry_mgr.register_file(
+                    file_hash=file_hash,
+                    filename=filename,
+                    file_size=file_size,
+                    bank_id=bank_id,
+                    record_count=len(clean_file_df),
+                    status='SUCCESS'
+                )
+
+            all_clean_dfs.append(clean_file_df)
+            success_files += 1
+
+        except Exception as file_e:
+            failed_files += 1
+            logger.warning(f"⚠️ [Stage 1 Bronze] 檔案 {filename} 處理或入庫失敗 (已隔離): {file_e}")
+            save_anomaly_report(file_df, f"failed_raw_{filename}.csv", f"檔案 {filename} 入庫失敗診斷備份")
+            if registry_mgr and file_hash:
+                registry_mgr.register_file(
+                    file_hash=file_hash,
+                    filename=filename,
+                    file_size=file_size,
+                    bank_id=bank_id,
+                    record_count=0,
+                    status='FAILED'
+                )
+
+    # 4. 統計與回傳
+    logger.info(f"📊 [Stage 1 逐檔處理統計] 成功: {success_files} 個, 略過: {skipped_files} 個, 失敗: {failed_files} 個")
+    
+    if failed_files > 0 and success_files == 0 and skipped_files == 0:
+        logger.error("❌ [Stage 1 Bronze] 所有帳單檔案均處理失敗。")
+        return Stage1Result(success=False, df=None)
+
+    total_clean_df = pd.concat(all_clean_dfs, ignore_index=True) if all_clean_dfs else None
+    return Stage1Result(success=True, df=total_clean_df)
+
 
 def run_stage2_pipeline(
     raw_df: Optional[pd.DataFrame] = None,
@@ -133,24 +249,23 @@ def run_stage2_pipeline(
         return False
 
 
-
 def run_etl_pipeline(force: bool = True, input_dir: Optional[str] = None, db_backend: Optional[str] = None) -> bool:
     """
     完整雙階式 ETL Pipeline (Stage 1 + Stage 2 組合進入點):
-    1. run_stage1_pipeline: 掃描檔案、解析並入庫至 raw_transactions
-    2. run_stage2_pipeline: 自 raw_transactions 重算商業特徵、歸戶分類並入庫 all_transactions 與 Views
+    1. run_stage1_pipeline: 逐檔串流掃描、解析並安全隔離入庫至 raw_transactions
+    2. run_stage2_pipeline: 將 Stage 1 驗證產物直接在記憶體傳遞給 Stage 2 (若無則自 DB 讀取全量)
     """
     logger.info(f"🚀 ETL 流程啟動 (獨立模組執行)... {'(強制全量重新解析)' if force else '(啟用檔案去重檢查)'}")
     
     try:
         # 段落一: Stage 1 Pipeline (Extract + Ingestion)
-        s1_success = run_stage1_pipeline(force=force, input_dir=input_dir, db_backend=db_backend)
-        if not s1_success:
+        s1_res = run_stage1_pipeline(force=force, input_dir=input_dir, db_backend=db_backend)
+        if not s1_res:
             logger.error("❌ Stage 1 流程執行失敗，終止後續管線。")
             return False
 
-        # 段落二: Stage 2 Pipeline (Refine + Load，直接自 raw_transactions 讀取)
-        s2_success = run_stage2_pipeline(db_backend=db_backend, force=force)
+        # 段落二: Stage 2 Pipeline (直接傳遞記憶體中之 Stage 1 成果，若為 None 則自 DB 讀取全量)
+        s2_success = run_stage2_pipeline(raw_df=s1_res.df, db_backend=db_backend, force=force)
         return s2_success
         
     except Exception as e:
@@ -158,4 +273,5 @@ def run_etl_pipeline(force: bool = True, input_dir: Optional[str] = None, db_bac
         return False
 
 
-__all__ = ["run_etl_pipeline", "run_stage1_pipeline", "run_stage2_pipeline", "refine_transactions"]
+__all__ = ["run_etl_pipeline", "run_stage1_pipeline", "run_stage2_pipeline", "refine_transactions", "Stage1Result"]
+
