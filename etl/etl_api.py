@@ -13,7 +13,7 @@ import const
 
 # 2. 引入 Extract 與 Refinement 階段模組
 from etl.extraction import extract_raw_data
-from etl.refinement import refine_transactions, run_stage2_pipeline
+from etl.refinement import refine_transactions
 
 # 3. 引入 Schema 驗證與資料庫工具 (Stage 1 Ingestion所需)
 from etl.schemas.raw_transaction import validate_raw_dataframe
@@ -25,6 +25,8 @@ try:
     from database.loaders.db_reader import DBReader
 except ImportError:
     DBReader = None
+
+from etl.exceptions import save_anomaly_report
 
 # 5. 路徑設定
 OUTPUT_DIR = const.OUTPUT_DIR

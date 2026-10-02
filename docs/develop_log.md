@@ -13,6 +13,10 @@
         - 將 `etl/utils.py` 剩餘之唯一的 `save_anomaly_report()` 函式遷移至 `etl/exceptions.py`。
         - 更新全專案調用端（`loading.py`, `extraction.py`, `refinement/pipeline.py`, `refinement/transaction_classifier.py`）之引用路徑。
         - 將既有測試中對 `StandardColumns` 的引用轉移至 `etl.schemas.db_col_mapper`，並徹底刪除空殼化之 `etl/utils.py`，降低技術債與認知混淆。
+      - **帳單安全消毒模組內聚化 (`etl/parsers/sanitizer.py`)**：
+        - 將 `etl/sanitizer.py` 下移至 `etl/parsers/sanitizer.py`，提升外部未受信文字防禦清洗之高內聚性。
+        - `etl/parsers/base.py` 調整為相對引用 `from .sanitizer import BillSanitizer`，並於 `etl/parsers/__init__.py` 統一匯出。
+        - 同步更新單元測試 `tests/test_etl_security.py` 並完全移除舊版 `etl/sanitizer.py`。
       - **ETL 前端管線解耦與 Per-File 串流入庫架構規劃 (`issues/issues20261002.md`)**：
         - 記錄 `validate_raw_dataframe` 與主鍵生成的 SRP 邊界劃分分析。
         - 定案將 `sanitizer.py` 下移至 `etl/parsers/sanitizer.py` 提升解析防禦內聚性。

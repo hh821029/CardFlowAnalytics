@@ -17,7 +17,7 @@ from unittest.mock import patch, MagicMock
 import const
 from etl.extraction import get_bank_info, get_parser, extract_raw_data
 from etl.exceptions import UnmappedBankError, InvalidBillFormatError, MaliciousPayloadDetectedError
-from etl.sanitizer import BillSanitizer
+from etl.parsers.sanitizer import BillSanitizer
 from etl.parsers.cathay import CubeParser
 from etl.parsers.esun import EsunParser
 from etl.parsers.ctbc import CTBCParser

@@ -8,7 +8,7 @@ import const
 from bs4 import BeautifulSoup
 import lxml 
 from typing import Any, List, Optional
-from etl.sanitizer import BillSanitizer
+from .sanitizer import BillSanitizer
 from etl.exceptions import InvalidBillFormatError, MaliciousPayloadDetectedError
 
 logger = logging.getLogger(__name__)
