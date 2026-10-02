@@ -2,7 +2,7 @@
 import pytest
 import pandas as pd
 import const
-from etl.processors.merchant import (
+from etl.refinement.merchant import (
     MerchantPipeline,
     MerchantNormalizer,
     PaymentProcessTagger,

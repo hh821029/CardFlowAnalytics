@@ -1,4 +1,4 @@
-# etl/refinement.py
+# etl/refinement/pipeline.py
 """
 Stage 2 (Silver) 商業規則清洗與資料集市 (Business Refinement & Feature Engineering)
 核心職責：
@@ -11,9 +11,9 @@ import logging
 from typing import Optional, Dict, Any
 
 import const
-from etl.processors.merchant import MerchantPipeline
-from etl.processors.card_classifier import CardClassifier
-from etl.processors.transaction_classifier import TransactionClassifier
+from etl.refinement.merchant import MerchantPipeline
+from etl.refinement.card_classifier import CardClassifier
+from etl.refinement.transaction_classifier import TransactionClassifier
 from etl.utils import save_anomaly_report
 
 try:
