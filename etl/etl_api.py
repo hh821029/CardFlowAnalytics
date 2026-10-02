@@ -12,7 +12,7 @@ from typing import Optional, List, Dict, Any, Tuple, NamedTuple
 import const
 
 # 2. 引入 Extract 與 Refinement 階段模組
-from etl.extraction import extract_raw_data, extract_raw_data_stream, extract_file
+from etl.extraction import extract_raw_data_stream, extract_file
 from etl.refinement import refine_transactions
 
 # 3. 引入 Schema 驗證與資料庫工具 (Stage 1 Ingestion所需)

@@ -15,7 +15,7 @@ import pandas as pd
 from unittest.mock import patch, MagicMock
 
 import const
-from etl.extraction import get_bank_info, get_parser, extract_raw_data
+from etl.extraction import get_bank_info, get_parser, extract_raw_data_stream, extract_file
 from etl.exceptions import UnmappedBankError, InvalidBillFormatError, MaliciousPayloadDetectedError
 from etl.parsers.sanitizer import BillSanitizer
 from etl.parsers.cathay import CubeParser
@@ -43,16 +43,18 @@ class TestUnmappedBank:
         result = get_bank_info(os.path.basename(file_path), strict=False)
         assert result is None
 
-    def test_extract_raw_data_skips_unmapped_bank_gracefully(self, tmp_path):
+    def test_extract_file_skips_unmapped_bank_gracefully(self, tmp_path):
         # 建立暫存目錄僅放置未知銀行檔案
         src = os.path.join(FIXTURES_ERROR_DIR, "error_unmapped_bank_mock.csv")
         dst = os.path.join(str(tmp_path), "error_unmapped_bank_mock.csv")
         with open(src, 'r', encoding='utf-8') as f_in, open(dst, 'w', encoding='utf-8') as f_out:
             f_out.write(f_in.read())
 
-        result = extract_raw_data(force=True, input_dir=str(tmp_path))
-        # 應優雅跳過，不噴未捕捉例外，並回傳 None
-        assert result is None
+        items = list(extract_raw_data_stream(force=True, input_dir=str(tmp_path)))
+        # 應優雅跳過，不噴未捕捉例外，且狀態為 SKIPPED
+        assert len(items) == 1
+        assert items[0]["status"] == "SKIPPED"
+        assert items[0]["df"] is None
 
 
 class TestSchemaMismatchAndEmpty:
@@ -72,7 +74,7 @@ class TestSchemaMismatchAndEmpty:
             parser.parse(mismatch_file)
         assert "缺少關鍵 Header" in str(exc_info.value)
 
-    def test_extract_raw_data_skips_mismatch_and_empty(self, tmp_path):
+    def test_extract_stream_skips_mismatch_and_empty(self, tmp_path):
         # 放置國泰世華名稱但內容錯位與空的檔案
         p1 = os.path.join(str(tmp_path), "202510國泰世華_mismatch.csv")
         with open(os.path.join(FIXTURES_ERROR_DIR, "error_schema_mismatch_mock.csv"), 'r', encoding='utf-8') as f_in, open(p1, 'w', encoding='utf-8') as f_out:
@@ -82,8 +84,11 @@ class TestSchemaMismatchAndEmpty:
         with open(p2, 'w', encoding='utf-8') as f_out:
             pass
 
-        result = extract_raw_data(force=True, input_dir=str(tmp_path))
-        assert result is None
+        items = list(extract_raw_data_stream(force=True, input_dir=str(tmp_path)))
+        assert len(items) == 2
+        for it in items:
+            assert it["df"] is None or it["df"].empty
+
 
 
 class TestMaliciousPayloadSecurity:

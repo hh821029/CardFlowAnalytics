@@ -21,7 +21,9 @@
         - 於 `etl/extraction.py` 實作單檔解析核心 `extract_file(filepath)` 與串流產生器 `extract_raw_data_stream()`，廢除預先全量 `pd.concat` 機制，大幅減輕記憶體峰值負擔。
         - 於 `etl/etl_api.py` 重構 `run_stage1_pipeline()` 為逐檔處理（Per-File Processing），達成單檔錯誤隔離（Fault Isolation）：個別檔案解析或入庫失敗僅備份該檔，不連坐中斷其他檔案。
         - 引入 `Stage1Result(NamedTuple)`，既支援 Unpack (`success, df = ...`) 亦相容布林真假值判定；並將 Stage 1 在記憶體中剛校驗完畢之 DataFrame 直接傳遞給 `run_stage2_pipeline(raw_df=...)`，免除資料庫二次全表查詢 I/O。
+        - **完全放棄向後相容進入點 `extract_raw_data`**：落實 GEMINI.md 原則性禁止向後相容規範，自 `etl/extraction.py`、`etl/etl_api.py` 與各測試模組中徹底移除 `extract_raw_data`，消除技術債與認知混淆。
         - 建立單元測試 `tests/test_stage1_per_file.py`，完整涵蓋單檔錯誤隔離、串流產出、資料流無縫銜接與 NamedTuple 行為斷言。
+
 
 
 * **2026-09-22**

@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import const
 from etl.extraction import get_bank_info, get_parser
-from etl.extraction import extract_raw_data
 from etl.transformation import transform_data
 from database.loaders.schema_enforcer import SchemaEnforcer
 

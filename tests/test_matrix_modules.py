@@ -14,7 +14,7 @@ import numpy as np
 
 import const
 from tests.fixtures.setup_fixtures import create_mock_fixtures
-from etl.extraction import extract_raw_data
+from etl.extraction import extract_raw_data_stream
 from etl.transformation import transform_data
 from etl.loading import TransactionIdGenerator
 
@@ -45,7 +45,8 @@ def mock_dataset_e2e():
     fixtures = create_mock_fixtures()
     input_dir = os.path.dirname(list(fixtures.values())[0])
 
-    df_raw = extract_raw_data(force=True, input_dir=input_dir)
+    raw_dfs = [item['df'] for item in extract_raw_data_stream(force=True, input_dir=input_dir) if item.get('df') is not None and not item['df'].empty]
+    df_raw = pd.concat(raw_dfs, ignore_index=True) if raw_dfs else pd.DataFrame()
     assert df_raw is not None and not df_raw.empty
 
     df_clean = transform_data(df_raw)

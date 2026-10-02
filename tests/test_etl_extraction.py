@@ -111,29 +111,30 @@ class TestGetParserMapping:
         assert isinstance(mapping["hncb"], HNCBParser)
 
 
-class TestExtractRawData:
-    """測試 extract_raw_data 完整的目錄掃描、去重、解析、例外處理與合併"""
+class TestExtractRawDataStream:
+    """測試 extract_raw_data_stream 與 extract_file 串流掃描、去重、解析與例外隔離"""
 
     def test_nonexistent_directory(self):
-        result = extraction.extract_raw_data(input_dir="/nonexistent/directory/path/here")
-        assert result is None
+        items = list(extraction.extract_raw_data_stream(input_dir="/nonexistent/directory/path/here"))
+        assert len(items) == 0
 
     def test_empty_directory(self, tmp_path):
-        result = extraction.extract_raw_data(input_dir=str(tmp_path))
-        assert result is None
+        items = list(extraction.extract_raw_data_stream(input_dir=str(tmp_path)))
+        assert len(items) == 0
 
     def test_directory_with_subfolder_and_dotfiles(self, tmp_path):
         # 建立子資料夾與隱藏檔案
         (tmp_path / "subfolder").mkdir()
         (tmp_path / ".DS_Store").write_text("dummy", encoding="utf-8")
-        result = extraction.extract_raw_data(input_dir=str(tmp_path))
-        assert result is None
+        items = list(extraction.extract_raw_data_stream(input_dir=str(tmp_path)))
+        assert len(items) == 0
 
     def test_unsupported_file_skipped(self, tmp_path):
         # 建立未知或不支援的檔案
         (tmp_path / "unsupported_notes.txt").write_text("hello", encoding="utf-8")
-        result = extraction.extract_raw_data(input_dir=str(tmp_path))
-        assert result is None
+        items = list(extraction.extract_raw_data_stream(input_dir=str(tmp_path)))
+        assert len(items) == 1
+        assert items[0]["status"] == "SKIPPED"
 
     def test_force_false_skips_ingested_file(self, tmp_path):
         file_path = tmp_path / "202410_玉山銀行_test.csv"
@@ -144,8 +145,9 @@ class TestExtractRawData:
         mock_registry.is_file_ingested.return_value = True  # 模擬已入庫過
 
         with patch.object(extraction, "FileRegistryManager", return_value=mock_registry):
-            result = extraction.extract_raw_data(force=False, input_dir=str(tmp_path))
-            assert result is None
+            items = list(extraction.extract_raw_data_stream(force=False, input_dir=str(tmp_path), registry_mgr=mock_registry))
+            assert len(items) == 1
+            assert items[0]["status"] == "SKIPPED"
             mock_registry.is_file_ingested.assert_called_once_with("hash123456")
 
     def test_successful_parse_populates_missing_bank_name(self, tmp_path):
@@ -163,17 +165,12 @@ class TestExtractRawData:
         mock_registry.calculate_file_hash.return_value = "hash_success"
         mock_registry.is_file_ingested.return_value = False
 
-        with patch.object(extraction, "FileRegistryManager", return_value=mock_registry), \
-             patch.object(extraction, "get_parser", return_value=mock_parser):
-            
-            result = extraction.extract_raw_data(force=True, input_dir=str(tmp_path))
-            assert result is not None
-            assert not result.empty
-            assert result["bank_name"].iloc[0] == "玉山銀行"
-            mock_registry.register_file.assert_called_once()
-            call_kwargs = mock_registry.register_file.call_args[1]
-            assert call_kwargs["status"] == "SUCCESS"
-            assert call_kwargs["record_count"] == 1
+        with patch.object(extraction, "get_parser", return_value=mock_parser):
+            res = extraction.extract_file(str(file_path), force=True, registry_mgr=mock_registry)
+            assert res["status"] == "SUCCESS"
+            assert res["df"] is not None
+            assert res["df"]["bank_name"].iloc[0] == "玉山銀行"
+            assert res["record_count"] == 1
 
     def test_successful_parse_replaces_empty_bank_name(self, tmp_path):
         file_path = tmp_path / "202410_玉山銀行_test.csv"
@@ -188,12 +185,11 @@ class TestExtractRawData:
         mock_registry = MagicMock()
         mock_registry.calculate_file_hash.return_value = "hash_empty_bank"
 
-        with patch.object(extraction, "FileRegistryManager", return_value=mock_registry), \
-             patch.object(extraction, "get_parser", return_value=mock_parser):
-            
-            result = extraction.extract_raw_data(force=True, input_dir=str(tmp_path))
-            assert result is not None
-            assert result["bank_name"].iloc[0] == "玉山銀行"
+        with patch.object(extraction, "get_parser", return_value=mock_parser):
+            res = extraction.extract_file(str(file_path), force=True, registry_mgr=mock_registry)
+            assert res["status"] == "SUCCESS"
+            assert res["df"] is not None
+            assert res["df"]["bank_name"].iloc[0] == "玉山銀行"
 
     def test_parsed_empty_dataframe_registers_zero_records(self, tmp_path):
         file_path = tmp_path / "202410_玉山銀行_test.csv"
@@ -205,15 +201,10 @@ class TestExtractRawData:
         mock_registry = MagicMock()
         mock_registry.calculate_file_hash.return_value = "hash_empty_df"
 
-        with patch.object(extraction, "FileRegistryManager", return_value=mock_registry), \
-             patch.object(extraction, "get_parser", return_value=mock_parser):
-            
-            result = extraction.extract_raw_data(force=True, input_dir=str(tmp_path))
-            assert result is None
-            mock_registry.register_file.assert_called_once()
-            call_kwargs = mock_registry.register_file.call_args[1]
-            assert call_kwargs["status"] == "SUCCESS"
-            assert call_kwargs["record_count"] == 0
+        with patch.object(extraction, "get_parser", return_value=mock_parser):
+            res = extraction.extract_file(str(file_path), force=True, registry_mgr=mock_registry)
+            assert res["status"] == "SUCCESS"
+            assert res["record_count"] == 0
 
     def test_parser_exception_caught_and_registers_failed(self, tmp_path):
         file_path = tmp_path / "202410_玉山銀行_test.csv"
@@ -225,17 +216,14 @@ class TestExtractRawData:
         mock_registry = MagicMock()
         mock_registry.calculate_file_hash.return_value = "hash_failed"
 
-        with patch.object(extraction, "FileRegistryManager", return_value=mock_registry), \
-             patch.object(extraction, "get_parser", return_value=mock_parser):
-            
-            result = extraction.extract_raw_data(force=True, input_dir=str(tmp_path))
-            assert result is None
-            mock_registry.register_file.assert_called_once()
-            call_kwargs = mock_registry.register_file.call_args[1]
-            assert call_kwargs["status"] == "FAILED"
-            assert call_kwargs["record_count"] == 0
+        with patch.object(extraction, "get_parser", return_value=mock_parser):
+            res = extraction.extract_file(str(file_path), force=True, registry_mgr=mock_registry)
+            assert res["status"] == "FAILED"
+            assert res["df"] is None
+            assert res["record_count"] == 0
+            assert "檔案結構嚴重毀損" in res["error"]
 
-    def test_multiple_files_parsed_and_concatenated(self, tmp_path):
+    def test_multiple_files_parsed_and_streamed(self, tmp_path):
         # 建立兩個有效測試檔案
         (tmp_path / "202410_玉山銀行_f1.csv").write_text("d1", encoding="utf-8")
         (tmp_path / "202410_中國信託_f2.csv").write_text("d2", encoding="utf-8")
@@ -252,7 +240,9 @@ class TestExtractRawData:
         with patch.object(extraction, "FileRegistryManager", None), \
              patch.object(extraction, "get_parser", return_value=mock_parser):
             
-            result = extraction.extract_raw_data(force=True, input_dir=str(tmp_path))
-            assert result is not None
-            assert len(result) == 2
-            assert set(result["bank_name"].tolist()) == {"玉山銀行", "中國信託"}
+            items = list(extraction.extract_raw_data_stream(force=True, input_dir=str(tmp_path)))
+            assert len(items) == 2
+            assert all(it["status"] == "SUCCESS" for it in items)
+            banks = {it["df"]["bank_name"].iloc[0] for it in items}
+            assert banks == {"玉山銀行", "中國信託"}
+

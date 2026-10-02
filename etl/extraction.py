@@ -323,61 +323,12 @@ def extract_raw_data_stream(
         yield file_result
 
 
-def extract_raw_data(force: bool = True, input_dir: Optional[str] = None) -> Optional[pd.DataFrame]:
-    """
-    【向後相容進入點】掃描帳單檔案並整合為單一 Raw DataFrame
-    """
-    all_raw_dfs: List[pd.DataFrame] = []
-    registry_mgr = FileRegistryManager() if FileRegistryManager else None
-
-    for item in extract_raw_data_stream(force=force, input_dir=input_dir, registry_mgr=registry_mgr):
-        status = item.get('status')
-        df = item.get('df')
-        file_hash = item.get('file_hash')
-        filename = item.get('filename')
-        file_size = item.get('file_size')
-        bank_id = item.get('bank_id')
-        rec_cnt = item.get('record_count', 0)
-
-        # 登記檔案狀態
-        if registry_mgr and file_hash:
-            if status == 'SUCCESS':
-                registry_mgr.register_file(
-                    file_hash=file_hash,
-                    filename=filename,
-                    file_size=file_size,
-                    bank_id=bank_id,
-                    record_count=rec_cnt,
-                    status='SUCCESS'
-                )
-            elif status == 'FAILED':
-                registry_mgr.register_file(
-                    file_hash=file_hash,
-                    filename=filename,
-                    file_size=file_size,
-                    bank_id=bank_id,
-                    record_count=0,
-                    status='FAILED'
-                )
-
-        if df is not None and not df.empty:
-            all_raw_dfs.append(df)
-
-    if not all_raw_dfs:
-        logger.warning("🚫 本次執行未取得任何新有效資料（可能全部已解析或資料夾為空），流程結束。")
-        return None
-
-    merged_df = pd.concat(all_raw_dfs, ignore_index=True)
-    logger.info(f"🔗 合併完成，共 {len(merged_df)} 筆原始資料")
-    return merged_df
-
-
 __all__ = [
-    'extract_raw_data',
     'extract_raw_data_stream',
     'extract_file',
     'get_bank_info',
     'get_parser',
     'get_parser_mapping'
 ]
+
 
