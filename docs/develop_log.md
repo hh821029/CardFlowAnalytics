@@ -31,6 +31,12 @@
         - 於 `etl/parsers/__init__.py` 統一導出 `extract_raw_data_stream`, `extract_file`, `get_bank_info`, `get_parser`。
         - 將 `etl/etl_api.py` 的 Stage 1 進入點自 `run_stage1_pipeline()` 更名為語意更精確對齊的 `run_extraction_pipeline()`。
         - 遵循 GEMINI.md 原則性禁止向後相容規範，徹底刪除舊檔 `etl/extraction.py`，全專案測試案例與調用端引用同步全面切換至 `etl.parsers.dispatcher` 與 `run_extraction_pipeline()`。
+      - **Transaction ID 產生器去重精簡、統一入口與分組運算優化 (`etl/schemas/transaction_id_generator.py`)**：
+        - 統一全系統 Stage 1 唯一識別碼入口為 `TransactionIdGenerator.assign_raw_transaction_id`，徹底移除無業務調用之孤兒函式 `generate_raw_transaction_id`，消除技術債與認知混淆。
+        - 消除重複字串清洗前處理，統一 `bank_no` 的 3 碼 `zfill` 規範，並在已存在有效 ID 時提早短路回傳。
+        - 移除未被調用的靜態別名映射 `hash_id` 與 `generate_raw_id`。
+        - 優化 `generate_and_deduplicate`：將 Pandas `groupby().cumcount()` 流水號計算侷限於未具備 ID 之情境，大幅消除 Stage 2/4 既有資料二次去重時的冗餘計算開銷。
+        - 於 `tests/test_raw_transaction_schema.py` 移除無用 import 並新增專屬單元測試驗證單筆預設指派、既有 ID 短路與批次流水號累加。
 
 
 

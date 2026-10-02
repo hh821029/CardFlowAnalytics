@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from etl.schemas import (
     RawTransactionSchema,
     validate_raw_dataframe,
-    generate_raw_transaction_id
+    TransactionIdGenerator
 )
 
 
@@ -161,3 +161,38 @@ def test_validate_raw_dataframe_batch():
     assert id1 != id2
     assert clean_df.iloc[0]['raw_merchant'] == "星巴克咖啡"
     assert clean_df.iloc[0]['raw_currency'] == "TWD"
+
+
+def test_assign_raw_transaction_id_direct():
+    """測試 TransactionIdGenerator.assign_raw_transaction_id 核心適配器行為"""
+    # 1. 既有 ID 短路跳過
+    row_with_id = {"transaction_id": "existing_id_123", "merchant": "測試"}
+    res_id = TransactionIdGenerator.assign_raw_transaction_id(row_with_id)
+    assert res_id == "existing_id_123"
+    assert row_with_id["transaction_id"] == "existing_id_123"
+
+    # 2. 單筆預設指派 (不帶 counter 預設 seq=1)
+    row_single = {
+        "bank_no": "808",
+        "statement_month": "2026-09-01",
+        "transaction_date": "2026-09-12",
+        "merchant": "星巴克",
+        "amount": "150",
+        "card_no": "1122"
+    }
+    id_single = TransactionIdGenerator.assign_raw_transaction_id(row_single)
+    assert isinstance(id_single, str) and len(id_single) == 32
+    assert row_single["transaction_id"] == id_single
+
+    # 3. 帶 counter 流水號累加
+    counter = {}
+    row_a = dict(row_single)
+    row_a.pop("transaction_id", None)
+    row_b = dict(row_single)
+    row_b.pop("transaction_id", None)
+
+    id_a = TransactionIdGenerator.assign_raw_transaction_id(row_a, seq_counter=counter)
+    id_b = TransactionIdGenerator.assign_raw_transaction_id(row_b, seq_counter=counter)
+
+    assert id_a == id_single  # 第一筆 seq=1，應與無 counter 時相同
+    assert id_b != id_a       # 第二筆 seq=2，流水號不同，ID 必定不同

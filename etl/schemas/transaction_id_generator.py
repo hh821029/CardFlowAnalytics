@@ -24,29 +24,6 @@ def hash_components(*parts) -> str:
     raw_key = "".join(str(p or "").strip() for p in parts)
     return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()[:32]
 
-
-def generate_raw_transaction_id(
-    bank_no: str,
-    statement_month: str,
-    transaction_date: str,
-    raw_merchant: str,
-    payment_amount: str,
-    card_no: Optional[str] = None,
-    seq: int = 1
-) -> str:
-    """
-    Stage 1 唯一識別碼生成器 (SHA-256 32碼)
-    組合鍵：bank_no + statement_month + transaction_date + raw_merchant + payment_amount + card_no + seq
-    """
-    b_no = str(bank_no or "").strip().zfill(3)[-3:]
-    s_mon = str(statement_month or "").strip()
-    t_date = str(transaction_date or "").strip()
-    m_name = str(raw_merchant or "").strip()
-    p_amt = str(payment_amount or "").strip()
-    c_no = str(card_no or "").strip() if card_no else ""
-    return hash_components(b_no, s_mon, t_date, m_name, p_amt, c_no, seq)
-
-
 class TransactionIdGenerator:
     """
     全系統交易識別碼生成與去重器 (Key Generator & Deduplicator)
@@ -55,10 +32,6 @@ class TransactionIdGenerator:
     def __init__(self, output_dir: Optional[str] = None):
         self.output_dir = output_dir or const.OUTPUT_DIR
         self.group_cols = StandardColumns.ID_GROUP_COLUMNS
-
-    # 核心 Hash 方法映射
-    hash_id = staticmethod(hash_components)
-    generate_raw_id = staticmethod(generate_raw_transaction_id)
 
     @classmethod
     def assign_raw_transaction_id(
@@ -71,8 +44,13 @@ class TransactionIdGenerator:
         """
         為單筆 Raw 字典資料計算流水號 seq 並生成/指派 transaction_id。
         若未傳入 seq_counter 則單筆 seq 預設為 1。
+        若 row 已具備有效 transaction_id 則直接回傳。
         """
-        b_no = str(row.get('bank_no') or default_bank_no or "").strip()
+        if row.get('transaction_id') and not pd.isna(row.get('transaction_id')):
+            return row['transaction_id']
+
+        raw_bank_no = row.get('bank_no') or default_bank_no
+        b_no = str(raw_bank_no).strip().zfill(3)[-3:] if raw_bank_no else ""
         s_mon = str(row.get('statement_month') or default_statement_month or "").strip()
         t_date = str(row.get('transaction_date') or row.get('tx_date') or "").strip()
         m_name = str(row.get('raw_merchant') or row.get('merchant') or row.get('merchant_name') or "").strip()
@@ -86,17 +64,7 @@ class TransactionIdGenerator:
         else:
             seq = 1
 
-        # 若無 transaction_id，自動生成
-        if not row.get('transaction_id') or pd.isna(row.get('transaction_id')):
-            row['transaction_id'] = generate_raw_transaction_id(
-                bank_no=b_no,
-                statement_month=s_mon,
-                transaction_date=t_date,
-                raw_merchant=m_name,
-                payment_amount=p_amt,
-                card_no=c_no,
-                seq=seq
-            )
+        row['transaction_id'] = hash_components(b_no, s_mon, t_date, m_name, p_amt, c_no, seq)
         return row['transaction_id']
 
     def _generate_transaction_id(self, row: pd.Series) -> str:
@@ -109,7 +77,7 @@ class TransactionIdGenerator:
 
     def generate_and_deduplicate(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        為 DataFrame 產生 _seq 與 transaction_id，並移除重複紀錄。
+        為 DataFrame 產生 transaction_id（若缺失），並依據 transaction_id 移除重複紀錄。
         """
         if df is None or df.empty:
             logger.warning("⚠️ 沒有資料可供處理 transaction_id。")
@@ -117,23 +85,24 @@ class TransactionIdGenerator:
 
         df_work = df.copy()
 
-        # 1. 生成同組交易流水號 _seq
-        for col in self.group_cols:
-            if col not in df_work.columns:
-                df_work[col] = None
-
-        df_work['_seq'] = df_work.groupby(self.group_cols, dropna=False).cumcount().astype(str)
-        
-        # 若已有非空 transaction_id 且每列皆具備，保留 Stage 1 確立之主鍵；否則動態生成
+        # 判斷是否全量具備有效之 transaction_id
         has_existing_id = (
             'transaction_id' in df_work.columns and
             df_work['transaction_id'].notna().all() and
             (df_work['transaction_id'].astype(str).str.strip() != '').all()
         )
-        if not has_existing_id:
-            df_work['transaction_id'] = df_work.apply(self._generate_transaction_id, axis=1)
 
-        # 2. 移除重複交易 (Deduplication)
+        # 僅在缺少 transaction_id 時才計算分組流水號並動態生成
+        if not has_existing_id:
+            for col in self.group_cols:
+                if col not in df_work.columns:
+                    df_work[col] = None
+
+            df_work['_seq'] = df_work.groupby(self.group_cols, dropna=False).cumcount().astype(str)
+            df_work['transaction_id'] = df_work.apply(self._generate_transaction_id, axis=1)
+            df_work = df_work.drop(columns=['_seq'])
+
+        # 移除重複交易 (Deduplication)
         duplicated_mask = df_work.duplicated(subset=['transaction_id'], keep='first')
         if duplicated_mask.any():
             df_duplicates = df_work[duplicated_mask].copy()
@@ -145,14 +114,8 @@ class TransactionIdGenerator:
                 df_duplicates.to_csv(debug_csv_path, index=False, encoding='utf-8-sig')
                 logger.info(f"🔍 被移除的重複資料已存至: {debug_csv_path}")
 
-        # 確保型態明確為 DataFrame 且安全移除流水號暫存欄位
         filtered = df_work[~duplicated_mask]
-        df_result = pd.DataFrame(filtered)
-
-        if '_seq' in df_result.columns:
-            df_result = df_result.drop(columns=['_seq'])
-
-        return df_result
+        return pd.DataFrame(filtered)
 
 
-__all__ = ['TransactionIdGenerator', 'generate_raw_transaction_id', 'hash_components']
+__all__ = ['TransactionIdGenerator', 'hash_components']
