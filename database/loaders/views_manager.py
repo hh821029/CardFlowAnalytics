@@ -113,13 +113,13 @@ class ViewsManager:
         transaction_date    DATE NOT NULL,
         posting_date        DATE,
         conversion_date     DATE,
-        raw_merchant        VARCHAR(500) NOT NULL,
+        raw_merchant        TEXT NOT NULL,
         raw_currency        VARCHAR(3) NOT NULL DEFAULT 'TWD',
         raw_amount          NUMERIC(12, 2) NOT NULL,
         payment_currency    VARCHAR(3) NOT NULL DEFAULT 'TWD',
         payment_amount      NUMERIC(12, 2) NOT NULL,
-        card_no             VARCHAR(4),
-        raw_location        VARCHAR(10) DEFAULT 'TW',
+        card_no             TEXT,
+        raw_location        TEXT DEFAULT 'TW',
         raw_extra           JSONB,
         created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );

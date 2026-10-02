@@ -176,32 +176,33 @@ def refine_transactions(raw_df: pd.DataFrame, configs: Optional[dict] = None) ->
 
 
 def run_stage2_pipeline(
+    raw_df: Optional[pd.DataFrame] = None,
     db_backend: Optional[str] = None, 
     force: bool = True,
     db_path: Optional[str] = None
 ) -> bool:
     """
     Stage 2 獨立重跑管線 (免重新掃描檔案)：
-    1. 自資料庫 raw_transactions 讀取未清洗的標準原始資料
+    1. 自資料庫 raw_transactions 讀取未清洗的標準原始資料 (若未直接傳入 raw_df)
     2. 調用 refine_transactions 重新計算商業規則
     3. 入庫至 all_transactions / refined_transactions 並自動刷新 Views 與索引
     """
-    logger.info("🚀 [Stage 2 Pipeline] 啟動商業規則重算 (讀取 raw_transactions，略過實體檔案解析)...")
-
-    if DBReader is None:
-        logger.error("❌ 無法載入 DBReader 模組，請確認資料庫配置。")
-        return False
+    logger.info("🚀 [Stage 2 Pipeline] 啟動商業規則重算 (Stage 2 清洗與入庫)...")
 
     try:
-        # 1. 自 raw_transactions 讀取資料
-        logger.info("📥 正在從資料庫讀取 [raw_transactions]...")
-        raw_df = DBReader.read_sql("SELECT * FROM raw_transactions", db_path=db_path)
-
+        # 1. 若未傳入 raw_df，自 raw_transactions 讀取資料
         if raw_df is None or raw_df.empty:
-            logger.warning("⚠️ 資料庫 [raw_transactions] 表目前無資料！請先執行完整 ETL (選項 1) 解析帳單入庫。")
-            return False
+            if DBReader is None:
+                logger.error("❌ 無法載入 DBReader 模組，請確認資料庫配置。")
+                return False
+            logger.info("📥 正在從資料庫讀取 [raw_transactions]...")
+            raw_df = DBReader.read_sql("SELECT * FROM raw_transactions", db_path=db_path)
 
-        logger.info(f"📊 成功讀取 {len(raw_df)} 筆原始交易資料")
+            if raw_df is None or raw_df.empty:
+                logger.warning("⚠️ 資料庫 [raw_transactions] 表目前無資料！請先執行完整 ETL (選項 1) 解析帳單入庫。")
+                return False
+
+        logger.info(f"📊 成功獲取 {len(raw_df)} 筆原始交易資料進行 Stage 2 清洗")
 
         # 2. 執行純記憶體商業清洗
         refined_df = refine_transactions(raw_df)
