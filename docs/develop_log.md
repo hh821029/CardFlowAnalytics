@@ -1,4 +1,20 @@
 ## 📅 開發日記 (Dev Log)
+* **2026-10-02**
+    * **Transaction ID 生成核心去重、SHA-256 演算法統一與 `etl/schemas/` PEP 8 規範化 (`etl/schemas/transaction_id_generator.py`, `etl/schemas/db_col_mapper.py`, `etl/schemas/fx_normalizer.py`, `etl/schemas/raw_transaction.py`, `issues/issues20261002.md`)**：
+      - **主鍵雜湊演算法去重與 SHA-256 統一 (`etl/schemas/transaction_id_generator.py`)**：
+        - 抽取核心純函式 `hash_components(*parts) -> str`，統一全系統的主鍵生成演算法為 SHA-256 前 32 碼十六進位摘要，解決 MD5 弱密碼學告警，並精確對齊資料庫 `VARCHAR(32)` 主鍵約束。
+        - 將 `generate_raw_transaction_id`（Stage 1 Bronze）與 `TransactionIdGenerator._generate_transaction_id`（Stage 4 Cleaned）底層全數收斂至 `hash_components`。
+        - 支援局部 `seq_counter` 動態計數，解決先前在 `etl/schemas/raw_transaction.py` 中因未宣告 `seq_counter` 導致之 `NameError`。
+      - **`etl/schemas/` 目錄全面更名為 PEP 8 snake_case 命名**：
+        - `TransactionIdGenerator.py` ➔ `etl/schemas/transaction_id_generator.py`
+        - `DBColMapper.py` ➔ `etl/schemas/db_col_mapper.py`
+        - `FXnormalizer.py` ➔ `etl/schemas/fx_normalizer.py`
+        - 同步更新 `etl/schemas/__init__.py`、`etl/loading.py`、`etl/utils.py` 與 `etl/schemas/raw_transaction.py` 之匯入路徑，並刪除舊的大駝峰檔案。
+      - **ETL 前端管線解耦與 Per-File 串流入庫架構規劃 (`issues/issues20261002.md`)**：
+        - 記錄 `validate_raw_dataframe` 與主鍵生成的 SRP 邊界劃分分析。
+        - 定案將 `sanitizer.py` 下移至 `etl/parsers/sanitizer.py` 提升解析防禦內聚性。
+        - 確立由 `etl/etl_api.py` 的 `run_stage1_pipeline()` 主導單檔隔離入庫（Per-File Ingestion），取代舊版強行全量 `pd.concat`，提升容錯與記憶體效率。
+
 * **2026-09-22**
     * **首頁全景功能導引整合、說明文字架構重構、桑基圖展示順序調整與按鍵色彩檢討 (`web/index.html`, `web/time_depend_plot.html`, `web/task_console.html`, `web/styles/dashboard.css`, `issues/issues20260922.md`)**：
       - **補齊首頁核心模組導航與系統全景介紹 (`web/index.html`)**：

@@ -7,7 +7,7 @@ import logging
 import pandas as pd
 import const
 
-from etl.schemas.DBColMapper import StandardColumns, STANDARD_COLUMNS
+from etl.schemas.db_col_mapper import StandardColumns, STANDARD_COLUMNS
 
 logger = logging.getLogger(__name__)
 

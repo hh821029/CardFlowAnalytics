@@ -20,7 +20,7 @@ from pydantic import (
     model_validator
 )
 
-from etl.schemas.TransactionIdGenerator import generate_raw_transaction_id, TransactionIdGenerator
+from etl.schemas.transaction_id_generator import generate_raw_transaction_id, TransactionIdGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class RawTransactionSchema(BaseModel):
         ...,
         min_length=1,
         max_length=32,
-        description="全系統唯一交易流水識別碼 (MD5 32碼)"
+        description="全系統唯一交易流水識別碼 (SHA-256 前32碼)"
     )
     bank_no: str = Field(
         ...,
@@ -354,8 +354,6 @@ def validate_raw_dataframe(
     records = df_working.to_dict(orient='records')
     validated_schemas: List[RawTransactionSchema] = []
     clean_records: List[Dict[str, Any]] = []
-
-    # 計算同日同商家同金額的流水號 _seq
     seq_counter: Dict[str, int] = {}
 
     for row in records:

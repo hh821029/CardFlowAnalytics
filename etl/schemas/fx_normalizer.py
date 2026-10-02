@@ -1,4 +1,4 @@
-# etl/schemas/FXnormalizer.py
+# etl/schemas/fx_normalizer.py
 """
 匯率載入器與台幣本位幣轉換器 (FX Normalizer)
 負責雙幣卡外幣交易匯率折算與標準化

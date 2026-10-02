@@ -1,4 +1,4 @@
-# etl/schemas/DBColMapper.py
+# etl/schemas/db_col_mapper.py
 """
 資料庫欄位映射器與標準資料表欄位定義 (DB Column Mapper & Standard Columns Schema)
 以 const.TransactionColumn 為單一真相來源 (SSOT)

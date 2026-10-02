@@ -1,4 +1,4 @@
-# etl/schemas/TransactionIdGenerator.py
+# etl/schemas/transaction_id_generator.py
 """
 唯一鍵值生成與去重器 (Key Generator & Deduplicator)
 負責在資料寫入資料庫前生成全域唯一的主鍵 (transaction_id)，並執行去重。
@@ -11,9 +11,18 @@ import pandas as pd
 from typing import Optional, Dict, Any, List
 
 import const
-from etl.schemas.DBColMapper import StandardColumns
+from etl.schemas.db_col_mapper import StandardColumns
 
 logger = logging.getLogger(__name__)
+
+
+def hash_components(*parts) -> str:
+    """
+    全系統統一 Transaction ID 生成核心：
+    將所有維度與流水號欄位去除首尾空格並串接，產出 32 碼 SHA-256 十六進位摘要
+    """
+    raw_key = "".join(str(p or "").strip() for p in parts)
+    return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()[:32]
 
 
 def generate_raw_transaction_id(
@@ -35,51 +44,33 @@ def generate_raw_transaction_id(
     m_name = str(raw_merchant or "").strip()
     p_amt = str(payment_amount or "").strip()
     c_no = str(card_no or "").strip() if card_no else ""
-    s_num = str(seq)
-
-    components = [b_no, s_mon, t_date, m_name, p_amt, c_no, s_num]
-    raw_key = "".join(components)
-    return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()[:32]
+    return hash_components(b_no, s_mon, t_date, m_name, p_amt, c_no, seq)
 
 
 class TransactionIdGenerator:
     """
-    負責在資料寫入資料庫前生成全域唯一的主鍵 (transaction_id)，並執行去重。
+    全系統交易識別碼生成與去重器 (Key Generator & Deduplicator)
+    統籌 Stage 1 (Raw Ingestion) 與 Stage 4 (Cleaned Load) 之主鍵生成邏輯。
     """
     def __init__(self, output_dir: Optional[str] = None):
         self.output_dir = output_dir or const.OUTPUT_DIR
         self.group_cols = StandardColumns.ID_GROUP_COLUMNS
 
-    @staticmethod
-    def generate_raw_id(
-        bank_no: str,
-        statement_month: str,
-        transaction_date: str,
-        raw_merchant: str,
-        payment_amount: str,
-        card_no: Optional[str] = None,
-        seq: int = 1
-    ) -> str:
-        """Stage 1 Raw 交易識別碼生成方法 (委派 generate_raw_transaction_id)"""
-        return generate_raw_transaction_id(
-            bank_no=bank_no,
-            statement_month=statement_month,
-            transaction_date=transaction_date,
-            raw_merchant=raw_merchant,
-            payment_amount=payment_amount,
-            card_no=card_no,
-            seq=seq
-        )
+    # 核心 Hash 方法映射
+    hash_id = staticmethod(hash_components)
+    generate_raw_id = staticmethod(generate_raw_transaction_id)
 
-    @staticmethod
+    @classmethod
     def assign_raw_transaction_id(
+        cls,
         row: Dict[str, Any],
-        seq_counter: Dict[str, int],
+        seq_counter: Optional[Dict[str, int]] = None,
         default_bank_no: Optional[str] = None,
         default_statement_month: Optional[str] = None
     ) -> str:
         """
-        為單筆 Raw 字典資料計算流水號 seq 並生成/指派 transaction_id
+        為單筆 Raw 字典資料計算流水號 seq 並生成/指派 transaction_id。
+        若未傳入 seq_counter 則單筆 seq 預設為 1。
         """
         b_no = str(row.get('bank_no') or default_bank_no or "").strip()
         s_mon = str(row.get('statement_month') or default_statement_month or "").strip()
@@ -88,9 +79,12 @@ class TransactionIdGenerator:
         p_amt = str(row.get('payment_amount') or row.get('amount') or "").strip()
         c_no = str(row.get('card_no') or "").strip()
 
-        key = f"{b_no}_{s_mon}_{t_date}_{m_name}_{p_amt}_{c_no}"
-        seq_counter[key] = seq_counter.get(key, 0) + 1
-        seq = seq_counter[key]
+        if seq_counter is not None:
+            key = f"{b_no}_{s_mon}_{t_date}_{m_name}_{p_amt}_{c_no}"
+            seq_counter[key] = seq_counter.get(key, 0) + 1
+            seq = seq_counter[key]
+        else:
+            seq = 1
 
         # 若無 transaction_id，自動生成
         if not row.get('transaction_id') or pd.isna(row.get('transaction_id')):
@@ -109,14 +103,9 @@ class TransactionIdGenerator:
         """
         動態串接 group_cols 欄位值 + 同日流水號 _seq 生成 SHA-256 (32碼)
         """
-        def safe_str(val):
-            return str(val).strip() if pd.notna(val) else ""
-        # 動態取得所有分組欄位的值，最後再加上 _seq
-        components = [safe_str(row.get(col)) for col in self.group_cols]
-        components.append(safe_str(row.get('_seq')))
-        
-        unique_str = "".join(components)
-        return hashlib.sha256(unique_str.encode('utf-8')).hexdigest()[:32]
+        components = [row.get(col) for col in self.group_cols]
+        components.append(row.get('_seq'))
+        return hash_components(*components)
 
     def generate_and_deduplicate(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -166,4 +155,4 @@ class TransactionIdGenerator:
         return df_result
 
 
-__all__ = ['TransactionIdGenerator', 'generate_raw_transaction_id']
+__all__ = ['TransactionIdGenerator', 'generate_raw_transaction_id', 'hash_components']

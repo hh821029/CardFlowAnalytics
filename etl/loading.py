@@ -2,7 +2,7 @@
 """
 ETL 模組 - Load (資料庫與檔案寫入、鍵值生成、資料表映射與視圖管理)
 包含：
-1. TransactionIdGenerator: 生成唯一 transaction_id (MD5 Hash) 與重複交易排除
+1. TransactionIdGenerator: 生成唯一 transaction_id (SHA-256 Hash) 與重複交易排除
 2. DBColMapper: 依據 TransactionColumn 定義將 DataFrame 映射為不同資料表 (all_transactions, RFM, 回饋計算等)
 3. load_data: 執行 STEP 3 (標準欄位收斂、型態執法、排序、輸出 CSV) 與 STEP 4 (入庫與視圖更新)
 """
@@ -28,9 +28,9 @@ except ImportError:
     resolve_db_backend = None
 
 
-from etl.schemas.TransactionIdGenerator import TransactionIdGenerator
-from etl.schemas.DBColMapper import DBColMapper, StandardColumns, STANDARD_COLUMNS
-from etl.schemas.FXnormalizer import normalize_to_twd, load_fx_table, _standardize_fx_df
+from etl.schemas.transaction_id_generator import TransactionIdGenerator
+from etl.schemas.db_col_mapper import DBColMapper, StandardColumns, STANDARD_COLUMNS
+from etl.schemas.fx_normalizer import normalize_to_twd, load_fx_table, _standardize_fx_df
 from etl.utils import save_anomaly_report
 
 logger = logging.getLogger(__name__)
