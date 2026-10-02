@@ -33,7 +33,7 @@ def generate_raw_transaction_id(
     seq: int = 1
 ) -> str:
     """
-    Stage 1 唯一識別碼生成器 (MD5 32碼)
+    Stage 1 唯一識別碼生成器 (SHA-256 32碼)
     組合鍵：bank_no + statement_month + transaction_date + raw_merchant + payment_amount + card_no + seq
     """
     b_no = str(bank_no or "").strip().zfill(3)[-3:]
@@ -46,7 +46,7 @@ def generate_raw_transaction_id(
 
     components = [b_no, s_mon, t_date, m_name, p_amt, c_no, s_num]
     raw_key = "".join(components)
-    return hashlib.md5(raw_key.encode('utf-8')).hexdigest()
+    return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()[:32]
 
 
 class RawTransactionSchema(BaseModel):

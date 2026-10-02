@@ -49,7 +49,7 @@ class TransactionIdGenerator:
 
     def _generate_transaction_id(self, row: pd.Series) -> str:
         """
-        動態串接 group_cols 欄位值 + 同日流水號 _seq 生成 MD5
+        動態串接 group_cols 欄位值 + 同日流水號 _seq 生成 SHA-256 (32碼)
         """
         def safe_str(val):
             return str(val).strip() if pd.notna(val) else ""
@@ -58,7 +58,7 @@ class TransactionIdGenerator:
         components.append(safe_str(row.get('_seq')))
         
         unique_str = "".join(components)
-        return hashlib.md5(unique_str.encode('utf-8')).hexdigest()
+        return hashlib.sha256(unique_str.encode('utf-8')).hexdigest()[:32]
 
     def generate_and_deduplicate(self, df: pd.DataFrame) -> pd.DataFrame:
         """
