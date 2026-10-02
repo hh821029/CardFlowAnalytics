@@ -196,3 +196,17 @@ def test_assign_raw_transaction_id_direct():
 
     assert id_a == id_single  # 第一筆 seq=1，應與無 counter 時相同
     assert id_b != id_a       # 第二筆 seq=2，流水號不同，ID 必定不同
+
+    # 4. 驗證 default 引數支援 (包含 date 物件)
+    row_with_defaults = {
+        "transaction_date": "2026-09-12",
+        "merchant": "全家",
+        "amount": "50"
+    }
+    id_def = TransactionIdGenerator.assign_raw_transaction_id(
+        row_with_defaults,
+        default_bank_no="013",
+        default_statement_month=date(2026, 9, 1)
+    )
+    assert isinstance(id_def, str) and len(id_def) == 32
+    assert row_with_defaults["transaction_id"] == id_def

@@ -39,7 +39,7 @@ class TransactionIdGenerator:
         row: Dict[str, Any],
         seq_counter: Optional[Dict[str, int]] = None,
         default_bank_no: Optional[str] = None,
-        default_statement_month: Optional[str] = None
+        default_statement_month: Optional[Any] = None
     ) -> str:
         """
         為單筆 Raw 字典資料計算流水號 seq 並生成/指派 transaction_id。
@@ -47,15 +47,25 @@ class TransactionIdGenerator:
         若 row 已具備有效 transaction_id 則直接回傳。
         """
         if row.get('transaction_id') and not pd.isna(row.get('transaction_id')):
-            return row['transaction_id']
+            return str(row['transaction_id'])
 
-        raw_bank_no = row.get('bank_no') or default_bank_no
+        raw_bank_no = row.get('bank_no') if not pd.isna(row.get('bank_no')) else default_bank_no
         b_no = str(raw_bank_no).strip().zfill(3)[-3:] if raw_bank_no else ""
-        s_mon = str(row.get('statement_month') or default_statement_month or "").strip()
-        t_date = str(row.get('transaction_date') or row.get('tx_date') or "").strip()
-        m_name = str(row.get('raw_merchant') or row.get('merchant') or row.get('merchant_name') or "").strip()
-        p_amt = str(row.get('payment_amount') or row.get('amount') or "").strip()
-        c_no = str(row.get('card_no') or "").strip()
+
+        raw_s_mon = row.get('statement_month') if not pd.isna(row.get('statement_month')) else default_statement_month
+        s_mon = str(raw_s_mon).strip() if raw_s_mon else ""
+
+        raw_t_date = row.get('transaction_date') or row.get('tx_date')
+        t_date = str(raw_t_date).strip() if not pd.isna(raw_t_date) and raw_t_date else ""
+
+        raw_m_name = row.get('raw_merchant') or row.get('merchant') or row.get('merchant_name')
+        m_name = str(raw_m_name).strip() if not pd.isna(raw_m_name) and raw_m_name else ""
+
+        raw_p_amt = row.get('payment_amount') or row.get('amount')
+        p_amt = str(raw_p_amt).strip() if not pd.isna(raw_p_amt) and raw_p_amt else ""
+
+        raw_c_no = row.get('card_no')
+        c_no = str(raw_c_no).strip() if not pd.isna(raw_c_no) and raw_c_no else ""
 
         if seq_counter is not None:
             key = f"{b_no}_{s_mon}_{t_date}_{m_name}_{p_amt}_{c_no}"

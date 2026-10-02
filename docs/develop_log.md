@@ -35,8 +35,10 @@
         - 統一全系統 Stage 1 唯一識別碼入口為 `TransactionIdGenerator.assign_raw_transaction_id`，徹底移除無業務調用之孤兒函式 `generate_raw_transaction_id`，消除技術債與認知混淆。
         - 消除重複字串清洗前處理，統一 `bank_no` 的 3 碼 `zfill` 規範，並在已存在有效 ID 時提早短路回傳。
         - 移除未被調用的靜態別名映射 `hash_id` 與 `generate_raw_id`。
-        - 優化 `generate_and_deduplicate`：將 Pandas `groupby().cumcount()` 流水號計算侷限於未具備 ID 之情境，大幅消除 Stage 2/4 既有資料二次去重時的冗餘計算開銷。
         - 於 `tests/test_raw_transaction_schema.py` 移除無用 import 並新增專屬單元測試驗證單筆預設指派、既有 ID 短路與批次流水號累加。
+      - **Stage 1 驗證層明確賦值風格與引數強固化 (`etl/schemas/validation.py`, `etl/schemas/transaction_id_generator.py`)**：
+        - 於 `validation.py` 將主鍵生成改為明確賦值風格：`row['transaction_id'] = TransactionIdGenerator.assign_raw_transaction_id(...)`，提升資料流向之可讀性與確定性。
+        - 於 `assign_raw_transaction_id` 強化引數防禦：`default_statement_month` 支援 `Optional[Any]`（相容 `date` 與 `str` 物件），並全面引入 `pd.isna()` 空值檢驗，防範 Pandas `nan` 偽真值造成字串污染。
 
 
 
