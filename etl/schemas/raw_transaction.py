@@ -20,33 +20,9 @@ from pydantic import (
     model_validator
 )
 
+from etl.schemas.TransactionIdGenerator import generate_raw_transaction_id, TransactionIdGenerator
+
 logger = logging.getLogger(__name__)
-
-
-def generate_raw_transaction_id(
-    bank_no: str,
-    statement_month: str,
-    transaction_date: str,
-    raw_merchant: str,
-    payment_amount: str,
-    card_no: Optional[str] = None,
-    seq: int = 1
-) -> str:
-    """
-    Stage 1 唯一識別碼生成器 (SHA-256 32碼)
-    組合鍵：bank_no + statement_month + transaction_date + raw_merchant + payment_amount + card_no + seq
-    """
-    b_no = str(bank_no or "").strip().zfill(3)[-3:]
-    s_mon = str(statement_month or "").strip()
-    t_date = str(transaction_date or "").strip()
-    m_name = str(raw_merchant or "").strip()
-    p_amt = str(payment_amount or "").strip()
-    c_no = str(card_no or "").strip() if card_no else ""
-    s_num = str(seq)
-
-    components = [b_no, s_mon, t_date, m_name, p_amt, c_no, s_num]
-    raw_key = "".join(components)
-    return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()[:32]
 
 
 class RawTransactionSchema(BaseModel):
@@ -384,29 +360,13 @@ def validate_raw_dataframe(
 
     for row in records:
         try:
-            # 計算流水號
-            b_no = str(row.get('bank_no') or default_bank_no or "").strip()
-            s_mon = str(row.get('statement_month') or default_statement_month or "").strip()
-            t_date = str(row.get('transaction_date') or row.get('tx_date') or "").strip()
-            m_name = str(row.get('raw_merchant') or row.get('merchant') or row.get('merchant_name') or "").strip()
-            p_amt = str(row.get('payment_amount') or row.get('amount') or "").strip()
-            c_no = str(row.get('card_no') or "").strip()
-
-            key = f"{b_no}_{s_mon}_{t_date}_{m_name}_{p_amt}_{c_no}"
-            seq_counter[key] = seq_counter.get(key, 0) + 1
-            seq = seq_counter[key]
-
-            # 若無 transaction_id，自動生成
-            if not row.get('transaction_id') or pd.isna(row.get('transaction_id')):
-                row['transaction_id'] = generate_raw_transaction_id(
-                    bank_no=b_no,
-                    statement_month=s_mon,
-                    transaction_date=t_date,
-                    raw_merchant=m_name,
-                    payment_amount=p_amt,
-                    card_no=c_no,
-                    seq=seq
-                )
+            # 計算流水號並自動生成/指派 transaction_id
+            TransactionIdGenerator.assign_raw_transaction_id(
+                row=row,
+                seq_counter=seq_counter,
+                default_bank_no=default_bank_no,
+                default_statement_month=default_statement_month
+            )
 
             # 收集特有欄位進入 raw_extra (如行動支付註記、vpc_type 等)
             extra_collector = {}

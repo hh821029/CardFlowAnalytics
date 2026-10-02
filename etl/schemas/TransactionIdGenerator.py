@@ -2,17 +2,44 @@
 """
 唯一鍵值生成與去重器 (Key Generator & Deduplicator)
 負責在資料寫入資料庫前生成全域唯一的主鍵 (transaction_id)，並執行去重。
+包含 Stage 1 (Raw Bronze 表) 與 Stage 4 (Cleaned Silver/Gold 表) 之識別碼生成邏輯。
 """
 import os
 import hashlib
 import logging
 import pandas as pd
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 import const
 from etl.schemas.DBColMapper import StandardColumns
 
 logger = logging.getLogger(__name__)
+
+
+def generate_raw_transaction_id(
+    bank_no: str,
+    statement_month: str,
+    transaction_date: str,
+    raw_merchant: str,
+    payment_amount: str,
+    card_no: Optional[str] = None,
+    seq: int = 1
+) -> str:
+    """
+    Stage 1 唯一識別碼生成器 (SHA-256 32碼)
+    組合鍵：bank_no + statement_month + transaction_date + raw_merchant + payment_amount + card_no + seq
+    """
+    b_no = str(bank_no or "").strip().zfill(3)[-3:]
+    s_mon = str(statement_month or "").strip()
+    t_date = str(transaction_date or "").strip()
+    m_name = str(raw_merchant or "").strip()
+    p_amt = str(payment_amount or "").strip()
+    c_no = str(card_no or "").strip() if card_no else ""
+    s_num = str(seq)
+
+    components = [b_no, s_mon, t_date, m_name, p_amt, c_no, s_num]
+    raw_key = "".join(components)
+    return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()[:32]
 
 
 class TransactionIdGenerator:
@@ -22,6 +49,61 @@ class TransactionIdGenerator:
     def __init__(self, output_dir: Optional[str] = None):
         self.output_dir = output_dir or const.OUTPUT_DIR
         self.group_cols = StandardColumns.ID_GROUP_COLUMNS
+
+    @staticmethod
+    def generate_raw_id(
+        bank_no: str,
+        statement_month: str,
+        transaction_date: str,
+        raw_merchant: str,
+        payment_amount: str,
+        card_no: Optional[str] = None,
+        seq: int = 1
+    ) -> str:
+        """Stage 1 Raw 交易識別碼生成方法 (委派 generate_raw_transaction_id)"""
+        return generate_raw_transaction_id(
+            bank_no=bank_no,
+            statement_month=statement_month,
+            transaction_date=transaction_date,
+            raw_merchant=raw_merchant,
+            payment_amount=payment_amount,
+            card_no=card_no,
+            seq=seq
+        )
+
+    @staticmethod
+    def assign_raw_transaction_id(
+        row: Dict[str, Any],
+        seq_counter: Dict[str, int],
+        default_bank_no: Optional[str] = None,
+        default_statement_month: Optional[str] = None
+    ) -> str:
+        """
+        為單筆 Raw 字典資料計算流水號 seq 並生成/指派 transaction_id
+        """
+        b_no = str(row.get('bank_no') or default_bank_no or "").strip()
+        s_mon = str(row.get('statement_month') or default_statement_month or "").strip()
+        t_date = str(row.get('transaction_date') or row.get('tx_date') or "").strip()
+        m_name = str(row.get('raw_merchant') or row.get('merchant') or row.get('merchant_name') or "").strip()
+        p_amt = str(row.get('payment_amount') or row.get('amount') or "").strip()
+        c_no = str(row.get('card_no') or "").strip()
+
+        key = f"{b_no}_{s_mon}_{t_date}_{m_name}_{p_amt}_{c_no}"
+        seq_counter[key] = seq_counter.get(key, 0) + 1
+        seq = seq_counter[key]
+
+        # 若無 transaction_id，自動生成
+        if not row.get('transaction_id') or pd.isna(row.get('transaction_id')):
+            row['transaction_id'] = generate_raw_transaction_id(
+                bank_no=b_no,
+                statement_month=s_mon,
+                transaction_date=t_date,
+                raw_merchant=m_name,
+                payment_amount=p_amt,
+                card_no=c_no,
+                seq=seq
+            )
+        return row['transaction_id']
 
     def _generate_transaction_id(self, row: pd.Series) -> str:
         """
@@ -84,4 +166,4 @@ class TransactionIdGenerator:
         return df_result
 
 
-__all__ = ['TransactionIdGenerator']
+__all__ = ['TransactionIdGenerator', 'generate_raw_transaction_id']
