@@ -1,9 +1,7 @@
 # etl/refinement/pipeline.py
 """
 Stage 2 (Silver) 商業規則清洗與資料集市 (Business Refinement & Feature Engineering)
-核心職責：
-1. 純函數式商業清洗介面 refine_transactions(raw_df) -> refined_df
-2. 獨立調度入口 run_stage2_pipeline()：免重新掃描實體帳單，直接自 raw_transactions 重跑 Stage 2 清洗
+核心職責：純函數式商業清洗介面 refine_transactions(raw_df) -> refined_df
 """
 import os
 import pandas as pd
@@ -14,22 +12,17 @@ import const
 from etl.refinement.merchant import MerchantPipeline
 from etl.refinement.card_classifier import CardClassifier
 from etl.refinement.transaction_classifier import TransactionClassifier
-from etl.utils import save_anomaly_report
+from etl.exceptions import save_anomaly_report
 
 try:
     from profiles.loaders.config_loader import ConfigLoader
 except ImportError:
     ConfigLoader = None
 
-try:
-    from database.loaders.db_reader import DBReader
-except ImportError:
-    DBReader = None
 
 logger = logging.getLogger(__name__)
 
 CONFIG_DIR = const.CONFIG_DIR
-OUTPUT_DIR = const.OUTPUT_DIR
 
 
 class DataRefiner:
@@ -175,55 +168,4 @@ def refine_transactions(raw_df: pd.DataFrame, configs: Optional[dict] = None) ->
         return raw_df.copy()
 
 
-def run_stage2_pipeline(
-    raw_df: Optional[pd.DataFrame] = None,
-    db_backend: Optional[str] = None, 
-    force: bool = True,
-    db_path: Optional[str] = None
-) -> bool:
-    """
-    Stage 2 獨立重跑管線 (免重新掃描檔案)：
-    1. 自資料庫 raw_transactions 讀取未清洗的標準原始資料 (若未直接傳入 raw_df)
-    2. 調用 refine_transactions 重新計算商業規則
-    3. 入庫至 all_transactions / refined_transactions 並自動刷新 Views 與索引
-    """
-    logger.info("🚀 [Stage 2 Pipeline] 啟動商業規則重算 (Stage 2 清洗與入庫)...")
 
-    try:
-        # 1. 若未傳入 raw_df，自 raw_transactions 讀取資料
-        if raw_df is None or raw_df.empty:
-            if DBReader is None:
-                logger.error("❌ 無法載入 DBReader 模組，請確認資料庫配置。")
-                return False
-            logger.info("📥 正在從資料庫讀取 [raw_transactions]...")
-            raw_df = DBReader.read_sql("SELECT * FROM raw_transactions", db_path=db_path)
-
-            if raw_df is None or raw_df.empty:
-                logger.warning("⚠️ 資料庫 [raw_transactions] 表目前無資料！請先執行完整 ETL (選項 1) 解析帳單入庫。")
-                return False
-
-        logger.info(f"📊 成功獲取 {len(raw_df)} 筆原始交易資料進行 Stage 2 清洗")
-
-        # 2. 執行純記憶體商業清洗
-        refined_df = refine_transactions(raw_df)
-        if refined_df is None or refined_df.empty:
-            logger.error("❌ Stage 2 商業清洗後無資料產出。")
-            return False
-
-        # 3. 入庫與視圖刷新
-        from etl.loading import load_data
-        success = load_data(
-            final_df=refined_df,
-            force=force,
-            db_backend=db_backend,
-            output_dir=OUTPUT_DIR,
-            db_path=db_path
-        )
-
-        if success:
-            logger.info("🎉 [Stage 2 Pipeline] 商業規則重算與資料庫入庫刷新全部成功！")
-        return success
-
-    except Exception as e:
-        logger.error(f"🚨 [Stage 2 Pipeline] 重跑流程發生異常: {e}", exc_info=True)
-        return False

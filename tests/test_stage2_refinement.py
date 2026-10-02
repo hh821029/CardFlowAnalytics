@@ -4,7 +4,8 @@ import pandas as pd
 import sqlite3
 import os
 
-from etl.refinement import refine_transactions, run_stage2_pipeline, DataRefiner
+from etl.refinement import refine_transactions, DataRefiner
+from etl.etl_api import run_stage2_pipeline
 from etl.transformation import transform_data
 from database.loaders.views_manager import ViewsManager
 

@@ -3,7 +3,7 @@ import pandas as pd
 import logging
 from typing import Optional
 import const
-from etl.utils import save_anomaly_report
+from etl.exceptions import save_anomaly_report
 
 logger = logging.getLogger(__name__)
 

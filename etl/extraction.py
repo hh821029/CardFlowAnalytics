@@ -25,8 +25,12 @@ try:
 except ImportError:
     ConfigLoader = None
 
-from etl.utils import save_anomaly_report
-from etl.exceptions import UnmappedBankError, InvalidBillFormatError, MaliciousPayloadDetectedError
+from etl.exceptions import (
+    save_anomaly_report,
+    UnmappedBankError,
+    InvalidBillFormatError,
+    MaliciousPayloadDetectedError
+)
 
 logger = logging.getLogger(__name__)
 

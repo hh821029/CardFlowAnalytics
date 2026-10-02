@@ -9,7 +9,10 @@
         - `TransactionIdGenerator.py` ➔ `etl/schemas/transaction_id_generator.py`
         - `DBColMapper.py` ➔ `etl/schemas/db_col_mapper.py`
         - `FXnormalizer.py` ➔ `etl/schemas/fx_normalizer.py`
-        - 同步更新 `etl/schemas/__init__.py`、`etl/loading.py`、`etl/utils.py` 與 `etl/schemas/raw_transaction.py` 之匯入路徑，並刪除舊的大駝峰檔案。
+      - **異常報告函式整併與 `etl/utils.py` 冗餘退役 (`etl/exceptions.py`)**：
+        - 將 `etl/utils.py` 剩餘之唯一的 `save_anomaly_report()` 函式遷移至 `etl/exceptions.py`。
+        - 更新全專案調用端（`loading.py`, `extraction.py`, `refinement/pipeline.py`, `refinement/transaction_classifier.py`）之引用路徑。
+        - 將既有測試中對 `StandardColumns` 的引用轉移至 `etl.schemas.db_col_mapper`，並徹底刪除空殼化之 `etl/utils.py`，降低技術債與認知混淆。
       - **ETL 前端管線解耦與 Per-File 串流入庫架構規劃 (`issues/issues20261002.md`)**：
         - 記錄 `validate_raw_dataframe` 與主鍵生成的 SRP 邊界劃分分析。
         - 定案將 `sanitizer.py` 下移至 `etl/parsers/sanitizer.py` 提升解析防禦內聚性。

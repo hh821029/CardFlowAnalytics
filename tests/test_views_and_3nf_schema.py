@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 import const
-from etl.utils import StandardColumns, STANDARD_COLUMNS
+from etl.schemas.db_col_mapper import StandardColumns, STANDARD_COLUMNS
 from database.loaders.views_manager import ViewsManager
 from profiles.loaders.config_loader import ConfigLoader
 

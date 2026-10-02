@@ -2,7 +2,7 @@ import sys
 import os
 import pytest
 import pandas as pd
-from etl.utils import STANDARD_COLUMNS
+from etl.schemas.db_col_mapper import STANDARD_COLUMNS
 
 # 將專案根目錄動態加入 sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))

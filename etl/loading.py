@@ -31,7 +31,7 @@ except ImportError:
 from etl.schemas.transaction_id_generator import TransactionIdGenerator
 from etl.schemas.db_col_mapper import DBColMapper, StandardColumns, STANDARD_COLUMNS
 from etl.schemas.fx_normalizer import normalize_to_twd, load_fx_table, _standardize_fx_df
-from etl.utils import save_anomaly_report
+from etl.exceptions import save_anomaly_report
 
 logger = logging.getLogger(__name__)
 

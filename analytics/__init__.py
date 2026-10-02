@@ -9,7 +9,7 @@ import logging
 from typing import List, Tuple, Optional
 import pandas as pd
 import const
-from etl.utils import StandardColumns
+from etl.schemas.db_col_mapper import StandardColumns
 from database.loaders.db_reader import DBReader
 
 logger = logging.getLogger(__name__)
