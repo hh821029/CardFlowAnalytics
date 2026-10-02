@@ -84,7 +84,15 @@ class BaseDBLoader(ABC):
                     return 'FALSE'
                 df_final[col] = df_final[col].map(to_bool_str)
 
-        # 3. 處理空值 (字串/object 欄位轉 None；數值/float 欄位保持原本 float64 以避開 to_sql object 轉型失敗)
+        # 3. 處理 Decimal 欄位 (將 Decimal 實例轉為 float，避免 SQLite 與其他 DB 驅動報錯)
+        from decimal import Decimal
+        for col in df_final.columns:
+            if pd.api.types.is_object_dtype(df_final[col]):
+                if df_final[col].apply(lambda v: isinstance(v, Decimal)).any():
+                    df_final[col] = df_final[col].apply(lambda v: float(v) if isinstance(v, Decimal) else v)
+                    df_final[col] = pd.to_numeric(df_final[col], errors='coerce')
+
+        # 4. 處理空值 (字串/object 欄位轉 None；數值/float 欄位保持原本 float64 以避開 to_sql object 轉型失敗)
         for col in df_final.columns:
             if col.lower() not in bool_cols and (pd.api.types.is_object_dtype(df_final[col]) or pd.api.types.is_string_dtype(df_final[col])):
                 df_final[col] = df_final[col].replace({pd.NA: None, np.nan: None, 'nan': None, 'None': None, '': None})

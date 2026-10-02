@@ -108,6 +108,7 @@ def prepare_demo_dataset():
         with sqlite3.connect(DEMO_ANALYSIS_DB) as conn:
             # 建立 demo 回饋摘要表 (確保前端回饋效益與回饋池頁籤有數據可展示)
             cursor = conn.cursor()
+            cursor.execute("DROP TABLE IF EXISTS rewards_monthly_summary")
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS rewards_monthly_summary (
                 month TEXT,
@@ -115,38 +116,39 @@ def prepare_demo_dataset():
                 card_type TEXT,
                 total_spending REAL,
                 total_reward REAL,
-                effective_rate REAL
+                effective_rate REAL,
+                reward_unit TEXT
             )
             """)
-            cursor.execute("DELETE FROM rewards_monthly_summary")
             demo_rewards_data = [
-                ("2025-10", "國泰世華", "Cube卡", 36250.0, 1087.5, 3.0),
-                ("2025-11", "華南銀行", "SnY信用卡", 15295.0, 764.75, 5.0),
-                ("2026-03", "中國信託", "Uniopen聯名卡", 380.0, 26.6, 7.0),
-                ("2026-05", "玉山銀行", "U Bear卡", 12565.0, 376.95, 3.0),
-                ("2026-05", "玉山銀行", "Unicard", 80.0, 2.4, 3.0)
+                ("2025-10", "國泰世華", "Cube卡", 36250.0, 1087.5, 3.0, "小樹點"),
+                ("2025-11", "華南銀行", "SnY信用卡", 15295.0, 764.75, 5.0, "元"),
+                ("2026-03", "中國信託", "Uniopen聯名卡", 380.0, 26.6, 7.0, "OPENPOINT"),
+                ("2026-05", "玉山銀行", "U Bear卡", 12565.0, 376.95, 3.0, "元"),
+                ("2026-05", "玉山銀行", "Unicard", 80.0, 2.4, 3.0, "玉山 e point")
             ]
-            cursor.executemany("INSERT INTO rewards_monthly_summary VALUES (?, ?, ?, ?, ?, ?)", demo_rewards_data)
+            cursor.executemany("INSERT INTO rewards_monthly_summary (month, bank_name, card_type, total_spending, total_reward, effective_rate, reward_unit) VALUES (?, ?, ?, ?, ?, ?, ?)", demo_rewards_data)
             
+            cursor.execute("DROP TABLE IF EXISTS rewards_pool_utilization")
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS rewards_pool_utilization (
-                merchant_reward_pools_id TEXT,
+                month TEXT,
+                bank_name TEXT,
+                card_type TEXT,
+                pool_id TEXT,
                 pool_name TEXT,
-                cycle_period TEXT,
+                total_reward REAL,
+                is_capped INTEGER,
                 cap_amount REAL,
-                used_amount REAL,
-                utilization_rate REAL,
-                remaining_amount REAL,
-                status TEXT
+                reward_unit TEXT
             )
             """)
-            cursor.execute("DELETE FROM rewards_pool_utilization")
             demo_pool_data = [
-                ("POOL_LINEPAY_GENERAL", "行動支付一般通路加碼", "2026-05", 500.0, 185.0, 37.0, 315.0, "normal"),
-                ("POOL_CONVENIENCE_STORE", "超商指定通路回饋池", "2026-05", 300.0, 120.0, 40.0, 180.0, "normal"),
-                ("POOL_DIGITAL_SUBSCRIPTION", "海外串流與數位服務池", "2026-05", 600.0, 360.0, 60.0, 240.0, "normal")
+                ("2026-05", "玉山銀行", "U Bear卡", "POOL_LINEPAY_GENERAL", "行動支付一般通路加碼", 185.0, 0, 500.0, "點"),
+                ("2026-05", "玉山銀行", "U Bear卡", "POOL_CONVENIENCE_STORE", "超商指定通路回饋池", 120.0, 0, 300.0, "元"),
+                ("2026-05", "國泰世華", "Cube卡", "POOL_DIGITAL_SUBSCRIPTION", "海外串流與數位服務池", 360.0, 0, 600.0, "小樹點")
             ]
-            cursor.executemany("INSERT INTO rewards_pool_utilization VALUES (?, ?, ?, ?, ?, ?, ?, ?)", demo_pool_data)
+            cursor.executemany("INSERT INTO rewards_pool_utilization (month, bank_name, card_type, pool_id, pool_name, total_reward, is_capped, cap_amount, reward_unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", demo_pool_data)
             conn.commit()
             logger.info("✅ 已自動注入 Demo 回饋效益與回饋池監控資料超市！")
     except Exception as e:

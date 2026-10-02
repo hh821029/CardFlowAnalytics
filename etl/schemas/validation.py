@@ -108,6 +108,16 @@ def validate_raw_dataframe(
             logger.warning(f"⚠️ RawTransactionSchema 驗證未通過，略過髒資料: {e} | 原始內容: {row}")
 
     clean_df = pd.DataFrame(clean_records)
+    if not clean_df.empty:
+        for amt_col in ['raw_amount', 'payment_amount']:
+            if amt_col in clean_df.columns:
+                clean_df[amt_col] = cast(pd.Series, pd.to_numeric(clean_df[amt_col], errors='coerce')).fillna(0.0).astype(float)
+        for date_col in ['statement_month', 'transaction_date', 'posting_date', 'conversion_date']:
+            if date_col in clean_df.columns:
+                clean_df[date_col] = clean_df[date_col].apply(
+                    lambda v: v.strftime('%Y-%m-%d') if isinstance(v, (date, datetime, pd.Timestamp)) else (str(v) if pd.notna(v) and v is not None else None)
+                )
+
     return validated_schemas, clean_df
 
 

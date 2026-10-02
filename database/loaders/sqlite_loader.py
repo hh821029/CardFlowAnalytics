@@ -47,6 +47,15 @@ class SQLiteLoader(BaseDBLoader):
         # 1. 呼叫 BaseDBLoader 的通用清理與格式化
         df_final = self._sanitize_dataframe(df)
 
+        # 1.1 針對 SQLite 特化：將 dict / list 複合型態 (如 raw_extra) 序列化為 JSON 字串
+        import json
+        for col in df_final.columns:
+            if pd.api.types.is_object_dtype(df_final[col]):
+                if df_final[col].apply(lambda v: isinstance(v, (dict, list))).any():
+                    df_final[col] = df_final[col].apply(
+                        lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v
+                    )
+
         # 2. 寫入 SQLite (加入 timeout 避免在高併發或 API 連線時 DB locked)
         try:
             with sqlite3.connect(self.db_path, timeout=30.0) as conn:
