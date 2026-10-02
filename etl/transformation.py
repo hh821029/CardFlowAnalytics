@@ -6,7 +6,8 @@ ETL 模組 - Transform (向後相容過渡轉接層)
 import pandas as pd
 from typing import Optional
 
-from etl.refinement import DataRefiner, refine_transactions, run_stage2_pipeline
+from etl.refinement import DataRefiner, refine_transactions
+from etl.etl_api import run_stage2_pipeline
 
 
 def transform_data(merged_df: pd.DataFrame) -> pd.DataFrame:

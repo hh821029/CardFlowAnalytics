@@ -6,7 +6,7 @@ ETL 模組統一對外調度介面 (Service-Level Dispatcher / Facade API)
 import os
 import pandas as pd
 import logging
-from typing import Optional, List, Dict, Any, Tuple, NamedTuple
+from typing import Optional, List, Dict, Any, Tuple, NamedTuple, cast
 
 # 1. 引入核心配置與常量
 import const
@@ -136,15 +136,15 @@ def run_extraction_pipeline(
                 continue
 
             # 冪等性防護 (Idempotent DB Load)：若為 SQLite，排除已存在於 raw_transactions 的主鍵
-            target_to_insert = clean_file_df
+            target_to_insert: pd.DataFrame = clean_file_df
             effective_backend = getattr(loader, 'backend', None) or db_backend or 'sqlite'
             if effective_backend == 'sqlite' and DBReader is not None:
                 try:
                     existing_ids_df = DBReader.read_sql("SELECT transaction_id FROM raw_transactions", db_path=db_path)
                     if existing_ids_df is not None and not existing_ids_df.empty and 'transaction_id' in existing_ids_df.columns:
                         existing_ids_set = set(existing_ids_df['transaction_id'].astype(str))
-                        new_mask = ~clean_file_df['transaction_id'].astype(str).isin(existing_ids_set)
-                        target_to_insert = clean_file_df[new_mask]
+                        new_mask = ~clean_file_df['transaction_id'].astype(str).isin(list(existing_ids_set))
+                        target_to_insert = cast(pd.DataFrame, clean_file_df[new_mask])
                 except Exception as check_e:
                     logger.debug(f"查詢既有 transaction_id 略過: {check_e}")
                     target_to_insert = clean_file_df
