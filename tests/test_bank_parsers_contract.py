@@ -5,7 +5,7 @@ from typing import Dict
 from unittest.mock import MagicMock, patch
 
 import const
-from etl.extraction import get_parser, get_bank_info
+from etl.parsers.dispatcher import get_parser, get_bank_info
 from etl.parsers.sinopac import SinopacBillParser
 from tests.fixtures.setup_fixtures import create_mock_fixtures
 

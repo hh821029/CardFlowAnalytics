@@ -8,7 +8,7 @@ from etl.schemas.db_col_mapper import STANDARD_COLUMNS
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import const
-from etl.extraction import get_bank_info, get_parser
+from etl.parsers.dispatcher import get_bank_info, get_parser
 from etl.transformation import transform_data
 from database.loaders.schema_enforcer import SchemaEnforcer
 

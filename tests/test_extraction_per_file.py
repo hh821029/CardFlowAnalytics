@@ -8,8 +8,8 @@ import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
 
-from etl.extraction import extract_file, extract_raw_data_stream
-from etl.etl_api import run_stage1_pipeline, run_etl_pipeline, Stage1Result
+from etl.parsers.dispatcher import extract_file, extract_raw_data_stream
+from etl.etl_api import run_extraction_pipeline, run_etl_pipeline, Stage1Result
 from etl.schemas.raw_transaction import RawTransactionSchema
 
 
@@ -47,7 +47,7 @@ class TestStage1PerFileProcessing:
         mock_parser = MagicMock()
         mock_parser.parse.side_effect = RuntimeError("檔案損壞模擬")
 
-        with patch("etl.extraction.get_parser", return_value=mock_parser):
+        with patch("etl.parsers.dispatcher.get_parser", return_value=mock_parser):
             res = extract_file(str(bad_file), force=True)
             assert res["status"] == "FAILED"
             assert res["df"] is None
@@ -66,14 +66,14 @@ class TestStage1PerFileProcessing:
         mock_parser = MagicMock()
         mock_parser.parse.side_effect = mock_parse
 
-        with patch("etl.extraction.get_parser", return_value=mock_parser), \
-             patch("etl.extraction.FileRegistryManager", None):
+        with patch("etl.parsers.dispatcher.get_parser", return_value=mock_parser), \
+             patch("etl.parsers.dispatcher.FileRegistryManager", None):
             items = list(extract_raw_data_stream(force=True, input_dir=str(tmp_path)))
             assert len(items) == 2
             statuses = [it["status"] for it in items]
             assert statuses == ["SUCCESS", "SUCCESS"]
 
-    def test_run_stage1_pipeline_isolates_bad_file_and_saves_good_file(self, tmp_path):
+    def test_run_extraction_pipeline_isolates_bad_file_and_saves_good_file(self, tmp_path):
         """
         核心測試：兩個檔案，一好一壞。
         壞檔應被隔離 (dump 並記錄 failed)，好檔應順利驗證並寫入 raw_transactions，整體流程回傳 True 且包含好檔的 DataFrame！
@@ -119,7 +119,7 @@ class TestStage1PerFileProcessing:
              patch("etl.etl_api.FileRegistryManager", return_value=mock_registry), \
              patch("etl.etl_api.extract_raw_data_stream", return_value=iter(mock_stream_data)):
 
-            result = run_stage1_pipeline(force=True, input_dir=str(tmp_path))
+            result = run_extraction_pipeline(force=True, input_dir=str(tmp_path))
 
             # 驗證結果
             assert result.success is True
@@ -144,7 +144,7 @@ class TestStage1PerFileProcessing:
         """驗證 run_etl_pipeline 能將 Stage 1 在記憶體的 DataFrame 直接無縫傳給 Stage 2"""
         dummy_stage1_df = pd.DataFrame([{"transaction_id": "tx123", "raw_merchant": "測試商家"}])
 
-        with patch("etl.etl_api.run_stage1_pipeline", return_value=Stage1Result(success=True, df=dummy_stage1_df)), \
+        with patch("etl.etl_api.run_extraction_pipeline", return_value=Stage1Result(success=True, df=dummy_stage1_df)), \
              patch("etl.etl_api.run_stage2_pipeline", return_value=True) as mock_s2:
 
             overall_success = run_etl_pipeline(force=True)

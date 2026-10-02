@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from pydantic import ValidationError
 
-from etl.schemas.raw_transaction import (
+from etl.schemas import (
     RawTransactionSchema,
     validate_raw_dataframe,
     generate_raw_transaction_id

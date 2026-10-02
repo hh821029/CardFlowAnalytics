@@ -15,7 +15,7 @@ from datetime import timedelta, datetime
 
 import const
 from tests.fixtures.setup_fixtures import create_mock_fixtures
-from etl.extraction import extract_raw_data_stream
+from etl.parsers.dispatcher import extract_raw_data_stream
 from etl.transformation import transform_data
 from etl.loading import TransactionIdGenerator
 

@@ -12,11 +12,11 @@ from typing import Optional, List, Dict, Any, Tuple, NamedTuple
 import const
 
 # 2. 引入 Extract 與 Refinement 階段模組
-from etl.extraction import extract_raw_data_stream, extract_file
+from etl.parsers.dispatcher import extract_raw_data_stream, extract_file
 from etl.refinement import refine_transactions
 
 # 3. 引入 Schema 驗證與資料庫工具 (Stage 1 Ingestion所需)
-from etl.schemas.raw_transaction import validate_raw_dataframe
+from etl.schemas.validation import validate_raw_dataframe
 from database.loaders.views_manager import ViewsManager
 from database.loaders.db_factory import get_db_loader
 
@@ -42,9 +42,9 @@ logger = logging.getLogger(__name__)
 
 class Stage1Result(NamedTuple):
     """
-    Stage 1 執行結果物件 (支援 Unpack 與布林真假值相容判定)
-    - 解構賦值: success, df = run_stage1_pipeline()
-    - 條件判定: if not run_stage1_pipeline():
+    Stage 1 / Extraction 執行結果物件 (支援 Unpack 與布林真假值相容判定)
+    - 解構賦值: success, df = run_extraction_pipeline()
+    - 條件判定: if not run_extraction_pipeline():
     """
     success: bool
     df: Optional[pd.DataFrame] = None
@@ -56,19 +56,19 @@ class Stage1Result(NamedTuple):
 # ==========================================
 # 主流程 (ETL Controller & Pipeline)
 # ==========================================
-def run_stage1_pipeline(
+def run_extraction_pipeline(
     force: bool = True,
     input_dir: Optional[str] = None,
     db_backend: Optional[str] = None,
     db_path: Optional[str] = None
 ) -> Stage1Result:
     """
-    Stage 1 Pipeline (Extract & Per-File Raw Ingestion):
-    1. Extract: 逐檔串流掃描帳單檔案、去重比對、分派 Parser 提取原始資料 (etl.extraction.extract_raw_data_stream)
+    Stage 1 Pipeline (Extraction & Per-File Raw Ingestion):
+    1. Extract: 逐檔串流掃描帳單檔案、去重比對、分派 Parser 提取原始資料 (etl.parsers.dispatcher.extract_raw_data_stream)
     2. Stage 1 Ingestion: 逐檔透過 Pydantic V2 驗證並同步寫入 raw_transactions (具備單檔容錯隔離 Fault Isolation)
     回傳: Stage1Result(success=bool, df=Optional[pd.DataFrame])
     """
-    logger.info(f"🚀 [Stage 1 Pipeline] 啟動原始資料提取與逐檔入庫... {'(強制全量重新解析)' if force else '(啟用檔案去重檢查)'}")
+    logger.info(f"🚀 [Extraction Pipeline] 啟動原始資料提取與逐檔入庫... {'(強制全量重新解析)' if force else '(啟用檔案去重檢查)'}")
 
     # 1. 確保 raw_transactions 表結構與 v_raw_transactions 視圖存在
     try:
@@ -251,15 +251,15 @@ def run_stage2_pipeline(
 
 def run_etl_pipeline(force: bool = True, input_dir: Optional[str] = None, db_backend: Optional[str] = None) -> bool:
     """
-    完整雙階式 ETL Pipeline (Stage 1 + Stage 2 組合進入點):
-    1. run_stage1_pipeline: 逐檔串流掃描、解析並安全隔離入庫至 raw_transactions
+    完整雙階式 ETL Pipeline (Extraction + Refinement 組合進入點):
+    1. run_extraction_pipeline: 逐檔串流掃描、解析並安全隔離入庫至 raw_transactions
     2. run_stage2_pipeline: 將 Stage 1 驗證產物直接在記憶體傳遞給 Stage 2 (若無則自 DB 讀取全量)
     """
     logger.info(f"🚀 ETL 流程啟動 (獨立模組執行)... {'(強制全量重新解析)' if force else '(啟用檔案去重檢查)'}")
     
     try:
         # 段落一: Stage 1 Pipeline (Extract + Ingestion)
-        s1_res = run_stage1_pipeline(force=force, input_dir=input_dir, db_backend=db_backend)
+        s1_res = run_extraction_pipeline(force=force, input_dir=input_dir, db_backend=db_backend)
         if not s1_res:
             logger.error("❌ Stage 1 流程執行失敗，終止後續管線。")
             return False
@@ -273,5 +273,5 @@ def run_etl_pipeline(force: bool = True, input_dir: Optional[str] = None, db_bac
         return False
 
 
-__all__ = ["run_etl_pipeline", "run_stage1_pipeline", "run_stage2_pipeline", "refine_transactions", "Stage1Result"]
+__all__ = ["run_etl_pipeline", "run_extraction_pipeline", "run_stage2_pipeline", "refine_transactions", "Stage1Result"]
 

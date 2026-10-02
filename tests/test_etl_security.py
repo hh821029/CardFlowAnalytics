@@ -15,7 +15,7 @@ import pandas as pd
 from unittest.mock import patch, MagicMock
 
 import const
-from etl.extraction import get_bank_info, get_parser, extract_raw_data_stream, extract_file
+from etl.parsers.dispatcher import get_bank_info, get_parser, extract_raw_data_stream, extract_file
 from etl.exceptions import UnmappedBankError, InvalidBillFormatError, MaliciousPayloadDetectedError
 from etl.parsers.sanitizer import BillSanitizer
 from etl.parsers.cathay import CubeParser

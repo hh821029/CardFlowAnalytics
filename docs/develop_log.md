@@ -23,6 +23,14 @@
         - 引入 `Stage1Result(NamedTuple)`，既支援 Unpack (`success, df = ...`) 亦相容布林真假值判定；並將 Stage 1 在記憶體中剛校驗完畢之 DataFrame 直接傳遞給 `run_stage2_pipeline(raw_df=...)`，免除資料庫二次全表查詢 I/O。
         - **完全放棄向後相容進入點 `extract_raw_data`**：落實 GEMINI.md 原則性禁止向後相容規範，自 `etl/extraction.py`、`etl/etl_api.py` 與各測試模組中徹底移除 `extract_raw_data`，消除技術債與認知混淆。
         - 建立單元測試 `tests/test_stage1_per_file.py`，完整涵蓋單檔錯誤隔離、串流產出、資料流無縫銜接與 NamedTuple 行為斷言。
+      - **Stage 1 資料契約驗證器解耦搬遷 (`etl/schemas/validation.py`, `etl/schemas/raw_transaction.py`, `etl/schemas/__init__.py`)**：
+        - 將 `validate_raw_dataframe` 與 `STANDARD_RAW_FIELDS` 自 `etl/schemas/raw_transaction.py` 完整分離搬入新模組 `etl/schemas/validation.py`，徹底解耦「Pydantic 資料契約模型 (Data Contract Model)」與「批次 DataFrame 驗證轉接器 (Validation Adapter)」，貫徹單一職責原則 (SRP)。
+        - 於 `etl/schemas/__init__.py` 統一匯出 `validate_raw_dataframe` 與 `STANDARD_RAW_FIELDS`。
+      - **提取分派器內聚下移與進入點更名 (`etl/parsers/dispatcher.py`, `etl/etl_api.py`, `etl/parsers/__init__.py`)**：
+        - 將 `etl/extraction.py` 正式遷移為 `etl/parsers/dispatcher.py`，使 Parser 選擇、單檔提取與串流產生器徹底收斂於 `etl/parsers/` 子系統內部。
+        - 於 `etl/parsers/__init__.py` 統一導出 `extract_raw_data_stream`, `extract_file`, `get_bank_info`, `get_parser`。
+        - 將 `etl/etl_api.py` 的 Stage 1 進入點自 `run_stage1_pipeline()` 更名為語意更精確對齊的 `run_extraction_pipeline()`。
+        - 遵循 GEMINI.md 原則性禁止向後相容規範，徹底刪除舊檔 `etl/extraction.py`，全專案測試案例與調用端引用同步全面切換至 `etl.parsers.dispatcher` 與 `run_extraction_pipeline()`。
 
 
 

@@ -2,8 +2,7 @@ import os
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
-
-import etl.extraction as extraction
+import etl.parsers.dispatcher as extraction
 from etl.parsers.sinopac import SinopacBillParser
 from etl.parsers.esun import EsunParser
 from etl.parsers.cathay import CubeParser

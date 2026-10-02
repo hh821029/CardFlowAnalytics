@@ -1,7 +1,8 @@
-# etl/extraction.py
+# etl/parsers/dispatcher.py
 """
-ETL 模組 - Extract (資料讀取、去重與解析器分派)
-支援逐檔串流提取 (extract_raw_data_stream) 與單檔錯誤隔離 (extract_file)
+ETL 模組 - Extract / Dispatcher (帳單讀取、去重與解析器分派核心)
+負責依銀行特徵分派對應 Parser 實例，支援單檔安全解析 (extract_file)
+與逐檔串流提取 (extract_raw_data_stream) 達成錯誤隔離。
 """
 import os
 import pandas as pd
@@ -330,5 +331,3 @@ __all__ = [
     'get_parser',
     'get_parser_mapping'
 ]
-
-
